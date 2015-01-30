@@ -15,7 +15,16 @@ DELAY = 2
 # SGD learning rate
 LEARNING_RATE = 1e-1
 # Number of iterations to train the net
-N_ITERATIONS = 1000
+N_ITERATIONS = 100
+
+def quantized(inp):
+    n = 10
+    n_batch, length, _ = inp.shape
+    out = np.zeros(shape=(n_batch, length, n))
+    for i_batch in range(n_batch):
+        for i_element in range(length):
+            out[i_batch,i_element,:], _ = np.histogram(inp[i_batch, i_element, 0], [-1,-.8,-.6,-.4,-.2,0.0,.2,.4,.6,.8,1])
+    return out - 0.5
 
 def gen_single_appliance(length, power, on_duration, min_off_duration=20):
     appliance_power = np.zeros(shape=(length+1))
@@ -61,7 +70,8 @@ def gen_data(length=LENGTH, n_batch=N_BATCH, n_appliances=2,
 
     max_power = np.sum(appliance_powers)
     
-    return X / max_power, y / max_power
+    return quantized(X / max_power), quantized(y / max_power)
+#    return X / max_power, y / max_power
 
 # Generate a "validation" sequence whose cost we will periodically compute
 X_val, y_val = gen_data()
