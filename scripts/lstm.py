@@ -15,7 +15,7 @@ DELAY = 2
 # SGD learning rate
 LEARNING_RATE = 1e-1
 # Number of iterations to train the net
-N_ITERATIONS = 100
+N_ITERATIONS = 50
 
 def quantized(inp):
     n = 10
@@ -70,7 +70,7 @@ def gen_data(length=LENGTH, n_batch=N_BATCH, n_appliances=2,
 
     max_power = np.sum(appliance_powers)
     
-    return quantized(X / max_power), quantized(y / max_power)
+    return quantized(X / max_power), y / max_power
 #    return X / max_power, y / max_power
 
 # Generate a "validation" sequence whose cost we will periodically compute
@@ -151,7 +151,7 @@ def plot_estimates():
     ax = plt.gca()
     ax.plot(y_predictions[0,:,0], label='estimate')
     ax.plot(y[0,:,0], label='ground truth')
-    ax.plot(X[0,:,0], label='aggregate')
+    # ax.plot(X[0,:,0], label='aggregate')
     ax.legend()
     plt.show()
 
