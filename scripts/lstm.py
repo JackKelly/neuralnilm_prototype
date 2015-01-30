@@ -4,7 +4,7 @@ import theano.tensor as T
 import lasagne
 theano.config.compute_test_value = 'raise'
 # Sequence length
-LENGTH = 10
+LENGTH = 100
 # Number of units in the hidden (recurrent) layer
 N_HIDDEN = 4
 # Number of training sequences in each batch
@@ -14,36 +14,52 @@ DELAY = 2
 # SGD learning rate
 LEARNING_RATE = 1e-1
 # Number of iterations to train the net
-N_ITERATIONS = 3
+N_ITERATIONS = 100
 
 
-def gen_data(length=LENGTH, n_batch=N_BATCH, delay=DELAY):
-    '''
-    Generate a simple lag sequence
+def gen_single_appliance(length, power, on_duration, min_off_duration=20):
+    appliance_power = np.zeros(shape=(length))
+    i = 0
+    while i < length:
+        if np.random.binomial(n=1, p=0.2):
+            end = min(i + on_duration, length)
+            appliance_power[i:end] = power
+            i += on_duration + min_off_duration
+        else:
+            i += 1
+    return appliance_power
+
+def gen_batches_of_single_appliance(length, n_batch, *args, **kwargs):
+    batches = np.zeros(shape=(n_batch, length, 1))
+    for i in range(n_batch):
+        batches[i, :, :] = gen_single_appliance(length, *args, **kwargs).reshape(length, 1)
+    return batches
+
+def gen_data(length=LENGTH, n_batch=N_BATCH, n_appliances=2, 
+             appliance_powers=[10,20], 
+             appliance_on_durations=[5,2]):
+    '''Generate a simple energy disaggregation data.
 
     :parameters:
         - length : int
             Length of sequences to generate
         - n_batch : int
             Number of training sequences per batch
-        - delay : int
-            How much to delay one feature dimension in the target
 
     :returns:
-        - X : np.ndarray, shape=(n_batch, length, 2)
+        - X : np.ndarray, shape=(n_batch, length, 1)
             Input sequence
         - y : np.ndarray, shape=(n_batch, length, 1)
-            Target sequence, where
-            y[n] = X[:, n, 0] - X[:, n - delay, 1] + noise
+            Target sequence, appliance 1
     '''
-    # could use something like np.random.choice([-1, -0.5, 1], (n_batch,length,2))
-    X = .5*np.random.rand(n_batch, length, 2)
-    y = X[:, :, 0].reshape((n_batch, length, 1))
-    # Compute y[n] = X[:, n, 0] - X[:, n - delay, 1] + noise
-    y[:, delay:, 0] += (X[:, :-delay, 1]
-                        + .01*np.random.randn(n_batch, length - delay))
-    return X.astype(theano.config.floatX), y.astype(theano.config.floatX)
-
+    y = gen_batches_of_single_appliance(length, n_batch, 
+                                        power=appliance_powers[0], 
+                                        on_duration=appliance_on_durations[0])
+    X = y.copy()
+    for power, on_duration in zip(appliance_powers, appliance_on_durations)[1:]:
+        X += gen_batches_of_single_appliance(length, n_batch, power=power, on_duration=on_duration)
+    
+    return X, y
 
 # Generate a "validation" sequence whose cost we will periodically compute
 X_val, y_val = gen_data()
