@@ -10,12 +10,10 @@ LENGTH = 200
 N_HIDDEN = 15
 # Number of training sequences in each batch
 N_BATCH = 30
-# Delay used to generate artificial training data
-DELAY = 2
 # SGD learning rate
 LEARNING_RATE = 1e-1
 # Number of iterations to train the net
-N_ITERATIONS = 50
+N_ITERATIONS = 100
 
 def quantized(inp):
     n = 10
@@ -71,7 +69,6 @@ def gen_data(length=LENGTH, n_batch=N_BATCH, n_appliances=2,
     max_power = np.sum(appliance_powers)
     
     return quantized(X / max_power), y / max_power
-#    return X / max_power, y / max_power
 
 # Generate a "validation" sequence whose cost we will periodically compute
 X_val, y_val = gen_data()
