@@ -1,19 +1,20 @@
 from __future__ import division
+import matplotlib.pyplot as plt
 import numpy as np
 import theano
 import theano.tensor as T
 import lasagne
 theano.config.compute_test_value = 'raise'
 # Sequence length
-LENGTH = 200
+LENGTH = 400
 # Number of units in the hidden (recurrent) layer
-N_HIDDEN = 15
+N_HIDDEN = 5
 # Number of training sequences in each batch
 N_BATCH = 30
 # SGD learning rate
 LEARNING_RATE = 1e-1
 # Number of iterations to train the net
-N_ITERATIONS = 100
+N_ITERATIONS = 200
 
 def quantized(inp):
     n = 10
@@ -22,19 +23,22 @@ def quantized(inp):
     for i_batch in range(n_batch):
         for i_element in range(length):
             out[i_batch,i_element,:], _ = np.histogram(inp[i_batch, i_element, 0], [-1,-.8,-.6,-.4,-.2,0.0,.2,.4,.6,.8,1])
-    return out - 0.5
+    return (out * 2) - 1
 
-def gen_single_appliance(length, power, on_duration, min_off_duration=20):
-    appliance_power = np.zeros(shape=(length+1))
+def gen_single_appliance(length, power, on_duration, min_off_duration=20, 
+                         fdiff=True):
+    if fdiff:
+        length += 1
+    appliance_power = np.zeros(shape=(length))
     i = 0
-    while i < length+1:
+    while i < length:
         if np.random.binomial(n=1, p=0.2):
-            end = min(i + on_duration, length+1)
+            end = min(i + on_duration, length)
             appliance_power[i:end] = power
             i += on_duration + min_off_duration
         else:
             i += 1
-    return np.diff(appliance_power)
+    return np.diff(appliance_power) if fdiff else appliance_power
 
 def gen_batches_of_single_appliance(length, n_batch, *args, **kwargs):
     batches = np.zeros(shape=(n_batch, length, 1))
@@ -44,7 +48,7 @@ def gen_batches_of_single_appliance(length, n_batch, *args, **kwargs):
 
 def gen_data(length=LENGTH, n_batch=N_BATCH, n_appliances=2, 
              appliance_powers=[10,20], 
-             appliance_on_durations=[5,2]):
+             appliance_on_durations=[10,2]):
     '''Generate a simple energy disaggregation data.
 
     :parameters:
@@ -127,21 +131,21 @@ compute_cost = theano.function(
     allow_input_downcast=True)
 
 # Train the net
-costs = np.zeros(N_ITERATIONS)
-for n in range(N_ITERATIONS):
-    X, y = gen_data()
+def run_training():
+    costs = np.zeros(N_ITERATIONS)
+    for n in range(N_ITERATIONS):
+        X, y = gen_data()
 
-    # you should use your own training data mask instead of mask_val
-    costs[n] = train(X, y)
-    if not n % 100:
-        cost_val = compute_cost(X_val, y_val)
-        print "Iteration {} validation cost = {}".format(n, cost_val)
+        # you should use your own training data mask instead of mask_val
+        costs[n] = train(X, y)
+        if not n % 100:
+            cost_val = compute_cost(X_val, y_val)
+            print "Iteration {} validation cost = {}".format(n, cost_val)
 
-import matplotlib.pyplot as plt
-plt.plot(costs)
-plt.xlabel('Iteration')
-plt.ylabel('Cost')
-plt.show()
+    plt.plot(costs)
+    plt.xlabel('Iteration')
+    plt.ylabel('Cost')
+    plt.show()
 
 def plot_estimates():
     y_predictions = y_pred(X)
@@ -152,3 +156,5 @@ def plot_estimates():
     ax.legend()
     plt.show()
 
+run_training()
+plot_estimates()
