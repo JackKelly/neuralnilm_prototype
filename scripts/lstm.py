@@ -108,9 +108,9 @@ input.tag.test_value = np.random.rand(
 target_output.tag.test_value = np.random.rand(
     *y_val.shape).astype(theano.config.floatX)
 
-# Cost = mean squared error, starting from delay point
-cost = T.mean((l_out.get_output(input)[:, DELAY:, :]
-               - target_output[:, DELAY:, :])**2)
+# Cost = mean squared error
+cost = T.mean((l_out.get_output(input) - target_output)**2)
+
 # Use NAG for training
 all_params = lasagne.layers.get_all_params(l_out)
 updates = lasagne.updates.nesterov_momentum(cost, all_params, LEARNING_RATE)
