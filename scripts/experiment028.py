@@ -4,6 +4,12 @@ import numpy as np
 import theano
 import theano.tensor as T
 import lasagne
+
+"""
+INPUT: quantized mains fdiff
+OUTPUT: appliance fdiff
+"""
+
 theano.config.compute_test_value = 'raise'
 # Sequence length
 LENGTH = 400
@@ -148,6 +154,7 @@ def run_training():
     plt.show()
 
 def plot_estimates():
+    X, y = gen_data()
     y_predictions = y_pred(X)
     ax = plt.gca()
     ax.plot(y_predictions[0,:,0], label='estimate')
