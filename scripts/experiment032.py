@@ -22,6 +22,8 @@ LEARNING_RATE = 1e-1
 # Number of iterations to train the net
 N_ITERATIONS = 1000
 
+############### GENERATE DATA ##############################
+
 def quantized(inp):
     n = 10
     n_batch, length, _ = inp.shape
@@ -80,61 +82,62 @@ def gen_data(length=LENGTH, n_batch=N_BATCH, n_appliances=2,
     
     return quantized(X / max_power), y / max_power
 
-# Generate a "validation" sequence whose cost we will periodically compute
-X_val, y_val = gen_data()
 
-n_features = X_val.shape[-1]
-n_output = y_val.shape[-1]
-assert X_val.shape == (N_BATCH, LENGTH, n_features)
-assert y_val.shape == (N_BATCH, LENGTH, n_output)
+class Net(object):
+    def __init__(self):
+        # Generate a "validation" sequence whose cost we will periodically compute
+        X_val, y_val = gen_data()
 
-# Construct LSTM RNN: One LSTM layer and one dense output layer
-l_in = lasagne.layers.InputLayer(shape=(N_BATCH, LENGTH, n_features))
+        n_features = X_val.shape[-1]
+        n_output = y_val.shape[-1]
+        assert X_val.shape == (N_BATCH, LENGTH, n_features)
+        assert y_val.shape == (N_BATCH, LENGTH, n_output)
 
+        # Construct LSTM RNN: One LSTM layer and one dense output layer
+        l_in = lasagne.layers.InputLayer(shape=(N_BATCH, LENGTH, n_features))
 
-# setup fwd and bck LSTM layer.
-l_fwd = lasagne.layers.LSTMLayer(
-    l_in, N_HIDDEN, backwards=False, learn_init=True, peepholes=True)
-l_bck = lasagne.layers.LSTMLayer(
-    l_in, N_HIDDEN, backwards=True, learn_init=True, peepholes=True)
+        # setup fwd and bck LSTM layer.
+        l_fwd = lasagne.layers.LSTMLayer(
+            l_in, N_HIDDEN, backwards=False, learn_init=True, peepholes=True)
+        l_bck = lasagne.layers.LSTMLayer(
+            l_in, N_HIDDEN, backwards=True, learn_init=True, peepholes=True)
 
-# concatenate forward and backward LSTM layers
-l_fwd_reshape = lasagne.layers.ReshapeLayer(l_fwd, (N_BATCH*LENGTH, N_HIDDEN))
-l_bck_reshape = lasagne.layers.ReshapeLayer(l_bck, (N_BATCH*LENGTH, N_HIDDEN))
-l_concat = lasagne.layers.ConcatLayer([l_fwd_reshape, l_bck_reshape], axis=1)
+        # concatenate forward and backward LSTM layers
+        l_fwd_reshape = lasagne.layers.ReshapeLayer(l_fwd, (N_BATCH*LENGTH, N_HIDDEN))
+        l_bck_reshape = lasagne.layers.ReshapeLayer(l_bck, (N_BATCH*LENGTH, N_HIDDEN))
+        l_concat = lasagne.layers.ConcatLayer([l_fwd_reshape, l_bck_reshape], axis=1)
 
+        l_recurrent_out = lasagne.layers.DenseLayer(
+            l_concat, num_units=n_output, nonlinearity=None)
+        l_out = lasagne.layers.ReshapeLayer(
+            l_recurrent_out, (N_BATCH, LENGTH, n_output))
 
-l_recurrent_out = lasagne.layers.DenseLayer(
-    l_concat, num_units=n_output, nonlinearity=None)
-l_out = lasagne.layers.ReshapeLayer(
-    l_recurrent_out, (N_BATCH, LENGTH, n_output))
+        input = T.tensor3('input')
+        target_output = T.tensor3('target_output')
 
-input = T.tensor3('input')
-target_output = T.tensor3('target_output')
+        # add test values
+        input.tag.test_value = np.random.rand(
+            *X_val.shape).astype(theano.config.floatX)
+        target_output.tag.test_value = np.random.rand(
+            *y_val.shape).astype(theano.config.floatX)
 
-# add test values
-input.tag.test_value = np.random.rand(
-    *X_val.shape).astype(theano.config.floatX)
-target_output.tag.test_value = np.random.rand(
-    *y_val.shape).astype(theano.config.floatX)
+        # Cost = mean squared error
+        cost = T.mean((l_out.get_output(input) - target_output)**2)
 
-# Cost = mean squared error
-cost = T.mean((l_out.get_output(input) - target_output)**2)
+        # Use NAG for training
+        all_params = lasagne.layers.get_all_params(l_out)
+        updates = lasagne.updates.nesterov_momentum(cost, all_params, LEARNING_RATE)
+        # Theano functions for training, getting output, and computing cost
+        train = theano.function([input, target_output],
+                                cost, updates=updates, on_unused_input='warn',
+                                allow_input_downcast=True)
+        y_pred = theano.function(
+            [input], l_out.get_output(input), on_unused_input='warn',
+            allow_input_downcast=True)
 
-# Use NAG for training
-all_params = lasagne.layers.get_all_params(l_out)
-updates = lasagne.updates.nesterov_momentum(cost, all_params, LEARNING_RATE)
-# Theano functions for training, getting output, and computing cost
-train = theano.function([input, target_output],
-                        cost, updates=updates, on_unused_input='warn',
-                        allow_input_downcast=True)
-y_pred = theano.function(
-    [input], l_out.get_output(input), on_unused_input='warn',
-    allow_input_downcast=True)
-
-compute_cost = theano.function(
-    [input, target_output], cost, on_unused_input='warn',
-    allow_input_downcast=True)
+        compute_cost = theano.function(
+            [input, target_output], cost, on_unused_input='warn',
+            allow_input_downcast=True)
 
 # Train the net
 def run_training():

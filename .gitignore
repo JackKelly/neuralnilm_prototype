@@ -56,3 +56,4 @@ env
 
 # Rope
 .ropeproject/
+.ipynb_checkpoints/

@@ -4,81 +4,22 @@ import numpy as np
 import theano
 import theano.tensor as T
 import lasagne
-
-"""
-INPUT: quantized mains fdiff
-OUTPUT: appliance fdiff
-"""
-
+from gen_data_029 import gen_data, N_BATCH, LENGTH
 theano.config.compute_test_value = 'raise'
-# Sequence length
-LENGTH = 400
+
+"""
+tanh output
+lower learning rate
+* does just about learn something sensible, but not especially convincing, 
+  even after 2000 iterations.
+"""
+
 # Number of units in the hidden (recurrent) layer
 N_HIDDEN = 5
-# Number of training sequences in each batch
-N_BATCH = 30
 # SGD learning rate
-LEARNING_RATE = 1e-1
+LEARNING_RATE = 1e-2
 # Number of iterations to train the net
-N_ITERATIONS = 1000
-
-def quantized(inp):
-    n = 10
-    n_batch, length, _ = inp.shape
-    out = np.zeros(shape=(n_batch, length, n))
-    for i_batch in range(n_batch):
-        for i_element in range(length):
-            out[i_batch,i_element,:], _ = np.histogram(inp[i_batch, i_element, 0], [-1,-.8,-.6,-.4,-.2,0.0,.2,.4,.6,.8,1])
-    return (out * 2) - 1
-
-def gen_single_appliance(length, power, on_duration, min_off_duration=20, 
-                         fdiff=True):
-    if fdiff:
-        length += 1
-    appliance_power = np.zeros(shape=(length))
-    i = 0
-    while i < length:
-        if np.random.binomial(n=1, p=0.2):
-            end = min(i + on_duration, length)
-            appliance_power[i:end] = power
-            i += on_duration + min_off_duration
-        else:
-            i += 1
-    return np.diff(appliance_power) if fdiff else appliance_power
-
-def gen_batches_of_single_appliance(length, n_batch, *args, **kwargs):
-    batches = np.zeros(shape=(n_batch, length, 1))
-    for i in range(n_batch):
-        batches[i, :, :] = gen_single_appliance(length, *args, **kwargs).reshape(length, 1)
-    return batches
-
-def gen_data(length=LENGTH, n_batch=N_BATCH, n_appliances=2, 
-             appliance_powers=[10,20], 
-             appliance_on_durations=[10,2]):
-    '''Generate a simple energy disaggregation data.
-
-    :parameters:
-        - length : int
-            Length of sequences to generate
-        - n_batch : int
-            Number of training sequences per batch
-
-    :returns:
-        - X : np.ndarray, shape=(n_batch, length, 1)
-            Input sequence
-        - y : np.ndarray, shape=(n_batch, length, 1)
-            Target sequence, appliance 1
-    '''
-    y = gen_batches_of_single_appliance(length, n_batch, 
-                                        power=appliance_powers[0], 
-                                        on_duration=appliance_on_durations[0])
-    X = y.copy()
-    for power, on_duration in zip(appliance_powers, appliance_on_durations)[1:]:
-        X += gen_batches_of_single_appliance(length, n_batch, power=power, on_duration=on_duration)
-
-    max_power = np.sum(appliance_powers)
-    
-    return quantized(X / max_power), y / max_power
+N_ITERATIONS = 2000
 
 # Generate a "validation" sequence whose cost we will periodically compute
 X_val, y_val = gen_data()
@@ -105,7 +46,7 @@ l_concat = lasagne.layers.ConcatLayer([l_fwd_reshape, l_bck_reshape], axis=1)
 
 
 l_recurrent_out = lasagne.layers.DenseLayer(
-    l_concat, num_units=n_output, nonlinearity=None)
+    l_concat, num_units=n_output, nonlinearity=lasagne.nonlinearities.tanh)
 l_out = lasagne.layers.ReshapeLayer(
     l_recurrent_out, (N_BATCH, LENGTH, n_output))
 
@@ -144,7 +85,7 @@ def run_training():
 
         # you should use your own training data mask instead of mask_val
         costs[n] = train(X, y)
-        if not n % 100:
+        if not n % 10:
             cost_val = compute_cost(X_val, y_val)
             print "Iteration {} validation cost = {}".format(n, cost_val)
 

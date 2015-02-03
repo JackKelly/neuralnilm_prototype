@@ -8,6 +8,7 @@ import lasagne
 """
 INPUT: quantized mains fdiff
 OUTPUT: appliance fdiff
+OBJECTIVE: MSE of cumsum
 """
 
 theano.config.compute_test_value = 'raise'
@@ -18,9 +19,9 @@ N_HIDDEN = 5
 # Number of training sequences in each batch
 N_BATCH = 30
 # SGD learning rate
-LEARNING_RATE = 1e-1
+LEARNING_RATE = 1e-2
 # Number of iterations to train the net
-N_ITERATIONS = 1000
+N_ITERATIONS = 10000
 
 def quantized(inp):
     n = 10
@@ -119,7 +120,8 @@ target_output.tag.test_value = np.random.rand(
     *y_val.shape).astype(theano.config.floatX)
 
 # Cost = mean squared error
-cost = T.mean((l_out.get_output(input) - target_output)**2)
+cost = T.mean(((T.extra_ops.cumsum(l_out.get_output(input), axis=1) - 
+                T.extra_ops.cumsum(target_output, axis=1)) / 1000)**2)
 
 # Use NAG for training
 all_params = lasagne.layers.get_all_params(l_out)
@@ -144,7 +146,7 @@ def run_training():
 
         # you should use your own training data mask instead of mask_val
         costs[n] = train(X, y)
-        if not n % 100:
+        if not n % 10:
             cost_val = compute_cost(X_val, y_val)
             print "Iteration {} validation cost = {}".format(n, cost_val)
 
@@ -158,6 +160,7 @@ def plot_estimates():
     y_predictions = y_pred(X)
     ax = plt.gca()
     ax.plot(y_predictions[0,:,0], label='estimate')
+    ax.plot(np.cumsum(y_predictions, axis=1)[0,:,0], label='estimate cumsum')
     ax.plot(y[0,:,0], label='ground truth')
     # ax.plot(X[0,:,0], label='aggregate')
     ax.legend()
