@@ -2,10 +2,13 @@ from __future__ import division, print_function
 import matplotlib.pyplot as plt
 import numpy as np
 from numpy.random import rand
+from time import time
 
 """
 INPUT: quantized mains fdiff
 OUTPUT: appliance fdiff
+
+Code taken from Lasagne and nolearn!
 """
 
 SEQ_LENGTH = 400
@@ -23,20 +26,18 @@ output_shape = (N_SEQ_PER_BATCH, SEQ_LENGTH, N_OUTPUTS)
 
 def quantized(inp):
     n = 10
-    n_batch, length, _ = inp.shape
-    out = np.zeros(shape=(n_batch, length, n))
-    for i_batch in range(n_batch):
-        for i_element in range(length):
+    out = np.zeros(shape=(N_SEQ_PER_BATCH, SEQ_LENGTH, n))
+    for i_batch in range(N_SEQ_PER_BATCH):
+        for i_element in range(SEQ_LENGTH):
             out[i_batch,i_element,:], _ = np.histogram(
                 inp[i_batch, i_element, 0], 
                 [-1,-.8,-.6,-.4,-.2,0.0,.2,.4,.6,.8,1])
     return (out * 2) - 1
 
-def gen_single_appliance(length, power, on_duration, min_off_duration=20, 
-                         fdiff=True):
-    if fdiff:
-        length += 1
-    appliance_power = np.zeros(shape=(length))
+
+def gen_single_appliance(power, on_duration, min_off_duration=20, fdiff=True):
+    length = SEQ_LENGTH + 1 if fdiff else SEQ_LENGTH
+    appliance_power = np.zeros(length)
     i = 0
     while i < length:
         if np.random.binomial(n=1, p=0.2):
@@ -47,22 +48,20 @@ def gen_single_appliance(length, power, on_duration, min_off_duration=20,
             i += 1
     return np.diff(appliance_power) if fdiff else appliance_power
 
-def gen_batches_of_single_appliance(length, n_batch, *args, **kwargs):
-    batches = np.zeros(shape=(n_batch, length, 1))
-    for i in range(n_batch):
-        batches[i, :, :] = gen_single_appliance(length, *args, **kwargs).reshape(length, 1)
+
+def gen_batches_of_single_appliance(*args, **kwargs):
+    batches = np.zeros(shape=(N_SEQ_PER_BATCH, SEQ_LENGTH, 1))
+    for i in range(N_SEQ_PER_BATCH):
+        batches[i, :, :] = gen_single_appliance(*args, **kwargs).reshape(SEQ_LENGTH, 1)
     return batches
 
-def gen_data(length=SEQ_LENGTH, n_batch=N_SEQ_PER_BATCH, n_appliances=2, 
-             appliance_powers=[10,20], 
-             appliance_on_durations=[10,2], validation=False):
+
+def gen_unquantized_data(n_appliances=2, 
+                         appliance_powers=[10,30],
+                         appliance_on_durations=[10,2], validation=False):
     '''Generate a simple energy disaggregation data.
 
     :parameters:
-        - length : int
-            Length of sequences to generate
-        - n_batch : int
-            Number of training sequences per batch
 
     :returns:
         - X : np.ndarray, shape=(n_batch, length, 1)
@@ -70,19 +69,30 @@ def gen_data(length=SEQ_LENGTH, n_batch=N_SEQ_PER_BATCH, n_appliances=2,
         - y : np.ndarray, shape=(n_batch, length, 1)
             Target sequence, appliance 1
     '''
-    y = gen_batches_of_single_appliance(length, n_batch, 
-                                        power=appliance_powers[0], 
+    y = gen_batches_of_single_appliance(power=appliance_powers[0], 
                                         on_duration=appliance_on_durations[0])
     X = y.copy()
     for power, on_duration in zip(appliance_powers, appliance_on_durations)[1:]:
-        X += gen_batches_of_single_appliance(length, n_batch, power=power, on_duration=on_duration)
+        X += gen_batches_of_single_appliance(power=power, on_duration=on_duration)
 
     max_power = np.sum(appliance_powers)
-    
-    return quantized(X / max_power), y / max_power
+    return X / max_power, y / max_power
 
 
+def gen_data(*args, **kwargs):
+    X, y = gen_unquantized_data(*args, **kwargs)
+    return quantized(X), y
+
+class ansi:
+    # from dnouri/nolearn/nolearn/lasagne.py
+    BLUE = '\033[94m'
+    GREEN = '\033[32m'
+    ENDC = '\033[0m'
+
+######################## Neural network class ########################
 class Net(object):
+    # Much of this code is adapted from craffel/nntools/examples/lstm.py
+
     def __init__(self):
         print("Initialising network...")
         import theano
@@ -148,20 +158,42 @@ class Net(object):
         # column 0 = training cost
         # column 1 = validation cost
         self.costs = np.zeros(shape=(N_ITERATIONS, 2))
+        self.costs[:,:] = np.nan
 
         # Generate a "validation" sequence whose cost we will compute
         X_val, y_val = gen_data(validation=True)
         assert X_val.shape == input_shape
         assert y_val.shape == output_shape
 
+        # Adapted from dnouri/nolearn/nolearn/lasagne.py
+        print("""
+ Epoch  |  Train cost  |  Valid cost  |  Train / Val  | Dur per epoch
+--------|--------------|--------------|---------------|---------------\
+""")
         # Training loop
         for n in range(N_ITERATIONS):
+            t0 = time() # for calculating training duration
             X, y = gen_data()
-            self.costs[n] = self.train(X, y), self.compute_cost(X_val, y_val)
+            train_cost = self.train(X, y).flatten()[0]
+            validation_cost = self.compute_cost(X_val, y_val).flatten()[0]
+            self.costs[n] = train_cost, validation_cost
+
             if n==N_ITERATIONS-1 or not n % 10:
-                print("Iteration {}/{}, training cost={}, validation cost={}"
-                      .format(n, N_ITERATIONS,
-                              self.costs[n,0], self.costs[n,1]))
+                duration = time() - t0
+                is_best_train = train_cost == np.nanmin(self.costs[:,0])
+                is_best_valid = validation_cost == np.nanmin(self.costs[:,1])
+                print("  {:>5} |  {}{:>10.6f}{}  |  {}{:>10.6f}{}  |"
+                      "  {:>11.6f}  |  {:>3.1f}s".format(
+                          n,
+                          ansi.BLUE if is_best_train else "",
+                          train_cost,
+                          ansi.ENDC if is_best_train else "",
+                          ansi.GREEN if is_best_valid else "",
+                          validation_cost,
+                          ansi.ENDC if is_best_valid else "",
+                          train_cost / validation_cost,
+                          duration
+                ))
 
     def plot_costs(self, ax=None):
         if ax is None:
@@ -174,16 +206,19 @@ class Net(object):
         plt.show()
         return ax
 
-    def plot_estimates(self, ax=None):
-        if ax is None:
-            ax = plt.gca()
-        X, y = gen_data()
-        y_predictions = self.y_pred(X)
-        ax = plt.gca()
-        ax.plot(y_predictions[0,:,0], label='estimate')
-        ax.plot(y[0,:,0], label='ground truth')
-        # ax.plot(X[0,:,0], label='aggregate')
-        ax.legend()
+    def plot_estimates(self, axes=None):
+        if axes is None:
+            _, axes = plt.subplots(2, sharex=True)
+        X, y = gen_unquantized_data()
+        y_predictions = self.y_pred(quantized(X))
+        axes[0].set_title('Appliance forward difference')
+        axes[0].plot(y_predictions[0,:,0], label='Estimates')
+        axes[0].plot(y[0,:,0], label='Appliance ground truth')
+        axes[0].legend()
+        axes[1].set_title('Aggregate')
+        axes[1].plot(X[0,:,0], label='Fdiff')
+        axes[1].plot(np.cumsum(X[0,:,0]), label='Cumsum')
+        axes[1].legend()
         plt.show()
 
 if __name__ == "__main__":
