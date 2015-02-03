@@ -57,8 +57,8 @@ def get_data_for_single_day(metergroup, target_appliance, start):
     if y is None or y.max() < 50:
         return None, None
     #X = metergroup.power_series_all_data(**load_kwargs)
-    X = y + metergroup['kettle'].power_series_all_data(**load_kwargs)
-    maximum = 2000
+    X = y + metergroup['boiler'].power_series_all_data(**load_kwargs)
+    maximum = 200
     index = pd.date_range(start, end, freq="6S", tz=TZ)
     def get_diff(data):
         data = data.fillna(0)
