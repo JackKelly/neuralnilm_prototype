@@ -8,7 +8,7 @@ from time import time
 from nilmtk import TimeFrame, DataSet, MeterGroup
 
 """
-INPUT: quantized mains fdiff, all-hot, first bit is sign.
+INPUT: quantized mains fdiff, all-hot
 OUTPUT: appliance fdiff
 
 Code taken from Lasagne and nolearn!
