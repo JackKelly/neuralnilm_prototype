@@ -49,23 +49,25 @@ def quantize(data):
 
 
 def get_data_for_single_day(metergroup, target_appliance, start):
+    MAXIMUM = 200
+    MINIMUM =  20
     start = pd.Timestamp(start).date()
     end = start + timedelta(days=1)
     timeframe = TimeFrame(start, end, tz=TZ)
     load_kwargs = dict(sample_period=6, sections=[timeframe])
     y = metergroup[target_appliance].power_series_all_data(**load_kwargs)
-    if y is None or y.max() < 50:
+    if y is None or y.max() < MINIMUM:
         return None, None
     #X = metergroup.power_series_all_data(**load_kwargs)
     X = y + metergroup['boiler'].power_series_all_data(**load_kwargs)
-    maximum = 200
     index = pd.date_range(start, end, freq="6S", tz=TZ)
     def get_diff(data):
         data = data.fillna(0)
-        data = data.clip(upper=maximum)
+        data = data.clip(upper=MAXIMUM)
+        data[data < MINIMUM] = 0
         # data -= data.min()
         data = data.reindex(index, fill_value=0)
-        data /= maximum
+        data /= MAXIMUM
         return data.diff().dropna()
     
     def index_as_minus_one_to_plus_one(data):
