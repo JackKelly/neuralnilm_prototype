@@ -111,8 +111,7 @@ class ToySource(Source):
             X += self._gen_batches_of_single_appliance(
                 power=power, on_duration=on_duration)
 
-        max_power = np.sum(self.powers)
-        return X / max_power, y / max_power
+        return X / np.max(X), y / np.max(y)
 
     def _gen_data(self, *args, **kwargs):
         X, y = self._gen_unquantized_data(*args, **kwargs)
