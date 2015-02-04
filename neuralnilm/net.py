@@ -9,12 +9,12 @@ import theano
 import theano.tensor as T
 import lasagne
 from lasagne.layers import (InputLayer, LSTMLayer, ReshapeLayer, 
-                            ConcatLayer, DenseLayer)
+                            ConcatLayer, ElemwiseSumLayer, DenseLayer)
 theano.config.compute_test_value = 'raise'
 
 """
 rsync command: 
-rsync -uvzr --progress /home/jack/workspace/python/neuralnilm/ /mnt/sshfs/imperial/workspace/python/neuralnilm/
+rsync -uvzr --progress --exclude '.git' --exclude '.ropeproject' --exclude 'ipynb_checkpoints' /home/jack/workspace/python/neuralnilm/ /mnt/sshfs/imperial/workspace/python/neuralnilm/
 """
 
 class ansi:
@@ -27,33 +27,43 @@ class ansi:
 class Net(object):
     # Much of this code is adapted from craffel/nntools/examples/lstm.py
 
-    def __init__(self, source, learning_rate=1e-1, n_hidden=5):
+    def __init__(self, source, learning_rate=1e-1, 
+                 n_cells_per_hidden_layer=None, output_nonlinearity=None):
+        """
+        Parameters
+        ----------
+        n_cells_per_hidden_layer = list of ints
+        """
         print("Initialising network...")
         self.source = source
-        self.input_shape = source.input_shape()
-        self.output_shape = source.output_shape()
+        input_shape = source.input_shape()
+        output_shape = source.output_shape()
+        if n_cells_per_hidden_layer is None:
+            n_cells_per_hidden_layer = [5]
 
         # Shape is (number of examples per batch,
         #           maximum number of time steps per example,
         #           number of features per example)
-        l_in = InputLayer(shape=self.input_shape)
+        l_in = InputLayer(shape=input_shape)
 
         # setup forward and backwards LSTM layers.  Note that
         # LSTMLayer takes a backwards flag. The backwards flag tells
         # scan to go backwards before it returns the output from
         # backwards layers.  It is reversed again such that the output
         # from the layer is always from x_1 to x_n.
-        l_fwd = LSTMLayer(
-            l_in, n_hidden, backwards=False, learn_init=True, peepholes=True)
-        l_bck = LSTMLayer(
-            l_in, n_hidden, backwards=True, learn_init=True, peepholes=True)
+        l_previous = l_in
+        for n_cells in n_cells_per_hidden_layer:
+            l_fwd = LSTMLayer(l_previous, n_cells, backwards=False,
+                              learn_init=True, peepholes=True)
+            l_bck = LSTMLayer(l_previous, n_cells, backwards=True,
+                              learn_init=True, peepholes=True)
+            l_recurrent = ElemwiseSumLayer([l_fwd, l_bck])
+            l_previous = l_recurrent
 
         # concatenate forward and backward LSTM layers
         concat_shape = (self.source.n_seq_per_batch * self.source.seq_length, 
-                        n_hidden)
-        l_fwd_reshape = ReshapeLayer(l_fwd, concat_shape)
-        l_bck_reshape = ReshapeLayer(l_bck, concat_shape)
-        l_concat = ConcatLayer([l_fwd_reshape, l_bck_reshape], axis=1)
+                        n_cells_per_hidden_layer[-1])
+        l_reshape = ReshapeLayer(l_previous, concat_shape)
         # We need a reshape layer which combines the first (batch
         # size) and second (number of timesteps) dimensions, otherwise
         # the DenseLayer will treat the number of time steps as a
@@ -67,26 +77,26 @@ class Net(object):
         # n_time_steps, n_features) then you need to dimshuffle(1, 0,
         # 2) in order to iterate over time steps.
 
-        l_recurrent_out = DenseLayer(l_concat, num_units=self.source.n_outputs,
-                                     nonlinearity=None)
-        l_out = ReshapeLayer(l_recurrent_out, self.output_shape)
+        l_recurrent_out = DenseLayer(l_reshape, num_units=self.source.n_outputs,
+                                     nonlinearity=output_nonlinearity)
+        l_out = ReshapeLayer(l_recurrent_out, output_shape)
 
         input = T.tensor3('input')
         target_output = T.tensor3('target_output')
 
         # add test values
         input.tag.test_value = rand(
-            *self.input_shape).astype(theano.config.floatX)
+            *input_shape).astype(theano.config.floatX)
         target_output.tag.test_value = rand(
-            *self.output_shape).astype(theano.config.floatX)
+            *output_shape).astype(theano.config.floatX)
 
         print("Compiling Theano functions...")
         # Cost = mean squared error
         cost = T.mean((l_out.get_output(input) - target_output)**2)
-
         # Use NAG for training
         all_params = lasagne.layers.get_all_params(l_out)
-        updates = lasagne.updates.nesterov_momentum(cost, all_params, learning_rate)
+        updates = lasagne.updates.nesterov_momentum(
+            cost, all_params, learning_rate)
 
         # Theano functions for training, getting output, and computing cost
         self.train = theano.function(
@@ -107,19 +117,27 @@ class Net(object):
     def fit(self, n_iterations=100):
         # column 0 = training cost
         # column 1 = validation cost
-        self.costs = np.zeros(shape=(n_interations, 2))
+        self.costs = np.zeros(shape=(n_iterations, 2))
         self.costs[:,:] = np.nan
 
         # Generate a "validation" sequence whose cost we will compute
         X_val, y_val = self.source.validation_data()
 
+        # Training loop
+        self.source.start()
+        try:
+            self._training_loop(n_iterations, X_val, y_val)
+        except:
+            raise
+        finally:
+            self.source.stop()
+
+    def _training_loop(self, n_iterations, X_val, y_val):
         # Adapted from dnouri/nolearn/nolearn/lasagne.py
         print("""
  Epoch  |  Train cost  |  Valid cost  |  Train / Val  | Dur per epoch
 --------|--------------|--------------|---------------|---------------\
 """)
-        # Training loop
-        self.source.start()
         for n in range(n_iterations):
             t0 = time() # for calculating training duration
             X, y = self.source.queue.get()
@@ -158,14 +176,14 @@ class Net(object):
     def plot_estimates(self, axes=None):
         if axes is None:
             _, axes = plt.subplots(2, sharex=True)
-        X, y = self.source._gen_unquantized_data(validation=True)
-        y_predictions = self.y_pred(gen_data(X=X)[0])
-        axes[0].set_title('Appliance forward difference')
+        X, y = self.source.validation_data()
+        y_predictions = self.y_pred(X)
+        axes[0].set_title('Appliance')
         axes[0].plot(y_predictions[0,:,0], label='Estimates')
-        axes[0].plot(y[0,:,0], label='Appliance ground truth')
+        axes[0].plot(y[0,:,0], label='Ground truth')
         axes[0].legend()
         axes[1].set_title('Aggregate')
-        axes[1].plot(X[0,:,1], label='Fdiff')
-        axes[1].plot(np.cumsum(X[0,:,1]), label='Cumsum')
+        axes[1].plot(X[0,:,0])#, label='Fdiff')
+        #axes[1].plot(np.cumsum(X[0,:,1]), label='Cumsum')
         axes[1].legend()
         plt.show()

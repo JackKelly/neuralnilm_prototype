@@ -1,5 +1,5 @@
 from __future__ import print_function, division
-from Queue import Queue
+from Queue import Queue, Empty
 import threading
 import numpy as np
 import pandas as pd
@@ -23,8 +23,16 @@ class Source(threading.Thread):
             self.queue.put(self._gen_data())
             
     def stop(self):
-        self.queue.get()
+        self.empty_queue()
         self._stop.set()
+        self.empty_queue()
+
+    def empty_queue(self):
+        while True:
+            try:
+                self.queue.get(block=False)
+            except Empty:
+                break
         
     def validation_data(self):
         return self._gen_data(validation=True)
@@ -54,7 +62,8 @@ def none_to_list(x):
 
 class ToySource(Source):
     def __init__(self, seq_length, n_seq_per_batch, n_inputs=1,
-                 powers=None, on_durations=None, all_hot=True):
+                 powers=None, on_durations=None, all_hot=True, 
+                 fdiff=False):
         """
         Parameters
         ----------
@@ -71,10 +80,11 @@ class ToySource(Source):
         self.powers = [10,40] if powers is None else powers
         self.on_durations = [3,10] if on_durations is None else on_durations
         self.all_hot = all_hot
+        self.fdiff = fdiff
 
     def _gen_single_appliance(self, power, on_duration, 
-                              min_off_duration=20, fdiff=True, p=0.2):
-        length = self.seq_length + 1 if fdiff else self.seq_length
+                              min_off_duration=20, p=0.2):
+        length = self.seq_length + 1 if self.fdiff else self.seq_length
         appliance_power = np.zeros(length)
         i = 0
         while i < length:
@@ -84,15 +94,16 @@ class ToySource(Source):
                 i += on_duration + min_off_duration
             else:
                 i += 1
-        return np.diff(appliance_power) if fdiff else appliance_power
+        return np.diff(appliance_power) if self.fdiff else appliance_power
 
     def _gen_batches_of_single_appliance(self, *args, **kwargs):
         batches = np.empty(shape=(self.n_seq_per_batch, self.seq_length, 1))
         for i in range(self.n_seq_per_batch):
-            batches[i, :, :] = self._gen_single_appliance(*args, **kwargs).reshape(self.seq_length, 1)
+            single_appliance = self._gen_single_appliance(*args, **kwargs)
+            batches[i, :, :] = single_appliance.reshape(self.seq_length, 1)
         return batches
 
-    def gen_unquantized_data(self, validation=False):
+    def _gen_unquantized_data(self, validation=False):
         y = self._gen_batches_of_single_appliance(
             power=self.powers[0], on_duration=self.on_durations[0])
         X = y.copy()
@@ -103,8 +114,8 @@ class ToySource(Source):
         max_power = np.sum(self.powers)
         return X / max_power, y / max_power
 
-    def gen_data(self, *args, **kwargs):
-        X, y = self.gen_unquantized_data(*args, **kwargs)
+    def _gen_data(self, *args, **kwargs):
+        X, y = self._gen_unquantized_data(*args, **kwargs)
         if self.n_inputs > 1:
             X = quantize(X, self.n_inputs, self.all_hot)
         return X, y
