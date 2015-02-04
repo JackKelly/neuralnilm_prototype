@@ -14,7 +14,7 @@ theano.config.compute_test_value = 'raise'
 
 """
 rsync command: 
-rsync -uvz --progress /home/jack/workspace/python/neuralnilm/scripts/*.py /mnt/sshfs/imperial/workspace/python/neuralnilm/scripts
+rsync -uvzr --progress /home/jack/workspace/python/neuralnilm/ /mnt/sshfs/imperial/workspace/python/neuralnilm/
 """
 
 class ansi:
@@ -33,23 +33,41 @@ class Net(object):
         self.input_shape = source.input_shape()
         self.output_shape = source.output_shape()
 
-        # Construct LSTM RNN: One LSTM layer and one dense output layer
+        # Shape is (number of examples per batch,
+        #           maximum number of time steps per example,
+        #           number of features per example)
         l_in = InputLayer(shape=self.input_shape)
 
-        # setup fwd and bck LSTM layer.
+        # setup forward and backwards LSTM layers.  Note that
+        # LSTMLayer takes a backwards flag. The backwards flag tells
+        # scan to go backwards before it returns the output from
+        # backwards layers.  It is reversed again such that the output
+        # from the layer is always from x_1 to x_n.
         l_fwd = LSTMLayer(
             l_in, n_hidden, backwards=False, learn_init=True, peepholes=True)
         l_bck = LSTMLayer(
             l_in, n_hidden, backwards=True, learn_init=True, peepholes=True)
 
         # concatenate forward and backward LSTM layers
-        concat_shape = (self.source.N_SEQ_PER_BATCH * self.source.SEQ_LENGTH, 
+        concat_shape = (self.source.n_seq_per_batch * self.source.seq_length, 
                         n_hidden)
         l_fwd_reshape = ReshapeLayer(l_fwd, concat_shape)
         l_bck_reshape = ReshapeLayer(l_bck, concat_shape)
         l_concat = ConcatLayer([l_fwd_reshape, l_bck_reshape], axis=1)
+        # We need a reshape layer which combines the first (batch
+        # size) and second (number of timesteps) dimensions, otherwise
+        # the DenseLayer will treat the number of time steps as a
+        # feature dimension.  Specifically, LSTMLayer expects a shape
+        # of (n_batch, n_time_steps, n_features) but the DenseLayer
+        # will flatten that shape to (n_batch,
+        # n_time_steps*n_features) by default which is
+        # wrong. Dimshuffling is done inside the LSTMLayer. You need
+        # to dimshuffle because Theano's scan function iterates over
+        # the first dimension, and if the shape is (n_batch,
+        # n_time_steps, n_features) then you need to dimshuffle(1, 0,
+        # 2) in order to iterate over time steps.
 
-        l_recurrent_out = DenseLayer(l_concat, num_units=self.source.N_OUTPUTS,
+        l_recurrent_out = DenseLayer(l_concat, num_units=self.source.n_outputs,
                                      nonlinearity=None)
         l_out = ReshapeLayer(l_recurrent_out, self.output_shape)
 
@@ -151,9 +169,3 @@ class Net(object):
         axes[1].plot(np.cumsum(X[0,:,1]), label='Cumsum')
         axes[1].legend()
         plt.show()
-
-if __name__ == "__main__":
-    net = Net()
-    net.training_loop()
-    net.plot_costs()
-    net.plot_estimates()
