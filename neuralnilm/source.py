@@ -75,7 +75,7 @@ class ToySource(Source):
     def _gen_single_appliance(self, power, on_duration, 
                               min_off_duration=20, fdiff=True, p=0.2):
         length = self.seq_length + 1 if fdiff else self.seq_length
-        appliance_power = np.zeros(shape=(length, 1))
+        appliance_power = np.zeros(length)
         i = 0
         while i < length:
             if np.random.binomial(n=1, p=p):
@@ -89,7 +89,7 @@ class ToySource(Source):
     def _gen_batches_of_single_appliance(self, *args, **kwargs):
         batches = np.empty(shape=(self.n_seq_per_batch, self.seq_length, 1))
         for i in range(self.n_seq_per_batch):
-            batches[i, :, :] = self._gen_single_appliance(*args, **kwargs)
+            batches[i, :, :] = self._gen_single_appliance(*args, **kwargs).reshape(self.seq_length, 1)
         return batches
 
     def gen_unquantized_data(self, validation=False):
