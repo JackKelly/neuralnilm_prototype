@@ -165,8 +165,8 @@ class RealApplianceSource(Source):
         for appliance in self.appliances:
             i = randint(0, self.n_activations[appliance])
             activation = self.activations[appliance][i]
-            activation = activation.resample("{:d}S".format(self.sample_period),
-                                             fill_method='ffill')
+            activation = activation.resample("{:d}S".format(self.sample_period))
+            activation.fillna(method='ffill', inplace=True)
             latest_start_i = (self.seq_length - len(activation)) - 5
             latest_start_i = np.clip(latest_start_i, 1, None)
             start_i = randint(0, latest_start_i)
