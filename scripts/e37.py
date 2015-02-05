@@ -10,12 +10,12 @@ source = RealApplianceSource(
 
 net = Net(
     source=source,
-    n_cells_per_hidden_layer=[25,25,25],
+    n_cells_per_hidden_layer=[10],
     output_nonlinearity=sigmoid,
     learning_rate=1e-1,
-    n_dense_cells_per_layer=50
+    n_dense_cells_per_layer=25
 )
 
-net.fit(n_iterations=200)
+net.fit(n_iterations=500)
 net.plot_costs()
 net.plot_estimates()

@@ -166,7 +166,7 @@ class Net(object):
 """)
         for n in range(n_iterations):
             t0 = time() # for calculating training duration
-            X, y = self.source.queue.get()
+            X, y = self.source.queue.get(timeout=30)
             train_cost = self.train(X, y).flatten()[0]
             if n % 10:
                 validation_cost = np.nan

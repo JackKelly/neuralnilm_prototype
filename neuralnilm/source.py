@@ -7,7 +7,7 @@ import pandas as pd
 from nilmtk import DataSet, TimeFrame
 from datetime import timedelta
 
-class Source(threading.Thread):
+class Source(object):
     def __init__(self, seq_length, n_seq_per_batch, n_inputs, n_outputs):
         super(Source, self).__init__()
         self.seq_length = seq_length
@@ -16,17 +16,25 @@ class Source(threading.Thread):
         self.n_outputs = n_outputs
         self.queue = Queue(maxsize=2)
         self._stop = threading.Event()
+        self._thread = None
+
+    def start(self):
+        if self._thread is not None:
+            return
+        self._stop.clear()
+        self._thread = threading.Thread(target=self.run)
+        self._thread.start()    
         
     def run(self):
         """Puts training data into a Queue"""
-        self._stop.clear()
         while not self._stop.is_set():
             self.queue.put(self._gen_data())
+        self.empty_queue()
+        self._thread = None
             
     def stop(self):
         self.empty_queue()
         self._stop.set()
-        self.empty_queue()
 
     def empty_queue(self):
         while True:
