@@ -73,13 +73,13 @@ class Net(object):
         # backwards layers.  It is reversed again such that the output
         # from the layer is always from x_1 to x_n.
         for n_cells in n_cells_per_hidden_layer:
-            l_previous = LSTMLayer(l_previous, n_cells, backwards=False,
-                                   learn_init=True, peepholes=True)
-            # l_fwd = LSTMLayer(l_previous, n_cells, backwards=False,
-            #                   learn_init=True, peepholes=True)
-            # l_bck = LSTMLayer(l_previous, n_cells, backwards=True,
-            #                   learn_init=True, peepholes=True)
-            # l_previous = ElemwiseSumLayer([l_fwd, l_bck])
+            # l_previous = LSTMLayer(l_previous, n_cells, backwards=False,
+            #                        learn_init=True, peepholes=True)
+            l_fwd = LSTMLayer(l_previous, n_cells, backwards=False,
+                              learn_init=True, peepholes=True)
+            l_bck = LSTMLayer(l_previous, n_cells, backwards=True,
+                              learn_init=True, peepholes=True)
+            l_previous = ElemwiseSumLayer([l_fwd, l_bck])
 
         concat_shape = (self.source.n_seq_per_batch * self.source.seq_length, 
                         n_cells_per_hidden_layer[-1])
