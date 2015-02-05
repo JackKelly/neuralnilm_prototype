@@ -2,6 +2,7 @@ from __future__ import print_function, division
 from Queue import Queue, Empty
 import threading
 import numpy as np
+from numpy.random import randint
 import pandas as pd
 from nilmtk import DataSet, TimeFrame
 from datetime import timedelta
@@ -119,6 +120,72 @@ class ToySource(Source):
             X = quantize(X, self.n_inputs, self.all_hot)
         return X, y
 
+
+class RealApplianceSource(Source):
+    def __init__(self, filename, appliances, max_input_power, max_output_power, 
+                 building=1, seq_length=1000):
+        """
+        Parameters
+        ----------
+        filename : str
+        appliances : list of strings
+            The first one is the target appliance
+        building : int
+        """
+        super(RealApplianceSource, self).__init__(
+            seq_length=seq_length, 
+            n_seq_per_batch=5,
+            n_inputs=1,
+            n_outputs=1)
+        self.sample_period = 6
+        self.dataset = DataSet(filename)
+        self.dataset.set_window("2014-01-01", "2014-02-01")
+        self.appliances = appliances
+        self._tz = self.dataset.metadata['timezone']
+        self.metergroup = self.dataset.buildings[building].elec
+        self.activations = {}
+        self.n_activations = {}
+        # self.max_powers = []
+        for appliance in self.appliances:
+            print("Loading activations for", appliance)
+            activations = self.metergroup[appliance].activation_series()
+            self.activations[appliance] = activations
+            self.n_activations[appliance] = len(activations)
+            #self.max_powers.append(max([max(a) for a in activations]))
+        #self.max_target_power = self.max_powers[0]
+        #self.max_input_power = np.sum(self.max_powers)
+        self.max_input_power = max_input_power
+        self.max_output_power = max_output_power
+        self.dataset.store.close()
+        print("Done")
+
+    def _gen_single_example(self):
+        X = np.zeros(self.seq_length)
+        is_target_appliance = True
+        for appliance in self.appliances:
+            i = randint(0, self.n_activations[appliance])
+            activation = self.activations[appliance][i]
+            activation = activation.resample("{:d}S".format(self.sample_period),
+                                             fill_method='ffill')
+            latest_start_i = (self.seq_length - len(activation)) - 5
+            latest_start_i = np.clip(latest_start_i, 1, None)
+            start_i = randint(0, latest_start_i)
+            end_i = start_i + len(activation)
+            end_i = np.clip(end_i, None, self.seq_length-1)
+            X[start_i:end_i] += activation.values[:end_i-start_i]
+            if is_target_appliance:
+                X = np.clip(X, 0, self.max_output_power)
+                y = np.copy(X)
+                is_target_appliance = False
+            X = np.clip(X, 0, self.max_input_power)
+        return X / self.max_input_power, y / self.max_output_power
+    
+    def _gen_data(self, validation=False):
+        X = np.empty(self.input_shape())
+        y = np.empty(self.output_shape())
+        for i in range(self.n_seq_per_batch):
+            X[i,:,0], y[i,:,0] = self._gen_single_example()
+        return X, y
 
 class NILMTKSource(Source):
     def __init__(self, filename, appliances, building=1):
