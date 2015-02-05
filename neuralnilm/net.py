@@ -66,7 +66,6 @@ class Net(object):
                         n_dense_cells_per_layer)
         l_previous = ReshapeLayer(l_dense2, concat_shape)
 
-
         # setup forward and backwards LSTM layers.  Note that
         # LSTMLayer takes a backwards flag. The backwards flag tells
         # scan to go backwards before it returns the output from
