@@ -14,6 +14,6 @@ net = Net(
     learning_rate=1e-1
 )
 
-net.fit(n_iterations=200)
+net.fit(n_iterations=400)
 net.plot_costs()
 net.plot_estimates()
