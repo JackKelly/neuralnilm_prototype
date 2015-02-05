@@ -10,6 +10,7 @@ import theano.tensor as T
 import lasagne
 from lasagne.layers import (InputLayer, LSTMLayer, ReshapeLayer, 
                             ConcatLayer, ElemwiseSumLayer, DenseLayer)
+from lasagne.nonlinearities import sigmoid
 theano.config.compute_test_value = 'raise'
 
 """
@@ -28,7 +29,8 @@ class Net(object):
     # Much of this code is adapted from craffel/nntools/examples/lstm.py
 
     def __init__(self, source, learning_rate=1e-1, 
-                 n_cells_per_hidden_layer=None, output_nonlinearity=None):
+                 n_cells_per_hidden_layer=None, output_nonlinearity=None,
+                 n_dense_cells_per_layer=20):
         """
         Parameters
         ----------
@@ -44,14 +46,25 @@ class Net(object):
         # Shape is (number of examples per batch,
         #           maximum number of time steps per example,
         #           number of features per example)
-        l_in = InputLayer(shape=input_shape)
+        l_previous = InputLayer(shape=input_shape)
+
+        concat_shape = (self.source.n_seq_per_batch * self.source.seq_length, 
+                        self.source.n_inputs)
+        l_reshape1 = ReshapeLayer(l_previous, concat_shape)
+        l_dense1 = DenseLayer(
+            l_reshape1, num_units=n_dense_cells_per_layer, nonlinearity=sigmoid)
+        l_dense2 = DenseLayer(
+            l_dense1, num_units=n_dense_cells_per_layer, nonlinearity=sigmoid)
+        concat_shape = (self.source.n_seq_per_batch, self.source.seq_length, 
+                        n_dense_cells_per_layer)
+        l_previous = ReshapeLayer(l_dense2, concat_shape)
+
 
         # setup forward and backwards LSTM layers.  Note that
         # LSTMLayer takes a backwards flag. The backwards flag tells
         # scan to go backwards before it returns the output from
         # backwards layers.  It is reversed again such that the output
         # from the layer is always from x_1 to x_n.
-        l_previous = l_in
         for n_cells in n_cells_per_hidden_layer:
             l_previous = LSTMLayer(l_previous, n_cells, backwards=False,
                                    learn_init=True, peepholes=True)
@@ -61,9 +74,9 @@ class Net(object):
             #                   learn_init=True, peepholes=True)
             # l_previous = ElemwiseSumLayer([l_fwd, l_bck])
 
-        # concatenate forward and backward LSTM layers
         concat_shape = (self.source.n_seq_per_batch * self.source.seq_length, 
                         n_cells_per_hidden_layer[-1])
+        # concatenate forward and backward LSTM layers
         l_reshape = ReshapeLayer(l_previous, concat_shape)
         # We need a reshape layer which combines the first (batch
         # size) and second (number of timesteps) dimensions, otherwise
