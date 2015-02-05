@@ -6,6 +6,7 @@ from numpy.random import randint
 import pandas as pd
 from nilmtk import DataSet, TimeFrame
 from datetime import timedelta
+from sys import stdout
 
 class Source(object):
     def __init__(self, seq_length, n_seq_per_batch, n_inputs, n_outputs):
@@ -130,8 +131,8 @@ class ToySource(Source):
 
 
 class RealApplianceSource(Source):
-    def __init__(self, filename, appliances, max_input_power, max_output_power, 
-                 building=1, seq_length=1000):
+    def __init__(self, filename, appliances, max_input_power, max_output_power,
+                 window=(None, None), building=1, seq_length=1000):
         """
         Parameters
         ----------
@@ -147,25 +148,22 @@ class RealApplianceSource(Source):
             n_outputs=1)
         self.sample_period = 6
         self.dataset = DataSet(filename)
-        self.dataset.set_window("2014-01-01", "2014-02-01")
+        self.dataset.set_window(*window)
         self.appliances = appliances
         self._tz = self.dataset.metadata['timezone']
         self.metergroup = self.dataset.buildings[building].elec
         self.activations = {}
         self.n_activations = {}
-        # self.max_powers = []
         for appliance in self.appliances:
-            print("Loading activations for", appliance)
+            print("Loading activations for", appliance, end="... ")
+            stdout.flush()
             activations = self.metergroup[appliance].activation_series()
             self.activations[appliance] = activations
             self.n_activations[appliance] = len(activations)
-            #self.max_powers.append(max([max(a) for a in activations]))
-        #self.max_target_power = self.max_powers[0]
-        #self.max_input_power = np.sum(self.max_powers)
+            print("Loaded", len(activations), "activations.")
         self.max_input_power = max_input_power
         self.max_output_power = max_output_power
         self.dataset.store.close()
-        print("Done")
 
     def _gen_single_example(self):
         X = np.zeros(self.seq_length)

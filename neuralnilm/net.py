@@ -42,6 +42,9 @@ class Net(object):
         output_shape = source.output_shape()
         if n_cells_per_hidden_layer is None:
             n_cells_per_hidden_layer = [5]
+        self.validation_interval = 10
+        self.validation_costs = []
+        self.training_costs = []
 
         # Shape is (number of examples per batch,
         #           maximum number of time steps per example,
@@ -53,13 +56,13 @@ class Net(object):
         l_reshape1 = ReshapeLayer(l_previous, concat_shape)
         l_dense1 = DenseLayer(
             l_reshape1, num_units=n_dense_cells_per_layer, nonlinearity=sigmoid,
-            b=np.random.uniform(-10,10,n_dense_cells_per_layer).astype(theano.config.floatX),
-            W=np.random.uniform(-10,10,(1,n_dense_cells_per_layer)).astype(theano.config.floatX)
+            b=np.random.uniform(-25,25,n_dense_cells_per_layer).astype(theano.config.floatX),
+            W=np.random.uniform(-25,25,(1,n_dense_cells_per_layer)).astype(theano.config.floatX)
         )
         l_dense2 = DenseLayer(
             l_dense1, num_units=n_dense_cells_per_layer, nonlinearity=sigmoid,
-            b=np.random.uniform(-1,1,n_dense_cells_per_layer).astype(theano.config.floatX),
-            W=np.random.uniform(-1,1,(n_dense_cells_per_layer,n_dense_cells_per_layer)).astype(theano.config.floatX)
+            b=np.random.uniform(-10,10,n_dense_cells_per_layer).astype(theano.config.floatX),
+            W=np.random.uniform(-10,10,(n_dense_cells_per_layer,n_dense_cells_per_layer)).astype(theano.config.floatX)
         )
 
         concat_shape = (self.source.n_seq_per_batch, self.source.seq_length, 
@@ -141,11 +144,6 @@ class Net(object):
         print("Done initialising network.")
 
     def fit(self, n_iterations=100):
-        # column 0 = training cost
-        # column 1 = validation cost
-        self.costs = np.zeros(shape=(n_iterations, 2))
-        self.costs[:,:] = np.nan
-
         # Generate a "validation" sequence whose cost we will compute
         X_val, y_val = self.source.validation_data()
 
@@ -164,23 +162,23 @@ class Net(object):
  Epoch  |  Train cost  |  Valid cost  |  Train / Val  | Sec per epoch
 --------|--------------|--------------|---------------|---------------\
 """)
+        validation_cost = None
         for n in range(n_iterations):
             t0 = time() # for calculating training duration
             X, y = self.source.queue.get(timeout=30)
             train_cost = self.train(X, y).flatten()[0]
-            if n % 10:
-                validation_cost = np.nan
-            else:
+            self.training_costs.append(train_cost)
+            if not n % self.validation_interval:
                 validation_cost = self.compute_cost(X_val, y_val).flatten()[0]
-            self.costs[n] = train_cost, validation_cost
+                self.validation_costs.append(validation_cost)
 
             # Print progress
             duration = time() - t0
-            is_best_train = train_cost == np.nanmin(self.costs[:,0])
-            is_best_valid = validation_cost == np.nanmin(self.costs[:,1])
+            is_best_train = train_cost == min(self.training_costs)
+            is_best_valid = validation_cost == min(self.validation_costs)
             print("  {:>5} |  {}{:>10.6f}{}  |  {}{:>10.6f}{}  |"
                   "  {:>11.6f}  |  {:>3.1f}s".format(
-                      n,
+                      len(self.training_costs),
                       ansi.BLUE if is_best_train else "",
                       train_cost,
                       ansi.ENDC if is_best_train else "",
@@ -194,8 +192,9 @@ class Net(object):
     def plot_costs(self, ax=None):
         if ax is None:
             ax = plt.gca()
-        ax.plot(self.costs[:,0], label='training')
-        ax.plot(self.costs[:,1], label='validation')
+        ax.plot(self.training_costs, label='Training')
+        validation_x = range(0, len(self.training_costs), self.validation_interval)
+        ax.plot(validation_x, self.validation_costs, label='Validation')
         ax.set_xlabel('Iteration')
         ax.set_ylabel('Cost')
         ax.legend()
