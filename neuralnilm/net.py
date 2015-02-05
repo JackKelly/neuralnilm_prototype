@@ -10,7 +10,7 @@ import theano.tensor as T
 import lasagne
 from lasagne.layers import (InputLayer, LSTMLayer, ReshapeLayer, 
                             ConcatLayer, ElemwiseSumLayer, DenseLayer)
-from lasagne.nonlinearities import sigmoid
+from lasagne.nonlinearities import sigmoid, rectify
 theano.config.compute_test_value = 'raise'
 
 """
@@ -58,8 +58,8 @@ class Net(object):
         )
         l_dense2 = DenseLayer(
             l_dense1, num_units=n_dense_cells_per_layer, nonlinearity=sigmoid,
-            b=np.random.uniform(-10,10,n_dense_cells_per_layer).astype(theano.config.floatX),
-            W=np.random.uniform(-10,10,(n_dense_cells_per_layer,n_dense_cells_per_layer)).astype(theano.config.floatX)
+            b=np.random.uniform(-1,1,n_dense_cells_per_layer).astype(theano.config.floatX),
+            W=np.random.uniform(-1,1,(n_dense_cells_per_layer,n_dense_cells_per_layer)).astype(theano.config.floatX)
         )
 
         concat_shape = (self.source.n_seq_per_batch, self.source.seq_length, 
@@ -74,10 +74,12 @@ class Net(object):
         for n_cells in n_cells_per_hidden_layer:
             # l_previous = LSTMLayer(l_previous, n_cells, backwards=False,
             #                        learn_init=True, peepholes=True)
+            # If learn_init=True then you can't have multiple
+            # layers of LSTM cells.
             l_fwd = LSTMLayer(l_previous, n_cells, backwards=False,
-                              learn_init=True, peepholes=True)
+                              learn_init=False, peepholes=True)
             l_bck = LSTMLayer(l_previous, n_cells, backwards=True,
-                              learn_init=True, peepholes=True)
+                              learn_init=False, peepholes=True)
             l_previous = ElemwiseSumLayer([l_fwd, l_bck])
 
         concat_shape = (self.source.n_seq_per_batch * self.source.seq_length, 
@@ -159,14 +161,17 @@ class Net(object):
     def _training_loop(self, n_iterations, X_val, y_val):
         # Adapted from dnouri/nolearn/nolearn/lasagne.py
         print("""
- Epoch  |  Train cost  |  Valid cost  |  Train / Val  | Dur per epoch
+ Epoch  |  Train cost  |  Valid cost  |  Train / Val  | Sec per epoch
 --------|--------------|--------------|---------------|---------------\
 """)
         for n in range(n_iterations):
             t0 = time() # for calculating training duration
             X, y = self.source.queue.get()
             train_cost = self.train(X, y).flatten()[0]
-            validation_cost = self.compute_cost(X_val, y_val).flatten()[0]
+            if n % 10:
+                validation_cost = np.nan
+            else:
+                validation_cost = self.compute_cost(X_val, y_val).flatten()[0]
             self.costs[n] = train_cost, validation_cost
 
             # Print progress
