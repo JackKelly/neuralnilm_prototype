@@ -11,9 +11,9 @@ net = Net(
     source=source,
     n_cells_per_hidden_layer=[10, 10, 10],
     output_nonlinearity=sigmoid,
-    learning_rate=1e-2
+    learning_rate=1e-1
 )
 
-net.fit(n_iterations=100)
+net.fit(n_iterations=200)
 net.plot_costs()
 net.plot_estimates()

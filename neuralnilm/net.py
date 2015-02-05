@@ -55,6 +55,7 @@ class Net(object):
             l_reshape1, num_units=n_dense_cells_per_layer, nonlinearity=sigmoid)
         l_dense2 = DenseLayer(
             l_dense1, num_units=n_dense_cells_per_layer, nonlinearity=sigmoid)
+        """
         concat_shape = (self.source.n_seq_per_batch, self.source.seq_length, 
                         n_dense_cells_per_layer)
         l_previous = ReshapeLayer(l_dense2, concat_shape)
@@ -94,6 +95,10 @@ class Net(object):
         l_recurrent_out = DenseLayer(l_reshape, num_units=self.source.n_outputs,
                                      nonlinearity=output_nonlinearity)
         l_out = ReshapeLayer(l_recurrent_out, output_shape)
+        """
+        l_out1 = DenseLayer(l_dense2, num_units=self.source.n_outputs, 
+                            nonlinearity=output_nonlinearity)
+        l_out = ReshapeLayer(l_out1, output_shape)
 
         input = T.tensor3('input')
         target_output = T.tensor3('target_output')
