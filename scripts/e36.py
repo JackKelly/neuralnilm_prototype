@@ -9,11 +9,11 @@ source = ToySource(
 
 net = Net(
     source=source,
-    n_cells_per_hidden_layer=[10, 10, 10],
+    n_cells_per_hidden_layer=[10],
     output_nonlinearity=sigmoid,
     learning_rate=1e-1
 )
 
-net.fit(n_iterations=400)
+net.fit(n_iterations=500)
 net.plot_costs()
 net.plot_estimates()

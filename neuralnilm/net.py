@@ -61,7 +61,7 @@ class Net(object):
             b=np.random.uniform(-10,10,n_dense_cells_per_layer).astype(theano.config.floatX),
             W=np.random.uniform(-10,10,(n_dense_cells_per_layer,n_dense_cells_per_layer)).astype(theano.config.floatX)
         )
-        """
+
         concat_shape = (self.source.n_seq_per_batch, self.source.seq_length, 
                         n_dense_cells_per_layer)
         l_previous = ReshapeLayer(l_dense2, concat_shape)
@@ -105,7 +105,7 @@ class Net(object):
         l_out1 = DenseLayer(l_dense2, num_units=self.source.n_outputs, 
                             nonlinearity=output_nonlinearity)
         l_out = ReshapeLayer(l_out1, output_shape)
-
+        """
         input = T.tensor3('input')
         target_output = T.tensor3('target_output')
 
