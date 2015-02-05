@@ -171,6 +171,9 @@ class RealApplianceSource(Source):
         for appliance in self.appliances:
             i = randint(0, self.n_activations[appliance])
             activation = self.activations[appliance][i]
+            # tz_convert(None) is a workaround for Pandas bug #5172
+            # (AmbiguousTimeError: Cannot infer dst time from Timestamp)
+            activation = activation.tz_convert(None) 
             activation = activation.resample("{:d}S".format(self.sample_period))
             activation.fillna(method='ffill', inplace=True)
             activation.fillna(method='bfill', inplace=True)

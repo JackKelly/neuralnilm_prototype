@@ -17,6 +17,6 @@ net = Net(
     n_dense_cells_per_layer=50
 )
 
-net.fit(n_iterations=2000)
+net.fit(n_iterations=1600)
 net.plot_costs()
 net.plot_estimates()
