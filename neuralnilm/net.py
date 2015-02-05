@@ -53,13 +53,13 @@ class Net(object):
         l_reshape1 = ReshapeLayer(l_previous, concat_shape)
         l_dense1 = DenseLayer(
             l_reshape1, num_units=n_dense_cells_per_layer, nonlinearity=sigmoid,
-            b=np.random.uniform(-1,1,n_dense_cells_per_layer).astype(theano.config.floatX),
-            W=np.random.uniform(-1,1,(1,n_dense_cells_per_layer)).astype(theano.config.floatX)
+            b=np.random.uniform(-10,10,n_dense_cells_per_layer).astype(theano.config.floatX),
+            W=np.random.uniform(-10,10,(1,n_dense_cells_per_layer)).astype(theano.config.floatX)
         )
         l_dense2 = DenseLayer(
             l_dense1, num_units=n_dense_cells_per_layer, nonlinearity=sigmoid,
-            b=np.random.uniform(-1,1,n_dense_cells_per_layer).astype(theano.config.floatX),
-            W=np.random.uniform(-1,1,(n_dense_cells_per_layer,n_dense_cells_per_layer)).astype(theano.config.floatX)
+            b=np.random.uniform(-10,10,n_dense_cells_per_layer).astype(theano.config.floatX),
+            W=np.random.uniform(-10,10,(n_dense_cells_per_layer,n_dense_cells_per_layer)).astype(theano.config.floatX)
         )
         """
         concat_shape = (self.source.n_seq_per_batch, self.source.seq_length, 
