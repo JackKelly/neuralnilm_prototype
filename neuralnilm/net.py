@@ -2,7 +2,7 @@ from __future__ import division, print_function
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from datetime import timedelta
+from datetime import datetime, timedelta
 from numpy.random import rand
 from time import time
 import theano
@@ -30,7 +30,8 @@ class Net(object):
 
     def __init__(self, source, learning_rate=1e-1, 
                  n_cells_per_hidden_layer=None, output_nonlinearity=None,
-                 n_dense_cells_per_layer=20):
+                 n_dense_cells_per_layer=20, experiment_name="",
+                 validation_interval=10, save_plot_interval=100):
         """
         Parameters
         ----------
@@ -42,9 +43,11 @@ class Net(object):
         output_shape = source.output_shape()
         if n_cells_per_hidden_layer is None:
             n_cells_per_hidden_layer = [5]
-        self.validation_interval = 10
+        self.validation_interval = validation_interval
+        self.save_plot_interval = save_plot_interval
         self.validation_costs = []
         self.training_costs = []
+        self.experiment_name = experiment_name
 
         # Shape is (number of examples per batch,
         #           maximum number of time steps per example,
@@ -143,22 +146,21 @@ class Net(object):
             [input, target_output], cost, on_unused_input='warn',
             allow_input_downcast=True)
 
+        # Generate a "validation" sequence whose cost we will compute
+        self.X_val, self.y_val = self.source.validation_data()
         print("Done initialising network.")
 
     def fit(self, n_iterations=None):
-        # Generate a "validation" sequence whose cost we will compute
-        X_val, y_val = self.source.validation_data()
-
         # Training loop
         self.source.start()
         try:
-            self._training_loop(n_iterations, X_val, y_val)
+            self._training_loop(n_iterations)
         except:
             raise
         finally:
-            self.source.stop()
+            self.source.stop()      
 
-    def _training_loop(self, n_iterations, X_val, y_val):
+    def _training_loop(self, n_iterations):
         # Adapted from dnouri/nolearn/nolearn/lasagne.py
         print("""
  Epoch  |  Train cost  |  Valid cost  |  Train / Val  | Sec per epoch
@@ -172,9 +174,11 @@ class Net(object):
             train_cost = self.train(X, y).flatten()[0]
             self.training_costs.append(train_cost)
             if not i % self.validation_interval:
-                validation_cost = self.compute_cost(X_val, y_val).flatten()[0]
+                validation_cost = self.compute_cost(self.X_val, self.y_val).flatten()[0]
                 self.validation_costs.append(validation_cost)
-
+            if not i % self.save_plot_interval:
+                self.plot_costs(save=True)
+                self.plot_estimates(save=True)
             # Print progress
             duration = time() - t0
             is_best_train = train_cost == min(self.training_costs)
@@ -193,7 +197,7 @@ class Net(object):
             ))
             i += 1
 
-    def plot_costs(self, ax=None):
+    def plot_costs(self, ax=None, save=False):
         if ax is None:
             ax = plt.gca()
         ax.plot(self.training_costs, label='Training')
@@ -202,12 +206,17 @@ class Net(object):
         ax.set_xlabel('Iteration')
         ax.set_ylabel('Cost')
         ax.legend()
-        plt.show()
+        filename = self._plot_filename('costs') if save else None
+        if filename:
+            plt.savefig(filename, bbox_inches='tight')
+        else:
+            plt.show()
+        show_or_save_plot(filename)
         return ax
 
-    def plot_estimates(self, axes=None):
+    def plot_estimates(self, axes=None, save=False):
         if axes is None:
-            _, axes = plt.subplots(3, sharex=True)
+            fig, axes = plt.subplots(3, sharex=True)
         X, y = self.source.validation_data()
         y_predictions = self.y_pred(X)
         axes[0].set_title('Appliance estimates')
@@ -217,4 +226,23 @@ class Net(object):
         axes[2].set_title('Aggregate')
         axes[2].plot(X[0,:,:])#, label='Fdiff')
         #axes[1].plot(np.cumsum(X[0,:,1]), label='Cumsum')
+        filename = self._plot_filename('estimates') if save else None
+        if filename:
+            plt.savefig(filename, bbox_inches='tight')
+        else:
+            plt.show()
+        return axes
+
+    def _plot_filename(self, string):
+        return (
+            self.experiment_name + ("_" if self.experiment_name else "") + 
+            "{}_{:d}epochs_{}.eps".format(
+            string, len(self.training_costs),
+            datetime.now().strftime("%Y-%m-%dT%H:%M:%S")))
+
+
+def show_or_save_plot(filename):
+    if filename:
+        plt.savefig(filename, bbox_inches='tight')
+    else:
         plt.show()

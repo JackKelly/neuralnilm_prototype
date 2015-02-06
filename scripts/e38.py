@@ -18,13 +18,17 @@ source = RealApplianceSource(
 )
 
 net = Net(
+    experiment_name="e38b",
     source=source,
-    n_cells_per_hidden_layer=[25,25],
+    n_cells_per_hidden_layer=[50,50,50],
     output_nonlinearity=sigmoid,
     learning_rate=1e-1,
-    n_dense_cells_per_layer=25
+    n_dense_cells_per_layer=50,
+    # validation_interval=2, 
+    save_plot_interval=250
 )
 
-net.fit(n_iterations=20000)
-net.plot_costs()
-net.plot_estimates()
+net.fit()
+
+#net.plot_costs()
+#net.plot_estimates()
