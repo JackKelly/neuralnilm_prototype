@@ -80,9 +80,11 @@ class Net(object):
             # If learn_init=True then you can't have multiple
             # layers of LSTM cells.
             l_fwd = LSTMLayer(l_previous, n_cells, backwards=False,
-                              learn_init=False, peepholes=True)
+                              learn_init=False, peepholes=True,
+                              W_in_to_cell=lasagne.init.Normal(1.0))
             l_bck = LSTMLayer(l_previous, n_cells, backwards=True,
-                              learn_init=False, peepholes=True)
+                              learn_init=False, peepholes=True,
+                              W_in_to_cell=lasagne.init.Normal(1.0))
             l_previous = ElemwiseSumLayer([l_fwd, l_bck])
 
         concat_shape = (self.source.n_seq_per_batch * self.source.seq_length, 
@@ -143,7 +145,7 @@ class Net(object):
 
         print("Done initialising network.")
 
-    def fit(self, n_iterations=100):
+    def fit(self, n_iterations=None):
         # Generate a "validation" sequence whose cost we will compute
         X_val, y_val = self.source.validation_data()
 
@@ -163,12 +165,13 @@ class Net(object):
 --------|--------------|--------------|---------------|---------------\
 """)
         validation_cost = None
-        for n in range(n_iterations):
+        i = 0
+        while i != n_iterations:
             t0 = time() # for calculating training duration
             X, y = self.source.queue.get(timeout=30)
             train_cost = self.train(X, y).flatten()[0]
             self.training_costs.append(train_cost)
-            if not n % self.validation_interval:
+            if not i % self.validation_interval:
                 validation_cost = self.compute_cost(X_val, y_val).flatten()[0]
                 self.validation_costs.append(validation_cost)
 
@@ -188,6 +191,7 @@ class Net(object):
                       train_cost / validation_cost,
                       duration
             ))
+            i += 1
 
     def plot_costs(self, ax=None):
         if ax is None:
@@ -203,15 +207,14 @@ class Net(object):
 
     def plot_estimates(self, axes=None):
         if axes is None:
-            _, axes = plt.subplots(2, sharex=True)
+            _, axes = plt.subplots(3, sharex=True)
         X, y = self.source.validation_data()
         y_predictions = self.y_pred(X)
-        axes[0].set_title('Appliance')
-        axes[0].plot(y_predictions[0,:,0], label='Estimates')
-        axes[0].plot(y[0,:,0], label='Ground truth')
-        axes[0].legend()
-        axes[1].set_title('Aggregate')
-        axes[1].plot(X[0,:,0])#, label='Fdiff')
+        axes[0].set_title('Appliance estimates')
+        axes[0].plot(y_predictions[0,:,:])
+        axes[1].set_title('Appliance ground truth')
+        axes[1].plot(y[0,:,:])
+        axes[2].set_title('Aggregate')
+        axes[2].plot(X[0,:,:])#, label='Fdiff')
         #axes[1].plot(np.cumsum(X[0,:,1]), label='Cumsum')
-        axes[1].legend()
         plt.show()

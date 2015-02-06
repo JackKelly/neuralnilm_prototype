@@ -131,8 +131,10 @@ class ToySource(Source):
 
 
 class RealApplianceSource(Source):
-    def __init__(self, filename, appliances, max_input_power, max_output_power,
-                 window=(None, None), building=1, seq_length=1000):
+    def __init__(self, filename, appliances, 
+                 max_input_power, max_appliance_powers,
+                 window=(None, None), building=1, seq_length=1000,
+                 output_one_appliance=True, sample_period=6):
         """
         Parameters
         ----------
@@ -145,8 +147,10 @@ class RealApplianceSource(Source):
             seq_length=seq_length, 
             n_seq_per_batch=5,
             n_inputs=1,
-            n_outputs=1)
-        self.sample_period = 6
+            n_outputs=1 if output_one_appliance else len(appliances)
+        )
+        self.sample_period = sample_period
+        self.output_one_appliance = output_one_appliance
         self.dataset = DataSet(filename)
         self.dataset.set_window(*window)
         self.appliances = appliances
@@ -154,47 +158,53 @@ class RealApplianceSource(Source):
         self.metergroup = self.dataset.buildings[building].elec
         self.activations = {}
         self.n_activations = {}
-        for appliance in self.appliances:
+        for appliance_i, appliance in enumerate(self.appliances):
             print("Loading activations for", appliance, end="... ")
             stdout.flush()
             activations = self.metergroup[appliance].activation_series()
-            self.activations[appliance] = activations
+            self.activations[appliance] = self._preprocess_activations(
+                activations, max_appliance_powers[appliance_i])
             self.n_activations[appliance] = len(activations)
             print("Loaded", len(activations), "activations.")
         self.max_input_power = max_input_power
-        self.max_output_power = max_output_power
+        self.max_appliance_powers = max_appliance_powers
         self.dataset.store.close()
 
-    def _gen_single_example(self):
-        X = np.zeros(self.seq_length)
-        is_target_appliance = True
-        for appliance in self.appliances:
-            i = randint(0, self.n_activations[appliance])
-            activation = self.activations[appliance][i]
+    def _preprocess_activations(self, activations, max_power):
+        for i, activation in enumerate(activations):
             # tz_convert(None) is a workaround for Pandas bug #5172
             # (AmbiguousTimeError: Cannot infer dst time from Timestamp)
             activation = activation.tz_convert(None) 
             activation = activation.resample("{:d}S".format(self.sample_period))
             activation.fillna(method='ffill', inplace=True)
             activation.fillna(method='bfill', inplace=True)
+            activation = activation.clip(0, max_power)
+            activations[i] = activation
+        return activations
+
+    def _gen_single_example(self):
+        X = np.zeros(shape=(self.seq_length, self.n_inputs))
+        y = np.zeros(shape=(self.seq_length, self.n_outputs))
+        for appliance_i, appliance in enumerate(self.appliances):
+            activation_i = randint(0, self.n_activations[appliance])
+            activation = self.activations[appliance][activation_i]
             latest_start_i = (self.seq_length - len(activation)) - 5
             latest_start_i = np.clip(latest_start_i, 1, None)
             start_i = randint(0, latest_start_i)
             end_i = start_i + len(activation)
             end_i = np.clip(end_i, None, self.seq_length-1)
-            X[start_i:end_i] += activation.values[:end_i-start_i]
-            if is_target_appliance:
-                X = np.clip(X, 0, self.max_output_power)
-                y = np.copy(X)
-                is_target_appliance = False
-            X = np.clip(X, 0, self.max_input_power)
-        return X / self.max_input_power, y / self.max_output_power
+            X[start_i:end_i,0] += activation.values[:end_i-start_i]
+            if appliance_i == 0 or not self.output_one_appliance:
+                y[start_i:end_i, appliance_i] = activation.values[:end_i-start_i]
+                y[:,appliance_i] /= self.max_appliance_powers[appliance_i]
+        X = np.clip(X, 0, self.max_input_power)
+        return X / self.max_input_power, y
     
     def _gen_data(self, validation=False):
         X = np.empty(self.input_shape())
         y = np.empty(self.output_shape())
         for i in range(self.n_seq_per_batch):
-            X[i,:,0], y[i,:,0] = self._gen_single_example()
+            X[i,:,:], y[i,:,:] = self._gen_single_example()
         return X, y
 
 class NILMTKSource(Source):
