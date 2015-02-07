@@ -199,7 +199,8 @@ class Net(object):
 
     def plot_costs(self, ax=None, save=False):
         if ax is None:
-            ax = plt.gca()
+            fig, axes = plt.subplots(1, sharex=True)
+            ax = axes[0]
         ax.plot(self.training_costs, label='Training')
         validation_x = range(0, len(self.training_costs), self.validation_interval)
         ax.plot(validation_x, self.validation_costs, label='Validation')
@@ -211,7 +212,6 @@ class Net(object):
             plt.savefig(filename, bbox_inches='tight')
         else:
             plt.show()
-        show_or_save_plot(filename)
         return ax
 
     def plot_estimates(self, axes=None, save=False):
@@ -239,10 +239,3 @@ class Net(object):
             "{}_{:d}epochs_{}.eps".format(
             string, len(self.training_costs),
             datetime.now().strftime("%Y-%m-%dT%H:%M:%S")))
-
-
-def show_or_save_plot(filename):
-    if filename:
-        plt.savefig(filename, bbox_inches='tight')
-    else:
-        plt.show()
