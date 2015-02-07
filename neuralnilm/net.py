@@ -199,8 +199,7 @@ class Net(object):
 
     def plot_costs(self, ax=None, save=False):
         if ax is None:
-            fig, axes = plt.subplots(1, sharex=True)
-            ax = axes[0]
+            fig, ax = plt.subplots(1, sharex=True)
         ax.plot(self.training_costs, label='Training')
         validation_x = range(0, len(self.training_costs), self.validation_interval)
         ax.plot(validation_x, self.validation_costs, label='Validation')

@@ -20,13 +20,15 @@ source = RealApplianceSource(
 net = Net(
     experiment_name="e39a",
     source=source,
-    n_cells_per_hidden_layer=[200,200,200],
+    n_cells_per_hidden_layer=[200,100,100],
     output_nonlinearity=sigmoid,
     learning_rate=1e-1,
     n_dense_cells_per_layer=200,
     # validation_interval=2, 
     save_plot_interval=250
 )
+
+# [200,200,200] n_dense_cells=200 got killed before training
 
 net.fit()
 
