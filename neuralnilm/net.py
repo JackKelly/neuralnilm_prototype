@@ -31,7 +31,8 @@ class Net(object):
     def __init__(self, source, learning_rate=1e-1, 
                  n_cells_per_hidden_layer=None, output_nonlinearity=None,
                  n_dense_cells_per_layer=20, experiment_name="",
-                 validation_interval=10, save_plot_interval=100):
+                 validation_interval=10, save_plot_interval=100,
+                 loss_function=lasagne.objectives.mse):
         """
         Parameters
         ----------
@@ -48,6 +49,7 @@ class Net(object):
         self.validation_costs = []
         self.training_costs = []
         self.experiment_name = experiment_name
+        self.loss_function = loss_function
 
         # Shape is (number of examples per batch,
         #           maximum number of time steps per example,
@@ -125,8 +127,8 @@ class Net(object):
             *output_shape).astype(theano.config.floatX)
 
         print("Compiling Theano functions...")
-        # Cost = mean squared error
-        cost = T.mean((l_out.get_output(input) - target_output)**2)
+        cost = loss_function(l_out.get_output(input), target_output)
+
         # Use NAG for training
         all_params = lasagne.layers.get_all_params(l_out)
         updates = lasagne.updates.nesterov_momentum(

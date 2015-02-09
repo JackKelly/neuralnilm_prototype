@@ -135,7 +135,7 @@ class RealApplianceSource(Source):
                  max_input_power, max_appliance_powers,
                  window=(None, None), building=1, seq_length=1000,
                  output_one_appliance=True, sample_period=6,
-                 boolean_targets=False):
+                 boolean_targets=False, min_on_duration=0):
         """
         Parameters
         ----------
@@ -163,7 +163,8 @@ class RealApplianceSource(Source):
         for appliance_i, appliance in enumerate(self.appliances):
             print("Loading activations for", appliance, end="... ")
             stdout.flush()
-            activations = self.metergroup[appliance].activation_series()
+            activations = self.metergroup[appliance].activation_series(
+                min_on_duration=min_on_duration)
             self.activations[appliance] = self._preprocess_activations(
                 activations, max_appliance_powers[appliance_i])
             self.n_activations[appliance] = len(activations)
@@ -200,6 +201,7 @@ class RealApplianceSource(Source):
             target = activation.values[:end_i-start_i]
             X[start_i:end_i,0] += target
             if appliance_i == 0 or not self.output_one_appliance:
+                target = np.copy(target)
                 if self.boolean_targets:
                     target[target <= POWER_THRESHOLD] = 0
                     target[target > POWER_THRESHOLD] = 1
