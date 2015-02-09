@@ -176,7 +176,7 @@ class Net(object):
             X, y = self.source.queue.get(timeout=30)
             train_cost = self.train(X, y).flatten()[0]
             self.training_costs.append(train_cost)
-            epoch = len(self.training_costs)
+            epoch = len(self.training_costs) - 1
             if not epoch % self.validation_interval:
                 validation_cost = self.compute_cost(self.X_val, self.y_val).flatten()[0]
                 self.validation_costs.append(validation_cost)
