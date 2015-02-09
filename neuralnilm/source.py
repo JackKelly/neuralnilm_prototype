@@ -134,7 +134,8 @@ class RealApplianceSource(Source):
     def __init__(self, filename, appliances, 
                  max_input_power, max_appliance_powers,
                  window=(None, None), building=1, seq_length=1000,
-                 output_one_appliance=True, sample_period=6):
+                 output_one_appliance=True, sample_period=6,
+                 boolean_targets=False):
         """
         Parameters
         ----------
@@ -156,6 +157,7 @@ class RealApplianceSource(Source):
         self.appliances = appliances
         self._tz = self.dataset.metadata['timezone']
         self.metergroup = self.dataset.buildings[building].elec
+        self.boolean_targets = boolean_targets
         self.activations = {}
         self.n_activations = {}
         for appliance_i, appliance in enumerate(self.appliances):
@@ -185,18 +187,25 @@ class RealApplianceSource(Source):
     def _gen_single_example(self):
         X = np.zeros(shape=(self.seq_length, self.n_inputs))
         y = np.zeros(shape=(self.seq_length, self.n_outputs))
+        POWER_THRESHOLD = 5
+        BORDER = 5
         for appliance_i, appliance in enumerate(self.appliances):
             activation_i = randint(0, self.n_activations[appliance])
             activation = self.activations[appliance][activation_i]
-            latest_start_i = (self.seq_length - len(activation)) - 5
-            latest_start_i = np.clip(latest_start_i, 1, None)
+            latest_start_i = (self.seq_length - len(activation)) - BORDER
+            latest_start_i = max(latest_start_i, BORDER)
             start_i = randint(0, latest_start_i)
             end_i = start_i + len(activation)
-            end_i = np.clip(end_i, None, self.seq_length-1)
-            X[start_i:end_i,0] += activation.values[:end_i-start_i]
+            end_i = min(end_i, self.seq_length-1)
+            target = activation.values[:end_i-start_i]
+            X[start_i:end_i,0] += target
             if appliance_i == 0 or not self.output_one_appliance:
-                y[start_i:end_i, appliance_i] = activation.values[:end_i-start_i]
-                y[:,appliance_i] /= self.max_appliance_powers[appliance_i]
+                if self.boolean_targets:
+                    target[target <= POWER_THRESHOLD] = 0
+                    target[target > POWER_THRESHOLD] = 1
+                else:
+                    target /= self.max_appliance_powers[appliance_i]
+                y[start_i:end_i, appliance_i] = target
         X = np.clip(X, 0, self.max_input_power)
         return X / self.max_input_power, y
     
