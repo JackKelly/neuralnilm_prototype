@@ -56,23 +56,24 @@ class Net(object):
         #           number of features per example)
         l_previous = InputLayer(shape=input_shape)
 
-        concat_shape = (self.source.n_seq_per_batch * self.source.seq_length, 
-                        self.source.n_inputs)
-        l_reshape1 = ReshapeLayer(l_previous, concat_shape)
-        l_dense1 = DenseLayer(
-            l_reshape1, num_units=n_dense_cells_per_layer, nonlinearity=sigmoid,
-            b=np.random.uniform(-25,25,n_dense_cells_per_layer).astype(theano.config.floatX),
-            W=np.random.uniform(-25,25,(1,n_dense_cells_per_layer)).astype(theano.config.floatX)
-        )
-        l_dense2 = DenseLayer(
-            l_dense1, num_units=n_dense_cells_per_layer, nonlinearity=sigmoid,
-            b=np.random.uniform(-10,10,n_dense_cells_per_layer).astype(theano.config.floatX),
-            W=np.random.uniform(-10,10,(n_dense_cells_per_layer,n_dense_cells_per_layer)).astype(theano.config.floatX)
-        )
+        if n_dense_cells_per_layer > 0:
+            concat_shape = (self.source.n_seq_per_batch * self.source.seq_length, 
+                            self.source.n_inputs)
+            l_reshape1 = ReshapeLayer(l_previous, concat_shape)
+            l_dense1 = DenseLayer(
+                l_reshape1, num_units=n_dense_cells_per_layer, nonlinearity=sigmoid,
+                b=np.random.uniform(-25,25,n_dense_cells_per_layer).astype(theano.config.floatX),
+                W=np.random.uniform(-25,25,(1,n_dense_cells_per_layer)).astype(theano.config.floatX)
+            )
+            l_dense2 = DenseLayer(
+                l_dense1, num_units=n_dense_cells_per_layer, nonlinearity=sigmoid,
+                b=np.random.uniform(-10,10,n_dense_cells_per_layer).astype(theano.config.floatX),
+                W=np.random.uniform(-10,10,(n_dense_cells_per_layer,n_dense_cells_per_layer)).astype(theano.config.floatX)
+            )
 
-        concat_shape = (self.source.n_seq_per_batch, self.source.seq_length, 
-                        n_dense_cells_per_layer)
-        l_previous = ReshapeLayer(l_dense2, concat_shape)
+            concat_shape = (self.source.n_seq_per_batch, self.source.seq_length, 
+                            n_dense_cells_per_layer)
+            l_previous = ReshapeLayer(l_dense2, concat_shape)
 
         # setup forward and backwards LSTM layers.  Note that
         # LSTMLayer takes a backwards flag. The backwards flag tells
