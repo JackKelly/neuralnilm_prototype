@@ -168,17 +168,19 @@ class Net(object):
  Epoch  |  Train cost  |  Valid cost  |  Train / Val  | Sec per epoch
 --------|--------------|--------------|---------------|---------------\
 """)
-        validation_cost = None
+        validation_cost = (self.validation_costs[-1] if self.validation_costs 
+                           else None)
         i = 0
         while i != n_iterations:
             t0 = time() # for calculating training duration
             X, y = self.source.queue.get(timeout=30)
             train_cost = self.train(X, y).flatten()[0]
             self.training_costs.append(train_cost)
-            if not i % self.validation_interval:
+            epoch = len(self.training_costs)
+            if not epoch % self.validation_interval:
                 validation_cost = self.compute_cost(self.X_val, self.y_val).flatten()[0]
                 self.validation_costs.append(validation_cost)
-            if not i % self.save_plot_interval:
+            if not epoch % self.save_plot_interval:
                 self.plot_costs(save=True)
                 self.plot_estimates(save=True)
             # Print progress
