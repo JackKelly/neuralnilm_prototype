@@ -44,6 +44,7 @@ class Net(object):
         self.source = source
         input_shape = source.input_shape()
         output_shape = source.output_shape()
+        self.n_seq_per_batch = input_shape[0]
         self.validation_interval = validation_interval
         self.save_plot_interval = save_plot_interval
         self.validation_costs = []
@@ -152,7 +153,8 @@ class Net(object):
                 self.validation_costs.append(validation_cost)
             if not epoch % self.save_plot_interval:
                 self.plot_costs(save=True)
-                self.plot_estimates(save=True)
+                for seq_i in range(self.n_seq_per_batch):
+                    self.plot_estimates(save=True, seq_i=seq_i)
             # Print progress
             duration = time() - t0
             is_best_train = train_cost == min(self.training_costs)
@@ -189,34 +191,34 @@ class Net(object):
             plt.show()
         return ax
 
-    def plot_estimates(self, axes=None, save=False):
+    def plot_estimates(self, axes=None, save=False, seq_i=0):
         fig = None
         if axes is None:
             fig, axes = plt.subplots(3, sharex=False)
         X, y = self.source.validation_data()
         y_predictions = self.y_pred(X)
         axes[0].set_title('Appliance estimates')
-        axes[0].plot(y_predictions[0,:,:])
+        axes[0].plot(y_predictions[seq_i,:,:])
         axes[1].set_title('Appliance ground truth')
-        axes[1].plot(y[0,:,:])
+        axes[1].plot(y[seq_i,:,:])
         axes[2].set_title('Aggregate')
-        axes[2].plot(X[0,:,:])
+        axes[2].plot(X[seq_i,:,:])
         if save:
-            filename = self._plot_filename('estimates')
+            filename = self._plot_filename('estimates', end_string=seq_i)
             plt.savefig(filename, bbox_inches='tight')
             plt.close(fig)
         else:
             plt.show()
         return axes
 
-    def _plot_filename(self, string, include_epochs=True):
+    def _plot_filename(self, string, include_epochs=True, end_string=""):
         n_epochs = len(self.training_costs)
+        end_string = str(end_string)
         return (
-            self.experiment_name + 
-            ("_" if self.experiment_name else "") + 
+            self.experiment_name + ("_" if self.experiment_name else "") + 
             string +
-            "_" + 
-            ("{:d}epochs".format(n_epochs) if include_epochs else "") + 
+            ("_{:d}epochs".format(n_epochs) if include_epochs else "") + 
+            ("_" if end_string else "") + end_string +
             ".eps")
 
 
@@ -236,19 +238,21 @@ def BLSTMLayer(l_previous, num_units, **kwargs):
 
 class SubsampleLayer(Layer):
     def __init__(self, input_layer, stride):
-        super(SubsampleLayer, self).__init__(input_layer)
+        if input_layer is not None:
+            super(SubsampleLayer, self).__init__(input_layer)
         self.stride = stride
 
     def get_output_shape_for(self, input_shape):
-        seq_length = int(np.ceil(input_shape[1] / self.stride))
+        assert len(input_shape) == 3
+        if input_shape[1] % self.stride:
+            raise RuntimeError("Seq length must be exactly divisible by stride.")
+        seq_length = int(input_shape[1] / self.stride)
         return (input_shape[0], seq_length, input_shape[2])
 
     def get_output_shape(self):
         return self.get_output_shape_for(self.input_shape)
 
     def get_output_for(self, input, *args, **kwargs):
-        if self.input_shape[1] % self.stride:
-            raise RuntimeError("Seq length must be exactly divisible by stride.")
         shape = tuple(list(self.get_output_shape()) + [-1])
         reshaped = input.reshape(shape)
         return reshaped.sum(axis=-1)
