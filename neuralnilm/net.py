@@ -8,7 +8,7 @@ from time import time
 import theano
 import theano.tensor as T
 import lasagne
-from lasagne.layers import (InputLayer, LSTMLayer, ReshapeLayer, 
+from lasagne.layers import (InputLayer, LSTMLayer, ReshapeLayer, Layer,
                             ConcatLayer, ElemwiseSumLayer, DenseLayer)
 from lasagne.nonlinearities import sigmoid, rectify
 from lasagne.utils import floatX
@@ -63,15 +63,19 @@ class Net(object):
             prev_layer_output_shape = l_previous.get_output_shape()
             n_dims = len(prev_layer_output_shape)
             n_features = prev_layer_output_shape[-1]
-            if layer_type in [LSTMLayer, BLSTMLayer]:
+            if layer_type in [LSTMLayer, BLSTMLayer, SubsampleLayer]:
                 if n_dims == 2:
+                    seq_length = int(prev_layer_output_shape[0] / 
+                                     self.source.n_seq_per_batch)
                     shape = (self.source.n_seq_per_batch, 
-                             self.source.seq_length, 
+                             seq_length,
                              n_features)
                     l_previous = ReshapeLayer(l_previous, shape)
             elif n_dims == 3:
-                # DenseLayer or similar...
-                shape = (self.source.n_seq_per_batch * self.source.seq_length,
+                # this layer_type is a DenseLayer or similar and previous
+                # was a time-aware layer, so reshape to 2-dims.
+                seq_length = prev_layer_output_shape[1]
+                shape = (self.source.n_seq_per_batch * seq_length,
                          n_features)
                 l_previous = ReshapeLayer(l_previous, shape)
 
@@ -168,6 +172,7 @@ class Net(object):
             i += 1
 
     def plot_costs(self, ax=None, save=False):
+        fig = None
         if ax is None:
             fig, ax = plt.subplots(1, sharex=True)
         ax.plot(self.training_costs, label='Training')
@@ -176,16 +181,18 @@ class Net(object):
         ax.set_xlabel('Iteration')
         ax.set_ylabel('Cost')
         ax.legend()
-        filename = self._plot_filename('costs') if save else None
-        if filename:
+        if save:
+            filename = self._plot_filename('costs', include_epochs=False)
             plt.savefig(filename, bbox_inches='tight')
+            plt.close(fig)
         else:
             plt.show()
         return ax
 
     def plot_estimates(self, axes=None, save=False):
+        fig = None
         if axes is None:
-            fig, axes = plt.subplots(3, sharex=True)
+            fig, axes = plt.subplots(3, sharex=False)
         X, y = self.source.validation_data()
         y_predictions = self.y_pred(X)
         axes[0].set_title('Appliance estimates')
@@ -193,21 +200,24 @@ class Net(object):
         axes[1].set_title('Appliance ground truth')
         axes[1].plot(y[0,:,:])
         axes[2].set_title('Aggregate')
-        axes[2].plot(X[0,:,:])#, label='Fdiff')
-        #axes[1].plot(np.cumsum(X[0,:,1]), label='Cumsum')
-        filename = self._plot_filename('estimates') if save else None
-        if filename:
+        axes[2].plot(X[0,:,:])
+        if save:
+            filename = self._plot_filename('estimates')
             plt.savefig(filename, bbox_inches='tight')
+            plt.close(fig)
         else:
             plt.show()
         return axes
 
-    def _plot_filename(self, string):
+    def _plot_filename(self, string, include_epochs=True):
+        n_epochs = len(self.training_costs)
         return (
-            self.experiment_name + ("_" if self.experiment_name else "") + 
-            "{}_{:d}epochs_{}.eps".format(
-            string, len(self.training_costs),
-            datetime.now().strftime("%Y-%m-%dT%H:%M:%S")))
+            self.experiment_name + 
+            ("_" if self.experiment_name else "") + 
+            string +
+            "_" + 
+            ("{:d}epochs".format(n_epochs) if include_epochs else "") + 
+            ".eps")
 
 
 def BLSTMLayer(l_previous, num_units, **kwargs):
@@ -222,3 +232,23 @@ def BLSTMLayer(l_previous, num_units, **kwargs):
     l_fwd = LSTMLayer(l_previous, num_units, backwards=False, **kwargs)
     l_bck = LSTMLayer(l_previous, num_units, backwards=True, **kwargs)
     return ElemwiseSumLayer([l_fwd, l_bck])
+
+
+class SubsampleLayer(Layer):
+    def __init__(self, input_layer, stride):
+        super(SubsampleLayer, self).__init__(input_layer)
+        self.stride = stride
+
+    def get_output_shape_for(self, input_shape):
+        seq_length = int(np.ceil(input_shape[1] / self.stride))
+        return (input_shape[0], seq_length, input_shape[2])
+
+    def get_output_shape(self):
+        return self.get_output_shape_for(self.input_shape)
+
+    def get_output_for(self, input, *args, **kwargs):
+        if self.input_shape[1] % self.stride:
+            raise RuntimeError("Seq length must be exactly divisible by stride.")
+        shape = tuple(list(self.get_output_shape()) + [-1])
+        reshaped = input.reshape(shape)
+        return reshaped.sum(axis=-1)
