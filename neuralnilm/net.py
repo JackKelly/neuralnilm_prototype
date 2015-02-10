@@ -60,20 +60,23 @@ class Net(object):
             layer_type = layer.pop('type')
 
             # Reshape if necessary
-            n_dims = len(l_previous.get_output_shape())
+            prev_layer_output_shape = l_previous.get_output_shape()
+            n_dims = len(prev_layer_output_shape)
+            n_features = prev_layer_output_shape[-1]
             if layer_type in [LSTMLayer, BLSTMLayer]:
                 if n_dims == 2:
                     shape = (self.source.n_seq_per_batch, 
                              self.source.seq_length, 
-                             l_previous.get_output_shape()[-1])
+                             n_features)
                     l_previous = ReshapeLayer(l_previous, shape)
             elif n_dims == 3:
                 # DenseLayer or similar...
-                shape = (self.source.n_seq_per_batch * self.source.seq_length, 
-                         self.source.n_inputs)
+                shape = (self.source.n_seq_per_batch * self.source.seq_length,
+                         n_features)
                 l_previous = ReshapeLayer(l_previous, shape)
 
             # Init new layer
+            print('Initialising layer :', layer_type)
             l_previous = layer_type(l_previous, **layer)
 
         # Reshape output if necessary...
@@ -207,7 +210,7 @@ class Net(object):
             datetime.now().strftime("%Y-%m-%dT%H:%M:%S")))
 
 
-def BLSTMLayer(l_previous, **kwargs):
+def BLSTMLayer(l_previous, num_units, **kwargs):
     # setup forward and backwards LSTM layers.  Note that
     # LSTMLayer takes a backwards flag. The backwards flag tells
     # scan to go backwards before it returns the output from
@@ -216,6 +219,6 @@ def BLSTMLayer(l_previous, **kwargs):
 
     # If learn_init=True then you can't have multiple
     # layers of LSTM cells.
-    l_fwd = LSTMLayer(l_previous, backwards=False, **kwargs)
-    l_bck = LSTMLayer(l_previous, backwards=True, **kwargs)
+    l_fwd = LSTMLayer(l_previous, num_units, backwards=False, **kwargs)
+    l_bck = LSTMLayer(l_previous, num_units, backwards=True, **kwargs)
     return ElemwiseSumLayer([l_fwd, l_bck])
