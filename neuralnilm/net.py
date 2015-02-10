@@ -11,6 +11,7 @@ import lasagne
 from lasagne.layers import (InputLayer, LSTMLayer, ReshapeLayer, 
                             ConcatLayer, ElemwiseSumLayer, DenseLayer)
 from lasagne.nonlinearities import sigmoid, rectify
+from lasagne.utils import floatX
 theano.config.compute_test_value = 'raise'
 
 """
@@ -28,22 +29,21 @@ class ansi:
 class Net(object):
     # Much of this code is adapted from craffel/nntools/examples/lstm.py
 
-    def __init__(self, source, learning_rate=1e-1, 
-                 n_cells_per_hidden_layer=None, output_nonlinearity=None,
-                 n_dense_cells_per_layer=20, experiment_name="",
+    def __init__(self, source, layers, learning_rate=1e-1, 
+                 output_nonlinearity=None, experiment_name="",
                  validation_interval=10, save_plot_interval=100,
                  loss_function=lasagne.objectives.mse):
         """
         Parameters
         ----------
-        n_cells_per_hidden_layer = list of ints
+        layers : list of dicts.  Keys are:
+            'type' : BLSTMLayer or a subclass of lasagne.layers.Layer
+            'num_units' : int
         """
         print("Initialising network...")
         self.source = source
         input_shape = source.input_shape()
         output_shape = source.output_shape()
-        if n_cells_per_hidden_layer is None:
-            n_cells_per_hidden_layer = [5]
         self.validation_interval = validation_interval
         self.save_plot_interval = save_plot_interval
         self.validation_costs = []
@@ -56,76 +56,38 @@ class Net(object):
         #           number of features per example)
         l_previous = InputLayer(shape=input_shape)
 
-        if n_dense_cells_per_layer > 0:
-            concat_shape = (self.source.n_seq_per_batch * self.source.seq_length, 
-                            self.source.n_inputs)
-            l_reshape1 = ReshapeLayer(l_previous, concat_shape)
-            l_dense1 = DenseLayer(
-                l_reshape1, num_units=n_dense_cells_per_layer, nonlinearity=sigmoid,
-                b=np.random.uniform(-25,25,n_dense_cells_per_layer).astype(theano.config.floatX),
-                W=np.random.uniform(-25,25,(1,n_dense_cells_per_layer)).astype(theano.config.floatX)
-            )
-            l_dense2 = DenseLayer(
-                l_dense1, num_units=n_dense_cells_per_layer, nonlinearity=sigmoid,
-                b=np.random.uniform(-10,10,n_dense_cells_per_layer).astype(theano.config.floatX),
-                W=np.random.uniform(-10,10,(n_dense_cells_per_layer,n_dense_cells_per_layer)).astype(theano.config.floatX)
-            )
+        for layer in layers:
+            layer_type = layer.pop('type')
 
-            concat_shape = (self.source.n_seq_per_batch, self.source.seq_length, 
-                            n_dense_cells_per_layer)
-            l_previous = ReshapeLayer(l_dense2, concat_shape)
+            # Reshape if necessary
+            n_dims = len(l_previous.get_output_shape())
+            if layer_type in [LSTMLayer, BLSTMLayer]:
+                if n_dims == 2:
+                    shape = (self.source.n_seq_per_batch, 
+                             self.source.seq_length, 
+                             l_previous.get_output_shape()[-1])
+                    l_previous = ReshapeLayer(l_previous, shape)
+            elif n_dims == 3:
+                # DenseLayer or similar...
+                shape = (self.source.n_seq_per_batch * self.source.seq_length, 
+                         self.source.n_inputs)
+                l_previous = ReshapeLayer(l_previous, shape)
 
-        # setup forward and backwards LSTM layers.  Note that
-        # LSTMLayer takes a backwards flag. The backwards flag tells
-        # scan to go backwards before it returns the output from
-        # backwards layers.  It is reversed again such that the output
-        # from the layer is always from x_1 to x_n.
-        for n_cells in n_cells_per_hidden_layer:
-            # l_previous = LSTMLayer(l_previous, n_cells, backwards=False,
-            #                        learn_init=True, peepholes=True)
-            # If learn_init=True then you can't have multiple
-            # layers of LSTM cells.
-            l_fwd = LSTMLayer(l_previous, n_cells, backwards=False,
-                              learn_init=False, peepholes=True,
-                              W_in_to_cell=lasagne.init.Normal(1.0))
-            l_bck = LSTMLayer(l_previous, n_cells, backwards=True,
-                              learn_init=False, peepholes=True,
-                              W_in_to_cell=lasagne.init.Normal(1.0))
-            l_previous = ElemwiseSumLayer([l_fwd, l_bck])
+            # Init new layer
+            l_previous = layer_type(l_previous, **layer)
 
-        concat_shape = (self.source.n_seq_per_batch * self.source.seq_length, 
-                        n_cells_per_hidden_layer[-1])
-        # concatenate forward and backward LSTM layers
-        l_reshape = ReshapeLayer(l_previous, concat_shape)
-        # We need a reshape layer which combines the first (batch
-        # size) and second (number of timesteps) dimensions, otherwise
-        # the DenseLayer will treat the number of time steps as a
-        # feature dimension.  Specifically, LSTMLayer expects a shape
-        # of (n_batch, n_time_steps, n_features) but the DenseLayer
-        # will flatten that shape to (n_batch,
-        # n_time_steps*n_features) by default which is
-        # wrong. Dimshuffling is done inside the LSTMLayer. You need
-        # to dimshuffle because Theano's scan function iterates over
-        # the first dimension, and if the shape is (n_batch,
-        # n_time_steps, n_features) then you need to dimshuffle(1, 0,
-        # 2) in order to iterate over time steps.
+        # Reshape output if necessary...
+        if l_previous.get_output_shape() == output_shape:
+            l_out = l_previous
+        else:
+            l_out = ReshapeLayer(l_previous, output_shape)
 
-        l_recurrent_out = DenseLayer(l_reshape, num_units=self.source.n_outputs,
-                                     nonlinearity=output_nonlinearity)
-        l_out = ReshapeLayer(l_recurrent_out, output_shape)
-        """
-        l_out1 = DenseLayer(l_dense2, num_units=self.source.n_outputs, 
-                            nonlinearity=output_nonlinearity)
-        l_out = ReshapeLayer(l_out1, output_shape)
-        """
         input = T.tensor3('input')
         target_output = T.tensor3('target_output')
 
         # add test values
-        input.tag.test_value = rand(
-            *input_shape).astype(theano.config.floatX)
-        target_output.tag.test_value = rand(
-            *output_shape).astype(theano.config.floatX)
+        input.tag.test_value = floatX(rand(*input_shape))
+        target_output.tag.test_value = floatX(rand(*output_shape))
 
         print("Compiling Theano functions...")
         cost = loss_function(l_out.get_output(input), target_output)
@@ -243,3 +205,17 @@ class Net(object):
             "{}_{:d}epochs_{}.eps".format(
             string, len(self.training_costs),
             datetime.now().strftime("%Y-%m-%dT%H:%M:%S")))
+
+
+def BLSTMLayer(l_previous, **kwargs):
+    # setup forward and backwards LSTM layers.  Note that
+    # LSTMLayer takes a backwards flag. The backwards flag tells
+    # scan to go backwards before it returns the output from
+    # backwards layers.  It is reversed again such that the output
+    # from the layer is always from x_1 to x_n.
+
+    # If learn_init=True then you can't have multiple
+    # layers of LSTM cells.
+    l_fwd = LSTMLayer(l_previous, backwards=False, **kwargs)
+    l_bck = LSTMLayer(l_previous, backwards=True, **kwargs)
+    return ElemwiseSumLayer([l_fwd, l_bck])
