@@ -28,10 +28,12 @@ Setup:
 * 2 dense layers back
 * back to default init
 * conv between LSTMs.
+* 3 LSTM layers
+* Changed LSTM init from Uniform(5) to Uniform(1)
+* Changed init of LSTM back to Uniform(5)
 
 Changes
-* More data
-* BLSTM
+* increased init on conv layer.
 
 Results
 
@@ -41,15 +43,15 @@ source = RealApplianceSource(
     '/data/dk3810/ukdale.h5', 
     ['fridge freezer', 'hair straighteners', 'television'],
     max_input_power=1000, max_appliance_powers=[300, 500, 200],
-    window=("2013-06-01", "2014-07-01"),
+    window=("2013-06-01", "2013-07-01"),
     output_one_appliance=False,
     boolean_targets=False,
     min_on_duration=60,
-    subsample_target=5
+    subsample_target=5*5
 )
 
 net = Net(
-    experiment_name="e59a",
+    experiment_name="e58c",
     source=source,
     learning_rate=1e-1,
     save_plot_interval=50,
@@ -70,7 +72,28 @@ net = Net(
             'b': Uniform(10)
         },
         {
-            'type': BLSTMLayer,
+            'type': LSTMLayer,
+            'num_units': 20,
+            'W_in_to_cell': Uniform(5)
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)
+        },
+        {
+            'type': Conv1DLayer,
+            'num_filters': 40,
+            'filter_length': 5,
+            'stride': 5,
+            'nonlinearity': sigmoid,
+            'W': Uniform(5)
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)
+        },
+        {
+            'type': LSTMLayer,
             'num_units': 40,
             'W_in_to_cell': Uniform(5)
         },
@@ -80,17 +103,18 @@ net = Net(
         },
         {
             'type': Conv1DLayer,
-            'num_filters': 20,
+            'num_filters': 80,
             'filter_length': 5,
             'stride': 5,
-            'nonlinearity': sigmoid
+            'nonlinearity': sigmoid,
+            'W': Uniform(5)
         },
         {
             'type': DimshuffleLayer,
             'pattern': (0, 2, 1)
         },
         {
-            'type': BLSTMLayer,
+            'type': LSTMLayer,
             'num_units': 80,
             'W_in_to_cell': Uniform(5)
         },
