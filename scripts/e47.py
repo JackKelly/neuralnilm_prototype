@@ -43,7 +43,7 @@ net = Net(
     learning_rate=1e-1,
     save_plot_interval=50,
     loss_function=crossentropy,
-    layers=[
+    layers_config=[
         {
             'type': BLSTMLayer,
             'num_units': 20,

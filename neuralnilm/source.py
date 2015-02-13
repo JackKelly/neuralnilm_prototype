@@ -136,7 +136,7 @@ class RealApplianceSource(Source):
                  window=(None, None), building=1, seq_length=1000,
                  output_one_appliance=True, sample_period=6,
                  boolean_targets=False, min_on_duration=0,
-                 subsample_target=1):
+                 subsample_target=1, input_padding=0):
         """
         Parameters
         ----------
@@ -164,6 +164,8 @@ class RealApplianceSource(Source):
         self.activations = {}
         self.n_activations = {}
         self.subsample_target = subsample_target
+        self.input_padding = input_padding
+
         for appliance_i, appliance in enumerate(self.appliances):
             print("Loading activations for", appliance, end="... ")
             stdout.flush()
@@ -222,6 +224,11 @@ class RealApplianceSource(Source):
             y = subsampled_y
         return X / self.max_input_power, y
     
+    def input_shape(self):
+        return (self.n_seq_per_batch, 
+                self.seq_length + self.input_padding, 
+                self.n_inputs)
+
     def output_shape(self):
         if self.seq_length % self.subsample_target:
             raise RuntimeError("subsample_target must exactly divide seq_length.")
@@ -233,7 +240,7 @@ class RealApplianceSource(Source):
         X = np.empty(self.input_shape())
         y = np.empty(self.output_shape())
         for i in range(self.n_seq_per_batch):
-            X[i,:,:], y[i,:,:] = self._gen_single_example()
+            X[i,self.input_padding:,:], y[i,:,:] = self._gen_single_example()
         return X, y
 
 class NILMTKSource(Source):

@@ -29,81 +29,99 @@ class ansi:
 class Net(object):
     # Much of this code is adapted from craffel/nntools/examples/lstm.py
 
-    def __init__(self, source, layers, learning_rate=1e-1, 
-                 output_nonlinearity=None, experiment_name="",
+    def __init__(self, source, layers_config, learning_rate=1e-1, 
+                 experiment_name="", 
                  validation_interval=10, save_plot_interval=100,
                  loss_function=lasagne.objectives.mse):
         """
         Parameters
         ----------
-        layers : list of dicts.  Keys are:
+        layers_config : list of dicts.  Keys are:
             'type' : BLSTMLayer or a subclass of lasagne.layers.Layer
             'num_units' : int
         """
         print("Initialising network...")
         self.source = source
-        input_shape = source.input_shape()
-        output_shape = source.output_shape()
-        self.n_seq_per_batch = input_shape[0]
+        self.learning_rate = learning_rate
+        self.experiment_name = experiment_name
         self.validation_interval = validation_interval
         self.save_plot_interval = save_plot_interval
+        self.loss_function = loss_function
+
+        self.input_shape = source.input_shape()
+        self.output_shape = source.output_shape()
+        self.n_seq_per_batch = self.input_shape[0]
         self.validation_costs = []
         self.training_costs = []
-        self.experiment_name = experiment_name
-        self.loss_function = loss_function
+        self.layers = []
 
         # Shape is (number of examples per batch,
         #           maximum number of time steps per example,
         #           number of features per example)
-        l_previous = InputLayer(shape=input_shape)
+        self.layers.append(InputLayer(shape=self.input_shape))
 
-        for layer in layers:
-            layer_type = layer.pop('type')
+        for layer_config in layers_config:
+            layer_type = layer_config.pop('type')
 
             # Reshape if necessary
-            prev_layer_output_shape = l_previous.get_output_shape()
+            prev_layer_output_shape = self.layers[-1].get_output_shape()
             n_dims = len(prev_layer_output_shape)
             n_features = prev_layer_output_shape[-1]
-            if layer_type in [LSTMLayer, BLSTMLayer, SubsampleLayer]:
+            if layer_type in [LSTMLayer, BLSTMLayer, 
+                              SubsampleLayer, DimshuffleLayer]:
                 if n_dims == 2:
                     seq_length = int(prev_layer_output_shape[0] / 
                                      self.source.n_seq_per_batch)
                     shape = (self.source.n_seq_per_batch, 
                              seq_length,
                              n_features)
-                    l_previous = ReshapeLayer(l_previous, shape)
-            elif n_dims == 3:
-                # this layer_type is a DenseLayer or similar and previous
-                # was a time-aware layer, so reshape to 2-dims.
-                seq_length = prev_layer_output_shape[1]
-                shape = (self.source.n_seq_per_batch * seq_length,
-                         n_features)
-                l_previous = ReshapeLayer(l_previous, shape)
+                    self.layers.append(ReshapeLayer(self.layers[-1], shape))
+            elif layer_type in [DenseLayer]:
+                if n_dims == 3:
+                    # The prev layer_config was a time-aware layer_config, so reshape to 2-dims.
+                    seq_length = prev_layer_output_shape[1]
+                    shape = (self.source.n_seq_per_batch * seq_length,
+                             n_features)
+                    self.layers.append(ReshapeLayer(self.layers[-1], shape))
 
-            # Init new layer
-            print('Initialising layer :', layer_type)
-            l_previous = layer_type(l_previous, **layer)
+            # Init new layer_config
+            print('Initialising layer_config :', layer_type)
+            self.layers.append(layer_type(self.layers[-1], **layer_config))
 
         # Reshape output if necessary...
-        if l_previous.get_output_shape() == output_shape:
-            l_out = l_previous
-        else:
-            l_out = ReshapeLayer(l_previous, output_shape)
+        if self.layers[-1].get_output_shape() != self.output_shape:
+            self.layers.append(ReshapeLayer(self.layers[-1], self.output_shape))
 
+        # Generate a "validation" sequence whose cost we will compute
+        self.X_val, self.y_val = self.source.validation_data()
+        print("Done initialising network.")
+
+    def print_net(self):
+        for layer in self.layers:
+            print(layer)
+            try:
+                print(" Input shape: ", layer.input_shape)
+            except:
+                pass
+            print("Output shape: ", layer.get_output_shape())
+            print()
+
+    def compile(self):
         input = T.tensor3('input')
         target_output = T.tensor3('target_output')
 
         # add test values
-        input.tag.test_value = floatX(rand(*input_shape))
-        target_output.tag.test_value = floatX(rand(*output_shape))
+        input.tag.test_value = floatX(rand(*self.input_shape))
+        target_output.tag.test_value = floatX(rand(*self.output_shape))
 
         print("Compiling Theano functions...")
-        cost = loss_function(l_out.get_output(input), target_output)
+        cost = self.loss_function(
+            self.layers[-1].get_output(input), target_output)
 
         # Use NAG for training
-        all_params = lasagne.layers.get_all_params(l_out)
+        all_params = lasagne.layers.get_all_params(self.layers[-1])
         updates = lasagne.updates.nesterov_momentum(
-            cost, all_params, learning_rate)
+            cost, all_params, self.learning_rate)
 
         # Theano functions for training, getting output, and computing cost
         self.train = theano.function(
@@ -112,16 +130,14 @@ class Net(object):
             allow_input_downcast=True)
 
         self.y_pred = theano.function(
-            [input], l_out.get_output(input), on_unused_input='warn',
+            [input], self.layers[-1].get_output(input), on_unused_input='warn',
             allow_input_downcast=True)
 
         self.compute_cost = theano.function(
             [input, target_output], cost, on_unused_input='warn',
             allow_input_downcast=True)
 
-        # Generate a "validation" sequence whose cost we will compute
-        self.X_val, self.y_val = self.source.validation_data()
-        print("Done initialising network.")
+        print("Done compiling Theano functions.")
 
     def fit(self, n_iterations=None):
         # Training loop
@@ -249,10 +265,19 @@ class SubsampleLayer(Layer):
         seq_length = int(input_shape[1] / self.stride)
         return (input_shape[0], seq_length, input_shape[2])
 
-    def get_output_shape(self):
-        return self.get_output_shape_for(self.input_shape)
-
     def get_output_for(self, input, *args, **kwargs):
         shape = tuple(list(self.get_output_shape()) + [-1])
         reshaped = input.reshape(shape)
         return reshaped.sum(axis=-1)
+
+
+class DimshuffleLayer(Layer):
+    def __init__(self, input_layer, pattern):
+        super(DimshuffleLayer, self).__init__(input_layer)
+        self.pattern = pattern
+
+    def get_output_shape_for(self, input_shape):
+        return tuple([input_shape[i] for i in self.pattern])
+
+    def get_output_for(self, input, *args, **kwargs):
+        return input.dimshuffle(self.pattern)

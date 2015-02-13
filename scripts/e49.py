@@ -3,7 +3,7 @@ from neuralnilm import Net, RealApplianceSource, BLSTMLayer, SubsampleLayer
 from lasagne.nonlinearities import sigmoid
 from lasagne.objectives import crossentropy
 from lasagne.init import Uniform, Normal
-from lasagne.layers import LSTMLayer, DenseLayer
+from lasagne.layers import LSTMLayer, DenseLayer, Conv1DLayer, ReshapeLayer
 
 
 """
@@ -21,9 +21,11 @@ Setup:
 * Subsampling *bidirectional* LSTM
 * Output every sequence in the batch
 * Change W_in_to_cell from Normal(1.0) to Uniform(5)
+* put back the two sigmoid layers
 
 Changes:
-* put back the two sigmoid layers
+* use Conv1D to create a hierarchical subsampling LSTM
+* Using LSTM (not BLSTM) to speed up training while testing
 
 """
 
@@ -39,7 +41,7 @@ source = RealApplianceSource(
 )
 
 net = Net(
-    experiment_name="e48",
+    experiment_name="e49b",
     source=source,
     learning_rate=1e-1,
     save_plot_interval=50,
@@ -60,25 +62,45 @@ net = Net(
             'b': Uniform(10)
         },
         {
-            'type': BLSTMLayer,
+            'type': LSTMLayer,
             'num_units': 20,
             'W_in_to_cell': Uniform(5)
         },
         {
-            'type': SubsampleLayer,
+            'type': ReshapeLayer,
+            'shape': (5, 20, 1000)
+        },
+        {
+            'type': Conv1DLayer,
+            'num_filters': 20,
+            'filter_length': 5,
             'stride': 5
         },
         {
-            'type': BLSTMLayer,
+            'type': ReshapeLayer,
+            'shape': (5, 200, 20)
+        },
+        {
+            'type': LSTMLayer,
             'num_units': 40,
             'W_in_to_cell': Uniform(5)
         },
         {
-            'type': SubsampleLayer,
+            'type': ReshapeLayer,
+            'shape': (5, 40, 200)
+        },
+        {
+            'type': Conv1DLayer,
+            'num_filters': 40,
+            'filter_length': 5,
             'stride': 5
         },
         {
-            'type': BLSTMLayer,
+            'type': ReshapeLayer,
+            'shape': (5, 40, 40)
+        },
+        {
+            'type': LSTMLayer,
             'num_units': 80,
             'W_in_to_cell': Uniform(5)
         },
@@ -90,5 +112,6 @@ net = Net(
     ]
 )
 
+net.compile()
 net.fit()
 

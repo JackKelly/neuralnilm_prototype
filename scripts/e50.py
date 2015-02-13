@@ -1,9 +1,9 @@
 from __future__ import print_function, division
-from neuralnilm import Net, RealApplianceSource, BLSTMLayer, SubsampleLayer
+from neuralnilm import Net, RealApplianceSource, BLSTMLayer, SubsampleLayer, DimshuffleLayer
 from lasagne.nonlinearities import sigmoid
 from lasagne.objectives import crossentropy
 from lasagne.init import Uniform, Normal
-from lasagne.layers import LSTMLayer, DenseLayer
+from lasagne.layers import LSTMLayer, DenseLayer, Conv1DLayer, ReshapeLayer
 
 
 """
@@ -21,9 +21,12 @@ Setup:
 * Subsampling *bidirectional* LSTM
 * Output every sequence in the batch
 * Change W_in_to_cell from Normal(1.0) to Uniform(5)
+* put back the two sigmoid layers
+* use Conv1D to create a hierarchical subsampling LSTM
+* Using LSTM (not BLSTM) to speed up training while testing
 
 Changes:
-* put back the two sigmoid layers
+* simplify.  Just use conv at input
 
 """
 
@@ -35,50 +38,37 @@ source = RealApplianceSource(
     output_one_appliance=False,
     boolean_targets=False,
     min_on_duration=60,
-    subsample_target=5*5
+    subsample_target=5
 )
 
 net = Net(
-    experiment_name="e48",
+    experiment_name="e50a",
     source=source,
     learning_rate=1e-1,
     save_plot_interval=50,
     loss_function=crossentropy,
     layers_config=[
         {
-            'type': DenseLayer,
-            'num_units': 50,
-            'nonlinearity': sigmoid,
-            'W': Uniform(25),
-            'b': Uniform(25)
+            'type': ReshapeLayer,
+            'shape': (5, 1, 1000)
         },
         {
-            'type': DenseLayer,
-            'num_units': 50,
-            'nonlinearity': sigmoid,
-            'W': Uniform(10),
-            'b': Uniform(10)
-        },
-        {
-            'type': BLSTMLayer,
-            'num_units': 20,
-            'W_in_to_cell': Uniform(5)
-        },
-        {
-            'type': SubsampleLayer,
+            'type': Conv1DLayer,
+            'num_filters': 20,
+            'filter_length': 5,
             'stride': 5
         },
+        {   # TODO: I think this should perhaps be dimshuffle, not reshape???
+            'type': ReshapeLayer,
+            'shape': (5, 200, 20)
+        },
         {
-            'type': BLSTMLayer,
+            'type': LSTMLayer,
             'num_units': 40,
             'W_in_to_cell': Uniform(5)
         },
         {
-            'type': SubsampleLayer,
-            'stride': 5
-        },
-        {
-            'type': BLSTMLayer,
+            'type': LSTMLayer,
             'num_units': 80,
             'W_in_to_cell': Uniform(5)
         },
@@ -90,5 +80,7 @@ net = Net(
     ]
 )
 
+net.print_net()
+net.compile()
 net.fit()
 

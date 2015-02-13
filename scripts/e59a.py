@@ -1,9 +1,9 @@
 from __future__ import print_function, division
-from neuralnilm import Net, RealApplianceSource, BLSTMLayer, SubsampleLayer
+from neuralnilm import Net, RealApplianceSource, BLSTMLayer, SubsampleLayer, DimshuffleLayer
 from lasagne.nonlinearities import sigmoid
 from lasagne.objectives import crossentropy
 from lasagne.init import Uniform, Normal
-from lasagne.layers import LSTMLayer, DenseLayer
+from lasagne.layers import LSTMLayer, DenseLayer, Conv1DLayer, ReshapeLayer
 
 
 """
@@ -21,9 +21,19 @@ Setup:
 * Subsampling *bidirectional* LSTM
 * Output every sequence in the batch
 * Change W_in_to_cell from Normal(1.0) to Uniform(5)
-
-Changes:
 * put back the two sigmoid layers
+* use Conv1D to create a hierarchical subsampling LSTM
+* Using LSTM (not BLSTM) to speed up training while testing
+* Use dimshuffle not reshape
+* 2 dense layers back
+* back to default init
+* conv between LSTMs.
+* 3 LSTM layers
+
+Changes
+* Using BLSTM and more data
+
+Results
 
 """
 
@@ -39,7 +49,7 @@ source = RealApplianceSource(
 )
 
 net = Net(
-    experiment_name="e48",
+    experiment_name="e59a",
     source=source,
     learning_rate=1e-1,
     save_plot_interval=50,
@@ -65,8 +75,19 @@ net = Net(
             'W_in_to_cell': Uniform(5)
         },
         {
-            'type': SubsampleLayer,
-            'stride': 5
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)
+        },
+        {
+            'type': Conv1DLayer,
+            'num_filters': 40,
+            'filter_length': 5,
+            'stride': 5,
+            'nonlinearity': sigmoid
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)
         },
         {
             'type': BLSTMLayer,
@@ -74,8 +95,19 @@ net = Net(
             'W_in_to_cell': Uniform(5)
         },
         {
-            'type': SubsampleLayer,
-            'stride': 5
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)
+        },
+        {
+            'type': Conv1DLayer,
+            'num_filters': 80,
+            'filter_length': 5,
+            'stride': 5,
+            'nonlinearity': sigmoid
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)
         },
         {
             'type': BLSTMLayer,
@@ -90,5 +122,7 @@ net = Net(
     ]
 )
 
+net.print_net()
+net.compile()
 net.fit()
 
