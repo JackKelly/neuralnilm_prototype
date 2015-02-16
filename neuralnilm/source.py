@@ -136,8 +136,7 @@ class RealApplianceSource(Source):
                  window=(None, None), building=1, seq_length=1000,
                  output_one_appliance=True, sample_period=6,
                  boolean_targets=False, min_on_duration=0,
-                 subsample_target=1, input_padding=0,
-                 input_quantization_kwargs=None):
+                 subsample_target=1, input_padding=0)
         """
         Parameters
         ----------
@@ -151,7 +150,7 @@ class RealApplianceSource(Source):
         super(RealApplianceSource, self).__init__(
             seq_length=seq_length, 
             n_seq_per_batch=5,
-            n_inputs=1 if input_quantization_kwargs is None else input_quantization_kwargs['n_bins'],
+            n_inputs=1,
             n_outputs=1 if output_one_appliance else len(appliances)
         )
         self.sample_period = sample_period
@@ -165,9 +164,6 @@ class RealApplianceSource(Source):
         self.activations = {}
         self.n_activations = {}
         self.subsample_target = subsample_target
-        self.input_quantization_kwargs = (
-            {} if input_quantization_kwargs is None 
-            else input_quantization_kwargs)
         self.input_padding = input_padding
 
         for appliance_i, appliance in enumerate(self.appliances):
