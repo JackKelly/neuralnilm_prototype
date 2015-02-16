@@ -241,9 +241,11 @@ class RealApplianceSource(Source):
         X = np.zeros(self.input_shape())
         y = np.zeros(self.output_shape())
         half_padding = self.input_padding // 2
-        end = int(np.ceil(self.input_padding / 2))
+        end = -int(np.ceil(self.input_padding / 2))
+        if end == 0:
+            end = None
         for i in range(self.n_seq_per_batch):
-            X[i,half_padding:-end,:], y[i,:,:] = self._gen_single_example()
+            X[i,half_padding:end,:], y[i,:,:] = self._gen_single_example()
         return X, y
 
 class NILMTKSource(Source):

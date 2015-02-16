@@ -34,7 +34,7 @@ Setup:
 Changes
 * based on e59a (excellent performer)
 * trying ReLU dense layer with standard inits
-* try standard inits on all layers
+* using LSTM not BLSTM to speed up training
 
 Results
 
@@ -61,17 +61,21 @@ net = Net(
         {
             'type': DenseLayer,
             'num_units': 50,
-            'nonlinearity': rectify
+            'nonlinearity': rectify,
+            'W': Uniform(25),
+            'b': Uniform(25)
         },
         {
             'type': DenseLayer,
             'num_units': 50,
-            'nonlinearity': rectify
+            'nonlinearity': rectify,
+            'W': Uniform(25),
+            'b': Uniform(25)
         },
         {
-            'type': BLSTMLayer,
-            'num_units': 40
-#            'W_in_to_cell': Uniform(5)
+            'type': LSTMLayer,
+            'num_units': 40,
+            'W_in_to_cell': Uniform(5)
         },
         {
             'type': DimshuffleLayer,
@@ -79,7 +83,7 @@ net = Net(
         },
         {
             'type': Conv1DLayer,
-            'num_filters': 20,
+            'num_filters': 20, # NEEDS INCREASING!
             'filter_length': 5,
             'stride': 5,
             'nonlinearity': sigmoid
@@ -89,9 +93,9 @@ net = Net(
             'pattern': (0, 2, 1)
         },
         {
-            'type': BLSTMLayer,
-            'num_units': 80
-#            'W_in_to_cell': Uniform(5)
+            'type': LSTMLayer,
+            'num_units': 80,
+            'W_in_to_cell': Uniform(5)
         },
         {
             'type': DenseLayer,
