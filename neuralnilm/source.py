@@ -136,7 +136,8 @@ class RealApplianceSource(Source):
                  window=(None, None), building=1, seq_length=1000,
                  output_one_appliance=True, sample_period=6,
                  boolean_targets=False, min_on_duration=0,
-                 subsample_target=1, input_padding=0):
+                 subsample_target=1, input_padding=0,
+                 input_quantization_kwargs=None):
         """
         Parameters
         ----------
@@ -150,7 +151,7 @@ class RealApplianceSource(Source):
         super(RealApplianceSource, self).__init__(
             seq_length=seq_length, 
             n_seq_per_batch=5,
-            n_inputs=1,
+            n_inputs=1 if input_quantization_kwargs is None else input_quantization_kwargs['n_bins'],
             n_outputs=1 if output_one_appliance else len(appliances)
         )
         self.sample_period = sample_period
@@ -164,6 +165,9 @@ class RealApplianceSource(Source):
         self.activations = {}
         self.n_activations = {}
         self.subsample_target = subsample_target
+        self.input_quantization_kwargs = (
+            {} if input_quantization_kwargs is None 
+            else input_quantization_kwargs)
         self.input_padding = input_padding
 
         for appliance_i, appliance in enumerate(self.appliances):
@@ -222,7 +226,8 @@ class RealApplianceSource(Source):
                 subsampled_y[:,output_i] = np.mean(
                     y[:,output_i].reshape(-1, self.subsample_target), axis=-1)
             y = subsampled_y
-        return X / self.max_input_power, y
+        X /= self.max_input_power
+        return X, y
     
     def input_shape(self):
         return (self.n_seq_per_batch, 
@@ -348,11 +353,14 @@ class NILMTKSource(Source):
         return X_quantized, y
 
 
-def quantize(data, n_bins, all_hot=True):
+def quantize(data, n_bins, all_hot=True, range=(-1, 1), length=None):
     midpoint = n_bins // 2
-    out = np.empty(shape=(len(data), n_bins))
-    for i, d in enumerate(data):
-        hist, _ = np.histogram(d, bins=n_bins, range=(-1, 1))
+    if length is None:
+        length = len(data)
+    out = np.empty(shape=(length, n_bins))
+    for i in np.arange(length):
+        d = data[i]
+        hist, _ = np.histogram(d, bins=n_bins, range=range)
         if all_hot:
             where = np.where(hist==1)[0][0]
             if where > midpoint:

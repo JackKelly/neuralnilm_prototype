@@ -12,6 +12,7 @@ from lasagne.layers import (InputLayer, LSTMLayer, ReshapeLayer, Layer,
                             ConcatLayer, ElemwiseSumLayer, DenseLayer)
 from lasagne.nonlinearities import sigmoid, rectify
 from lasagne.utils import floatX
+from .source import quantize
 theano.config.compute_test_value = 'raise'
 
 """
@@ -281,3 +282,39 @@ class DimshuffleLayer(Layer):
 
     def get_output_for(self, input, *args, **kwargs):
         return input.dimshuffle(self.pattern)
+
+
+class QuantizeLayer(Layer):
+    def __init__(self, input_layer, n_bins=50, all_hot=False, boolean=False):
+        super(QuantizeLayer, self).__init__(input_layer)
+        self.n_bins = n_bins
+        self.all_hot = all_hot
+        self.boolean = boolean
+
+    def get_output_shape_for(self, input_shape):
+        assert input_shape[2] == 1
+        return (input_shape[0], input_shape[1], self.n_bins)
+
+    def get_output_for(self, input, *args, **kwargs):
+        output = np.empty(shape=self.get_output_shape())
+        for batch_i in range(self.input_shape[0]):
+            for i in range(self.input_shape[1]):
+                output[batch_i,i,:] = quantize_scalar(
+                    input[batch_i,i,0],
+                    n_bins=self.n_bins,
+                    all_hot=self.all_hot,
+                    boolean=self.boolean
+                )
+        return output
+
+
+def quantize_scalar(x, n_bins=10, all_hot=False, boolean=True):
+    output = np.empty(n_bins) 
+    # bin_i = T.floor(x * n_bins).astype('int32')
+    # bin_i = T.min([bin_i, n_bins-1])
+    bin_i = int(x * n_bins)
+    bin_i = min(bin_i, n_bins-1)
+    output[bin_i] = 1 if boolean else ((x * n_bins) - bin_i)
+    if all_hot:
+        output[:bin_i] = 1
+    return output
