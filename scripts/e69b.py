@@ -31,10 +31,13 @@ Setup:
 * More data
 * BLSTM
 
-Changes
+e69
 * based on e59a (excellent performer)
 * trying ReLU dense layer with standard inits
 * using LSTM not BLSTM to speed up training
+
+e69b
+* Changed second denselayer to Uniform(10) as it was in e59a.
 
 Results
 
@@ -52,7 +55,7 @@ source = RealApplianceSource(
 )
 
 net = Net(
-    experiment_name="e69",
+    experiment_name="e69b",
     source=source,
     learning_rate=1e-1,
     save_plot_interval=50,

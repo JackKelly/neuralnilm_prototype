@@ -50,7 +50,7 @@ source = RealApplianceSource(
     output_one_appliance=False,
     boolean_targets=False,
     min_on_duration=60,
-    input_padding=8
+    input_padding=4
 )
 
 net = Net(

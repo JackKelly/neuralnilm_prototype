@@ -30,11 +30,15 @@ Setup:
 * conv between LSTMs.
 * More data
 * BLSTM
+* Try just using a 1D convnet on input
+* add second Convnet layer (not sure this is correct thing to do?)
+* third conv layer
+* large inits
+* back to 2 conv layers
 
 Changes
-* based on e59a (excellent performer)
-* trying ReLU dense layer with standard inits
-* using LSTM not BLSTM to speed up training
+* Based on e65
+* Using sigmoid instead of rectify in Conv1D layers
 
 Results
 
@@ -44,49 +48,41 @@ source = RealApplianceSource(
     '/data/dk3810/ukdale.h5', 
     ['fridge freezer', 'hair straighteners', 'television'],
     max_input_power=1000, max_appliance_powers=[300, 500, 200],
-    window=("2013-06-01", "2014-07-01"),
+    window=("2013-06-01", "2013-07-01"),
     output_one_appliance=False,
     boolean_targets=False,
     min_on_duration=60,
-    subsample_target=5
+    input_padding=4
 )
 
 net = Net(
-    experiment_name="e69",
+    experiment_name="e70",
     source=source,
     learning_rate=1e-1,
     save_plot_interval=50,
     loss_function=crossentropy,
     layers_config=[
         {
-            'type': DenseLayer,
-            'num_units': 50,
-            'nonlinearity': rectify,
-            'W': Uniform(25),
-            'b': Uniform(25)
-        },
-        {
-            'type': DenseLayer,
-            'num_units': 50,
-            'nonlinearity': rectify,
-            'W': Uniform(10),
-            'b': Uniform(10)
-        },
-        {
-            'type': LSTMLayer,
-            'num_units': 40,
-            'W_in_to_cell': Uniform(5)
-        },
-        {
             'type': DimshuffleLayer,
             'pattern': (0, 2, 1)
         },
         {
             'type': Conv1DLayer,
-            'num_filters': 20, # NEEDS INCREASING!
-            'filter_length': 5,
-            'stride': 5,
-            'nonlinearity': sigmoid
+            'num_filters': 20,
+            'filter_length': 3,
+            'stride': 1,
+            'nonlinearity': sigmoid,
+            'W': Uniform(25),
+            'b': Uniform(25)
+        },
+        {
+            'type': Conv1DLayer,
+            'num_filters': 20,
+            'filter_length': 3,
+            'stride': 1,
+            'nonlinearity': sigmoid,
+            'W': Uniform(10),
+            'b': Uniform(10)
         },
         {
             'type': DimshuffleLayer,
@@ -94,7 +90,7 @@ net = Net(
         },
         {
             'type': LSTMLayer,
-            'num_units': 80,
+            'num_units': 40,
             'W_in_to_cell': Uniform(5)
         },
         {
