@@ -237,8 +237,8 @@ class RealApplianceSource(Source):
                 self.n_outputs)
 
     def _gen_data(self, validation=False):
-        X = np.empty(self.input_shape())
-        y = np.empty(self.output_shape())
+        X = np.zeros(self.input_shape())
+        y = np.zeros(self.output_shape())
         for i in range(self.n_seq_per_batch):
             X[i,self.input_padding:,:], y[i,:,:] = self._gen_single_example()
         return X, y
