@@ -136,7 +136,7 @@ class RealApplianceSource(Source):
                  window=(None, None), building=1, seq_length=1000,
                  output_one_appliance=True, sample_period=6,
                  boolean_targets=False, min_on_duration=0,
-                 subsample_target=1, input_padding=0)
+                 subsample_target=1, input_padding=0):
         """
         Parameters
         ----------
