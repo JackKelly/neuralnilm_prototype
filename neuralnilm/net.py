@@ -190,16 +190,20 @@ class Net(object):
             ))
             i += 1
 
-    def plot_costs(self, ax=None, save=False):
-        fig = None
+    def plot_costs(self, ax=None, fig=None, save=False):
+        if fig is None:
+            fig = plt.Figure(tight_layout=True)
+
         if ax is None:
-            fig, ax = plt.subplots(1, sharex=True)
+            ax = fig.add_subplot(1, 1, 1)
+
         ax.plot(self.training_costs, label='Training')
         validation_x = range(0, len(self.training_costs), self.validation_interval)
         ax.plot(validation_x, self.validation_costs, label='Validation')
         ax.set_xlabel('Iteration')
         ax.set_ylabel('Cost')
         ax.legend()
+        fig.tight_layout()
         if save:
             filename = self._plot_filename('costs', include_epochs=False)
             plt.savefig(filename, bbox_inches='tight')
@@ -208,23 +212,30 @@ class Net(object):
             plt.show()
         return ax
 
-    def plot_estimates(self, axes=None, save=False, seq_i=0, 
+    def plot_estimates(self, axes=None, fig=None, save=False, seq_i=0, 
                        use_validation_data=True):
-        fig = None
+        if fig is None:
+            fig = plt.Figure(tight_layout=True)
+
         if axes is None:
-            fig, axes = plt.subplots(3, sharex=False)
+            axes = []
+            for i in range(1,4):
+                axes.append(fig.add_subplot(nrows=3, ncols=1, plot_number=i))
+
         if use_validation_data:
             X, y = self.X_val, self.y_val
         else:
             X, y = self.source.validation_data()
         y_predictions = self.y_pred(X)
+
         axes[0].set_title('Appliance estimates')
-        axes[0].plot(y_predictions[seq_i,:,:])
+        axes[0].plot(y_predictions[seq_i, :, :])
         axes[1].set_title('Appliance ground truth')
-        axes[1].plot(y[seq_i,:,:])
+        axes[1].plot(y[seq_i, :, :])
         axes[2].set_title('Aggregate')
         start, end = self.source.inside_padding()
-        axes[2].plot(X[seq_i,start:end,:])
+        axes[2].plot(X[seq_i, start:end, :])
+        fig.tight_layout()
         if save:
             filename = self._plot_filename('estimates', end_string=seq_i)
             plt.savefig(filename, bbox_inches='tight')
