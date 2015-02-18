@@ -208,18 +208,23 @@ class Net(object):
             plt.show()
         return ax
 
-    def plot_estimates(self, axes=None, save=False, seq_i=0):
+    def plot_estimates(self, axes=None, save=False, seq_i=0, 
+                       use_validation_data=True):
         fig = None
         if axes is None:
             fig, axes = plt.subplots(3, sharex=False)
-        X, y = self.source.validation_data()
+        if use_validation_data:
+            X, y = self.X_val, self.y_val
+        else:
+            X, y = self.source.validation_data()
         y_predictions = self.y_pred(X)
         axes[0].set_title('Appliance estimates')
         axes[0].plot(y_predictions[seq_i,:,:])
         axes[1].set_title('Appliance ground truth')
         axes[1].plot(y[seq_i,:,:])
         axes[2].set_title('Aggregate')
-        axes[2].plot(X[seq_i,:,:])
+        start, end = self.source.inside_padding()
+        axes[2].plot(X[seq_i,start:end,:])
         if save:
             filename = self._plot_filename('estimates', end_string=seq_i)
             plt.savefig(filename, bbox_inches='tight')
