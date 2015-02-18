@@ -190,13 +190,8 @@ class Net(object):
             ))
             i += 1
 
-    def plot_costs(self, ax=None, fig=None, save=False):
-        if fig is None:
-            fig = plt.Figure(tight_layout=True)
-
-        if ax is None:
-            ax = fig.add_subplot(1, 1, 1)
-
+    def plot_costs(self, save=False):
+        fig, ax = plt.subplots(1)
         ax.plot(self.training_costs, label='Training')
         validation_x = range(0, len(self.training_costs), self.validation_interval)
         ax.plot(validation_x, self.validation_costs, label='Validation')
@@ -212,16 +207,8 @@ class Net(object):
             plt.show()
         return ax
 
-    def plot_estimates(self, axes=None, fig=None, save=False, seq_i=0, 
-                       use_validation_data=True):
-        if fig is None:
-            fig = plt.Figure(tight_layout=True)
-
-        if axes is None:
-            axes = []
-            for i in range(1,4):
-                axes.append(fig.add_subplot(nrows=3, ncols=1, plot_number=i))
-
+    def plot_estimates(self, save=False, seq_i=0, use_validation_data=True):
+        fig, axes = plt.subplots(3)
         if use_validation_data:
             X, y = self.X_val, self.y_val
         else:
