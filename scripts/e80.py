@@ -137,7 +137,7 @@ net = Net(
         },
         {
             'type': Conv1DLayer,
-            'num_filters': 20,
+            'num_filters': 20, # TODO in e81: increase this to 50
             'filter_length': 5,
             'stride': 5,
             'nonlinearity': sigmoid
