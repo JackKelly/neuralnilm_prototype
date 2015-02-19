@@ -7,6 +7,7 @@ import pandas as pd
 from nilmtk import DataSet, TimeFrame
 from datetime import timedelta
 from sys import stdout
+from collections import OrderedDict
 
 class Source(object):
     def __init__(self, seq_length, n_seq_per_batch, n_inputs, n_outputs):
@@ -132,13 +133,14 @@ class ToySource(Source):
 
 class RealApplianceSource(Source):
     def __init__(self, filename, appliances, 
-                 max_input_power, max_appliance_powers,
+                 max_appliance_powers, min_on_durations, on_power_thresholds,
+                 max_input_power=None,
                  window=(None, None), seq_length=1000,
                  train_buildings=None, validation_buildings=None,
                  output_one_appliance=True, sample_period=6,
-                 boolean_targets=False, min_on_duration=0,
+                 boolean_targets=False,
                  subsample_target=1, input_padding=0,
-                 min_on_rows=0):
+                 min_off_duration=0):
         """
         Parameters
         ----------
@@ -158,8 +160,16 @@ class RealApplianceSource(Source):
         )
         self.dataset = DataSet(filename)
         self.appliances = appliances
-        self.max_input_power = max_input_power
-        self.max_appliance_powers = max_appliance_powers
+        self.max_input_power = (np.sum(max_appliance_powers) 
+                                if max_input_power is None else max_input_power)
+        self.max_appliance_powers = {}
+        for i, appliance in enumerate(appliances):
+            if isinstance(appliance, list):
+                appliance_name = appliance[0]
+            else:
+                appliance_name = appliance
+            self.max_appliance_powers[appliance_name] = max_appliance_powers[i]
+
         self.dataset.set_window(*window)
         if train_buildings is None:
             train_buildings = [1]
@@ -174,18 +184,18 @@ class RealApplianceSource(Source):
 
         print("Loading training activations...")
         self.train_activations = self._load_activations(
-            train_buildings, min_on_duration, min_on_rows)
+            train_buildings, min_on_durations, min_off_duration, on_power_thresholds)
         if train_buildings == validation_buildings:
             self.validation_activations = self.train_activations
         else:
             print("\nLoading validation activations...")
             self.validation_activations = self._load_activations(
-                validation_buildings, min_on_duration, min_on_rows)
+                validation_buildings, min_on_durations, min_off_duration, on_power_thresholds)
         self.dataset.store.close()
         print("\nDone loading activations.")
 
-    def _load_activations(self, buildings, min_on_duration, min_on_rows):
-        activations = {}
+    def _load_activations(self, buildings, min_on_durations, min_off_duration, on_power_thresholds):
+        activations = OrderedDict()
         for building_i in buildings:
             metergroup = self.dataset.buildings[building_i].elec
             for appliance_i, appliances in enumerate(self.appliances):
@@ -206,27 +216,24 @@ class RealApplianceSource(Source):
                       "from building", building_i, end="... ")
                 stdout.flush()
                 activation_series = meter.activation_series(
-                    min_on_duration=min_on_duration, min_on_rows=min_on_rows)
+                    on_power_threshold=on_power_thresholds[appliance_i],
+                    min_on_duration=min_on_durations[appliance_i], 
+                    min_off_duration=min_off_duration)
                 activations[appliances[0]] = self._preprocess_activations(
-                    activation_series, self.max_appliance_powers[appliance_i])
+                    activation_series, self.max_appliance_powers[appliances[0]])
                 print("Loaded", len(activation_series), "activations.")
         return activations
 
     def _preprocess_activations(self, activations, max_power):
-        max_power = 0
-        means = []
         for i, activation in enumerate(activations):
             # tz_convert(None) is a workaround for Pandas bug #5172
             # (AmbiguousTimeError: Cannot infer dst time from Timestamp)
             activation = activation.tz_convert(None) 
-            max_power = max(max_power, activation.max())
-            means.append(activation.mean())
             activation = activation.resample("{:d}S".format(self.sample_period))
             activation.fillna(method='ffill', inplace=True)
             activation.fillna(method='bfill', inplace=True)
             activation = activation.clip(0, max_power)
             activations[i] = activation
-        print("max power =", max_power, "  mean =", np.mean(means))
         return activations
 
     def _gen_single_example(self, validation=False):
@@ -237,7 +244,10 @@ class RealApplianceSource(Source):
         activations = (self.validation_activations if validation 
                        else self.train_activations)
         for appliance_i, appliance in enumerate(activations.keys()):
-            activation_i = randint(0, len(activations[appliance]))
+            n_activations = len(activations[appliance])
+            if n_activations == 0:
+                continue
+            activation_i = randint(0, n_activations)
             activation = activations[appliance][activation_i]
             latest_start_i = (self.seq_length - len(activation)) - BORDER
             latest_start_i = max(latest_start_i, BORDER)
@@ -252,9 +262,8 @@ class RealApplianceSource(Source):
                     target[target <= POWER_THRESHOLD] = 0
                     target[target > POWER_THRESHOLD] = 1
                 else:
-                    max_appliance_power = self.max_appliance_powers[appliance_i]
+                    max_appliance_power = self.max_appliance_powers[appliance]
                     target /= max_appliance_power
-                    np.clip(target, 0, 1, out=target)
                 y[start_i:end_i, appliance_i] = target
         np.clip(X, 0, self.max_input_power, out=X)
         if self.subsample_target > 1:
