@@ -132,6 +132,10 @@ net = Net(
             'W_in_to_cell': Uniform(5)
         },
         {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)
+        },
+        {
             'type': Conv1DLayer,
             'num_filters': 80,
             'filter_length': 5,
