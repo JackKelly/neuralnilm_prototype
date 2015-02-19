@@ -133,16 +133,19 @@ class ToySource(Source):
 class RealApplianceSource(Source):
     def __init__(self, filename, appliances, 
                  max_input_power, max_appliance_powers,
-                 window=(None, None), building=1, seq_length=1000,
+                 window=(None, None), seq_length=1000,
+                 train_buildings=None, validation_buildings=None,
                  output_one_appliance=True, sample_period=6,
                  boolean_targets=False, min_on_duration=0,
-                 subsample_target=1, input_padding=0):
+                 subsample_target=1, input_padding=0,
+                 min_on_rows=0):
         """
         Parameters
         ----------
         filename : str
         appliances : list of strings
-            The first one is the target appliance
+            The first one is the target appliance, if output_one_appliance is True.
+            Use a list of lists for alternative names (e.g. ['fridge', 'fridge freezer'])
         building : int
         subsample_target : int
             If > 1 then subsample the targets.
@@ -153,52 +156,89 @@ class RealApplianceSource(Source):
             n_inputs=1,
             n_outputs=1 if output_one_appliance else len(appliances)
         )
-        self.sample_period = sample_period
-        self.output_one_appliance = output_one_appliance
         self.dataset = DataSet(filename)
-        self.dataset.set_window(*window)
         self.appliances = appliances
-        self._tz = self.dataset.metadata['timezone']
-        self.metergroup = self.dataset.buildings[building].elec
-        self.boolean_targets = boolean_targets
-        self.activations = {}
-        self.n_activations = {}
-        self.subsample_target = subsample_target
-        self.input_padding = input_padding
-
-        for appliance_i, appliance in enumerate(self.appliances):
-            print("Loading activations for", appliance, end="... ")
-            stdout.flush()
-            activations = self.metergroup[appliance].activation_series(
-                min_on_duration=min_on_duration)
-            self.activations[appliance] = self._preprocess_activations(
-                activations, max_appliance_powers[appliance_i])
-            self.n_activations[appliance] = len(activations)
-            print("Loaded", len(activations), "activations.")
         self.max_input_power = max_input_power
         self.max_appliance_powers = max_appliance_powers
+        self.dataset.set_window(*window)
+        if train_buildings is None:
+            train_buildings = [1]
+        if validation_buildings is None:
+            validation_buildings = [1]
+        self.output_one_appliance = output_one_appliance
+        self.sample_period = sample_period
+        self.boolean_targets = boolean_targets
+        self.subsample_target = subsample_target
+        self.input_padding = input_padding
+        self._tz = self.dataset.metadata['timezone']
+
+        print("Loading training activations...")
+        self.train_activations = self._load_activations(
+            train_buildings, min_on_duration, min_on_rows)
+        if train_buildings == validation_buildings:
+            self.validation_activations = self.train_activations
+        else:
+            print("\nLoading validation activations...")
+            self.validation_activations = self._load_activations(
+                validation_buildings, min_on_duration, min_on_rows)
         self.dataset.store.close()
+        print("\nDone loading activations.")
+
+    def _load_activations(self, buildings, min_on_duration, min_on_rows):
+        activations = {}
+        for building_i in buildings:
+            metergroup = self.dataset.buildings[building_i].elec
+            for appliance_i, appliances in enumerate(self.appliances):
+                if not isinstance(appliances, list):
+                    appliances = [appliances]
+                for appliance in appliances:
+                    try:
+                        meter = metergroup[appliance]
+                    except KeyError:
+                        pass
+                    else:
+                        break
+                else:
+                    print("  No appliance matching", appliances, "in building", building_i)
+                    continue
+
+                print("  Loading activations for", appliance, 
+                      "from building", building_i, end="... ")
+                stdout.flush()
+                activation_series = meter.activation_series(
+                    min_on_duration=min_on_duration, min_on_rows=min_on_rows)
+                activations[appliances[0]] = self._preprocess_activations(
+                    activation_series, self.max_appliance_powers[appliance_i])
+                print("Loaded", len(activation_series), "activations.")
+        return activations
 
     def _preprocess_activations(self, activations, max_power):
+        max_power = 0
+        means = []
         for i, activation in enumerate(activations):
             # tz_convert(None) is a workaround for Pandas bug #5172
             # (AmbiguousTimeError: Cannot infer dst time from Timestamp)
             activation = activation.tz_convert(None) 
+            max_power = max(max_power, activation.max())
+            means.append(activation.mean())
             activation = activation.resample("{:d}S".format(self.sample_period))
             activation.fillna(method='ffill', inplace=True)
             activation.fillna(method='bfill', inplace=True)
             activation = activation.clip(0, max_power)
             activations[i] = activation
+        print("max power =", max_power, "  mean =", np.mean(means))
         return activations
 
-    def _gen_single_example(self):
+    def _gen_single_example(self, validation=False):
         X = np.zeros(shape=(self.seq_length, self.n_inputs))
         y = np.zeros(shape=(self.seq_length, self.n_outputs))
         POWER_THRESHOLD = 5
         BORDER = 5
-        for appliance_i, appliance in enumerate(self.appliances):
-            activation_i = randint(0, self.n_activations[appliance])
-            activation = self.activations[appliance][activation_i]
+        activations = (self.validation_activations if validation 
+                       else self.train_activations)
+        for appliance_i, appliance in enumerate(activations.keys()):
+            activation_i = randint(0, len(activations[appliance]))
+            activation = activations[appliance][activation_i]
             latest_start_i = (self.seq_length - len(activation)) - BORDER
             latest_start_i = max(latest_start_i, BORDER)
             start_i = randint(0, latest_start_i)
@@ -212,12 +252,15 @@ class RealApplianceSource(Source):
                     target[target <= POWER_THRESHOLD] = 0
                     target[target > POWER_THRESHOLD] = 1
                 else:
-                    target /= self.max_appliance_powers[appliance_i]
+                    max_appliance_power = self.max_appliance_powers[appliance_i]
+                    target /= max_appliance_power
+                    np.clip(target, 0, 1, out=target)
                 y[start_i:end_i, appliance_i] = target
-        X = np.clip(X, 0, self.max_input_power)
+        np.clip(X, 0, self.max_input_power, out=X)
         if self.subsample_target > 1:
-            subsampled_y = np.empty(shape=(int(self.seq_length / self.subsample_target),
-                                           self.n_outputs))
+            shape = (int(self.seq_length / self.subsample_target), 
+                     self.n_outputs)
+            subsampled_y = np.empty(shape=shape)
             for output_i in range(self.n_outputs):
                 subsampled_y[:,output_i] = np.mean(
                     y[:,output_i].reshape(-1, self.subsample_target), axis=-1)
@@ -249,7 +292,7 @@ class RealApplianceSource(Source):
         y = np.zeros(self.output_shape())
         start, end = self.inside_padding()
         for i in range(self.n_seq_per_batch):
-            X[i,start:end,:], y[i,:,:] = self._gen_single_example()
+            X[i,start:end,:], y[i,:,:] = self._gen_single_example(validation)
         return X, y
 
 class NILMTKSource(Source):
