@@ -63,8 +63,10 @@ class Source(object):
 
     def _check_data(self, X, y):
         assert X.shape == self.input_shape()
+        assert not any(np.isnan(X.flatten()))
         if y is not None:
             assert y.shape == self.output_shape()
+            assert not any(np.isnan(y.flatten()))
 
 
 def none_to_list(x):
@@ -302,6 +304,7 @@ class RealApplianceSource(Source):
         start, end = self.inside_padding()
         for i in range(self.n_seq_per_batch):
             X[i,start:end,:], y[i,:,:] = self._gen_single_example(validation)
+        self._check_data(X, y)
         return X, y
 
 class NILMTKSource(Source):
