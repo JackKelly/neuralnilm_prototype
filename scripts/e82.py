@@ -1,6 +1,6 @@
 from __future__ import print_function, division
 import matplotlib
-matplotlib.use('pdf') # Must be before importing matplotlib.pyplot or pylab!
+matplotlib.use('Agg') # Must be before importing matplotlib.pyplot or pylab!
 from neuralnilm import Net, RealApplianceSource, BLSTMLayer, SubsampleLayer, DimshuffleLayer
 from lasagne.nonlinearities import sigmoid, rectify
 from lasagne.objectives import crossentropy
