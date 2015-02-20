@@ -94,6 +94,9 @@ e83b
 * Back to seq_length of 2000, modified net.py so it called IPDB
   if train error is NaN or > 1
 
+e83c
+* Changed inits to standard values to try to stop NaN train costs
+
 Results
 
 """
@@ -122,7 +125,7 @@ source = RealApplianceSource(
 )
 
 net = Net(
-    experiment_name="e83",
+    experiment_name="e83c",
     source=source,
     learning_rate=1e-1,
     save_plot_interval=250,
@@ -137,18 +140,18 @@ net = Net(
             'num_filters': 50,
             'filter_length': 3,
             'stride': 1,
-            'nonlinearity': sigmoid,
-            'W': Uniform(25),
-            'b': Uniform(25)
+            'nonlinearity': sigmoid
+            # 'W': Uniform(25),
+            # 'b': Uniform(25)
         },
         {
             'type': Conv1DLayer,
             'num_filters': 50,
             'filter_length': 3,
             'stride': 1,
-            'nonlinearity': sigmoid,
-            'W': Uniform(10),
-            'b': Uniform(10)
+            'nonlinearity': sigmoid
+            # 'W': Uniform(10),
+            # 'b': Uniform(10)
         },
         {
             'type': DimshuffleLayer,
@@ -156,8 +159,8 @@ net = Net(
         },
         {
             'type': BLSTMLayer,
-            'num_units': 50,
-            'W_in_to_cell': Uniform(5)
+            'num_units': 50
+#            'W_in_to_cell': Uniform(5)
         },
         {
             'type': DimshuffleLayer,
@@ -176,8 +179,8 @@ net = Net(
         },
         {
             'type': BLSTMLayer,
-            'num_units': 80,
-            'W_in_to_cell': Uniform(5)
+            'num_units': 80
+#            'W_in_to_cell': Uniform(5)
         },
         {
             'type': DenseLayer,

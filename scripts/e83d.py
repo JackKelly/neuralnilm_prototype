@@ -94,6 +94,17 @@ e83b
 * Back to seq_length of 2000, modified net.py so it called IPDB
   if train error is NaN or > 1
 
+e83c
+* Changed inits to standard values to try to stop NaN train costs
+Results: I let it run for a little over 100 epochs.  No Nans.  But 
+wasn't learning anything very sane.
+
+e83d
+* Uniform(1)
+
+TODO: e83e
+* Try large inits for conv layer but Uniform(1) or standard for BLSTM
+
 Results
 
 """
@@ -122,10 +133,10 @@ source = RealApplianceSource(
 )
 
 net = Net(
-    experiment_name="e83",
+    experiment_name="e83d",
     source=source,
     learning_rate=1e-1,
-    save_plot_interval=250,
+    save_plot_interval=100,
     loss_function=crossentropy,
     layers_config=[
         {
@@ -138,8 +149,8 @@ net = Net(
             'filter_length': 3,
             'stride': 1,
             'nonlinearity': sigmoid,
-            'W': Uniform(25),
-            'b': Uniform(25)
+            'W': Uniform(1),
+            'b': Uniform(1)
         },
         {
             'type': Conv1DLayer,
@@ -147,8 +158,8 @@ net = Net(
             'filter_length': 3,
             'stride': 1,
             'nonlinearity': sigmoid,
-            'W': Uniform(10),
-            'b': Uniform(10)
+            'W': Uniform(1),
+            'b': Uniform(1)
         },
         {
             'type': DimshuffleLayer,
@@ -157,7 +168,7 @@ net = Net(
         {
             'type': BLSTMLayer,
             'num_units': 50,
-            'W_in_to_cell': Uniform(5)
+            'W_in_to_cell': Uniform(1)
         },
         {
             'type': DimshuffleLayer,
@@ -177,7 +188,7 @@ net = Net(
         {
             'type': BLSTMLayer,
             'num_units': 80,
-            'W_in_to_cell': Uniform(5)
+            'W_in_to_cell': Uniform(1)
         },
         {
             'type': DenseLayer,
