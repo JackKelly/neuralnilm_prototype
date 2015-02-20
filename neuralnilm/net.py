@@ -163,6 +163,8 @@ class Net(object):
             t0 = time() # for calculating training duration
             X, y = self.source.queue.get(timeout=30)
             train_cost = self.train(X, y).flatten()[0]
+            if np.isnan(train_cost) or train_cost > 1:
+                import ipdb; ipdb.set_trace()
             self.training_costs.append(train_cost)
             epoch = len(self.training_costs) - 1
             if not epoch % self.validation_interval:
