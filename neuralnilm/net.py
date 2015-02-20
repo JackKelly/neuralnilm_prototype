@@ -1,4 +1,5 @@
 from __future__ import division, print_function
+from functools import partial
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -12,6 +13,7 @@ from lasagne.layers import (InputLayer, LSTMLayer, ReshapeLayer, Layer,
                             ConcatLayer, ElemwiseSumLayer, DenseLayer)
 from lasagne.nonlinearities import sigmoid, rectify
 from lasagne.utils import floatX
+from lasagne.updates import nesterov_momentum
 from .source import quantize
 theano.config.compute_test_value = 'raise'
 
@@ -30,7 +32,8 @@ class ansi:
 class Net(object):
     # Much of this code is adapted from craffel/nntools/examples/lstm.py
 
-    def __init__(self, source, layers_config, learning_rate=1e-1, 
+    def __init__(self, source, layers_config, 
+                 updates=partial(nesterov_momentum, learning_rate=0.1),
                  experiment_name="", 
                  validation_interval=10, save_plot_interval=100,
                  loss_function=lasagne.objectives.mse):
@@ -43,11 +46,11 @@ class Net(object):
         """
         print("Initialising network...")
         self.source = source
-        self.learning_rate = learning_rate
         self.experiment_name = experiment_name
         self.validation_interval = validation_interval
         self.save_plot_interval = save_plot_interval
         self.loss_function = loss_function
+        self.updates = updates
 
         self.input_shape = source.input_shape()
         self.output_shape = source.output_shape()
@@ -116,18 +119,17 @@ class Net(object):
         target_output.tag.test_value = floatX(rand(*self.output_shape))
 
         print("Compiling Theano functions...")
-        cost = self.loss_function(
+        loss = self.loss_function(
             self.layers[-1].get_output(input), target_output)
 
         # Use NAG for training
         all_params = lasagne.layers.get_all_params(self.layers[-1])
-        updates = lasagne.updates.nesterov_momentum(
-            cost, all_params, self.learning_rate)
+        updates = self.updates(loss, all_params)
 
-        # Theano functions for training, getting output, and computing cost
+        # Theano functions for training, getting output, and computing loss
         self.train = theano.function(
             [input, target_output],
-            cost, updates=updates, on_unused_input='warn',
+            loss, updates=updates, on_unused_input='warn',
             allow_input_downcast=True)
 
         self.y_pred = theano.function(
@@ -135,7 +137,7 @@ class Net(object):
             allow_input_downcast=True)
 
         self.compute_cost = theano.function(
-            [input, target_output], cost, on_unused_input='warn',
+            [input, target_output], loss, on_unused_input='warn',
             allow_input_downcast=True)
 
         print("Done compiling Theano functions.")
