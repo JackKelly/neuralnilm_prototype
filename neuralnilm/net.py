@@ -191,6 +191,8 @@ class Net(object):
                       duration
             ))
             i += 1
+            old_X = X
+            old_y = y
 
     def plot_costs(self, save=False):
         fig, ax = plt.subplots(1)
@@ -209,12 +211,14 @@ class Net(object):
             plt.show()
         return ax
 
-    def plot_estimates(self, save=False, seq_i=0, use_validation_data=True):
+    def plot_estimates(self, save=False, seq_i=0, use_validation_data=True, 
+                       X=None, y=None):
         fig, axes = plt.subplots(3)
-        if use_validation_data:
-            X, y = self.X_val, self.y_val
-        else:
-            X, y = self.source.validation_data()
+        if X is None or y is None:
+            if use_validation_data:
+                X, y = self.X_val, self.y_val
+            else:
+                X, y = self.source.queue.get(timeout=30)
         y_predictions = self.y_pred(X)
 
         axes[0].set_title('Appliance estimates')

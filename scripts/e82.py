@@ -1,4 +1,6 @@
 from __future__ import print_function, division
+import matplotlib
+matplotlib.use('pdf') # Must be before importing matplotlib.pyplot or pylab!
 from neuralnilm import Net, RealApplianceSource, BLSTMLayer, SubsampleLayer, DimshuffleLayer
 from lasagne.nonlinearities import sigmoid, rectify
 from lasagne.objectives import crossentropy
@@ -94,7 +96,7 @@ source = RealApplianceSource(
     window=("2013-06-01", "2014-07-01"),
     output_one_appliance=False,
     boolean_targets=False,
-    min_on_duration=60,
+    min_on_durations=[60, 60, 60],
     input_padding=0,
     subsample_target=5
 )

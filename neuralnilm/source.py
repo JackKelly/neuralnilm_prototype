@@ -135,13 +135,19 @@ class ToySource(Source):
 
 class RealApplianceSource(Source):
     def __init__(self, filename, appliances, 
-                 max_appliance_powers, min_on_durations, on_power_thresholds,
+                 max_appliance_powers, 
+                 min_on_durations,
+                 on_power_thresholds=None,
                  max_input_power=None,
-                 window=(None, None), seq_length=1000,
-                 train_buildings=None, validation_buildings=None,
-                 output_one_appliance=True, sample_period=6,
+                 window=(None, None), 
+                 seq_length=1000,
+                 train_buildings=None, 
+                 validation_buildings=None,
+                 output_one_appliance=True, 
+                 sample_period=6,
                  boolean_targets=False,
-                 subsample_target=1, input_padding=0,
+                 subsample_target=1, 
+                 input_padding=0,
                  min_off_duration=0):
         """
         Parameters
@@ -185,6 +191,8 @@ class RealApplianceSource(Source):
         self._tz = self.dataset.metadata['timezone']
 
         print("Loading training activations...")
+        if on_power_thresholds is None:
+            on_power_thresholds = [None] * len(self.appliances)
         self.train_activations = self._load_activations(
             train_buildings, min_on_durations, min_off_duration, on_power_thresholds)
         if train_buildings == validation_buildings:
