@@ -1,4 +1,6 @@
 from __future__ import print_function, division
+import matplotlib
+matplotlib.use('Agg') # Must be before importing matplotlib.pyplot or pylab!
 from neuralnilm import Net, RealApplianceSource, BLSTMLayer, SubsampleLayer, DimshuffleLayer
 from lasagne.nonlinearities import sigmoid, rectify
 from lasagne.objectives import crossentropy
@@ -10,7 +12,7 @@ import os
 
 NAME = "e90"
 PATH = "/homes/dk3810/workspace/python/neuralnilm/figures"
-SAVE_PLOT_INTERVAL=10
+SAVE_PLOT_INTERVAL=250
 
 def exp_a(name):
     print("Try totally recreating e82.")
@@ -685,11 +687,11 @@ def run_experiment(experiment):
     path = os.path.join(PATH, NAME+experiment)
     os.mkdir(path)
     os.chdir(path)
-    net.fit(11)
+    net.fit(3001)
 
 
 def main():
-    for experiment in list('fghij'):
+    for experiment in list('abcdefghij'):
         try:
             run_experiment(experiment)
         except Exception as e:
