@@ -148,7 +148,8 @@ class RealApplianceSource(Source):
                  boolean_targets=False,
                  subsample_target=1, 
                  input_padding=0,
-                 min_off_duration=0):
+                 min_off_duration=0,
+                 skip_probability=0):
         """
         Parameters
         ----------
@@ -188,6 +189,7 @@ class RealApplianceSource(Source):
         self.boolean_targets = boolean_targets
         self.subsample_target = subsample_target
         self.input_padding = input_padding
+        self.skip_probability = skip_probability
         self._tz = self.dataset.metadata['timezone']
 
         print("Loading training activations...")
@@ -205,13 +207,7 @@ class RealApplianceSource(Source):
         print("\nDone loading activations.")
 
     def get_labels(self):
-        labels = []
-        for appliance in self.appliances:
-            if isinstance(appliance, list):
-                labels.append(appliance[0])
-            else:
-                labels.append(appliance)
-        return labels
+        return self.train_activations.keys()
 
     def _load_activations(self, buildings, min_on_durations, min_off_duration, on_power_thresholds):
         activations = OrderedDict()
@@ -262,7 +258,14 @@ class RealApplianceSource(Source):
         BORDER = 5
         activations = (self.validation_activations if validation 
                        else self.train_activations)
-        for appliance_i, appliance in enumerate(activations.keys()):
+
+        appliances = []
+        while not appliances:
+            for appliance_i, appliance in enumerate(activations.keys()):
+                if not np.random.binomial(n=1, p=self.skip_probability):
+                    appliances.append((appliance_i, appliance))
+
+        for appliance_i, appliance in appliances:
             n_activations = len(activations[appliance])
             if n_activations == 0:
                 continue
@@ -274,7 +277,7 @@ class RealApplianceSource(Source):
             end_i = start_i + len(activation)
             end_i = min(end_i, self.seq_length-1)
             target = activation.values[:end_i-start_i]
-            X[start_i:end_i,0] += target
+            X[start_i:end_i,0] += target 
             if appliance_i == 0 or not self.output_one_appliance:
                 target = np.copy(target)
                 if self.boolean_targets:

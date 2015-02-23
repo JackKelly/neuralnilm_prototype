@@ -18,6 +18,9 @@ SAVE_PLOT_INTERVAL=250
 Changes common to all these (compared to e91)
 * on_power_thresh is now 20 watts for everything
 * fixed max_appliance_powers and min_on_durations
+* seq_length = 1500 (to fit in washer)
+* min_on_durations increased for washer and dish washer
+* skip_probability = 0.7
 """
 
 
@@ -34,15 +37,15 @@ def exp_a(name):
         ],
         max_appliance_powers=[300, 500, 200, 2500, 2400],
         on_power_thresholds=[20, 20, 20, 20, 20],
-        min_on_durations=[60, 60, 60, 300, 300],
+        min_on_durations=[60, 60, 60, 1800, 1800],
         window=("2013-06-01", "2014-07-01"),
-        seq_length=1000,
+        seq_length=1500,
         output_one_appliance=False,
         boolean_targets=False,
         min_off_duration=60,
         subsample_target=5,
         train_buildings=[1],
-        validation_buildings=[1]
+        validation_buildings=[1], skip_probability=0.7
     )
 
     net = Net(
@@ -115,15 +118,15 @@ def exp_b(name):
         ],
         max_appliance_powers=[300, 500, 200, 2500, 2400],
         on_power_thresholds=[20, 20, 20, 20, 20],
-        min_on_durations=[60, 60, 60, 300, 300],
+        min_on_durations=[60, 60, 60, 1800, 1800],
         window=("2013-06-01", "2014-07-01"),
-        seq_length=1000,
+        seq_length=1500,
         output_one_appliance=False,
         boolean_targets=False,
         min_off_duration=60,
         subsample_target=5,
         train_buildings=[1],
-        validation_buildings=[1]
+        validation_buildings=[1], skip_probability=0.7
     )
 
     net = Net(
@@ -197,15 +200,15 @@ def exp_c(name):
         ],
         max_appliance_powers=[300, 500, 200, 2500, 2400],
         on_power_thresholds=[20, 20, 20, 20, 20],
-        min_on_durations=[60, 60, 60, 300, 300],
+        min_on_durations=[60, 60, 60, 1800, 1800],
         window=("2013-06-01", "2014-07-01"),
-        seq_length=1000,
+        seq_length=1500,
         output_one_appliance=True,
         boolean_targets=False,
         min_off_duration=60,
         subsample_target=5,
         train_buildings=[1],
-        validation_buildings=[1]
+        validation_buildings=[1], skip_probability=0.7
     )
 
     net = Net(
@@ -278,15 +281,15 @@ def exp_d(name):
         ],
         max_appliance_powers=[300, 500, 200, 2500, 2400],
         on_power_thresholds=[20, 20, 20, 20, 20],
-        min_on_durations=[60, 60, 60, 300, 300],
+        min_on_durations=[60, 60, 60, 1800, 1800],
         window=("2013-06-01", "2014-07-01"),
-        seq_length=1000,
+        seq_length=1500,
         output_one_appliance=True,
         boolean_targets=False,
         min_off_duration=60,
         subsample_target=5,
         train_buildings=[1],
-        validation_buildings=[1]
+        validation_buildings=[1], skip_probability=0.7
     )
 
     net = Net(
@@ -358,15 +361,15 @@ def exp_e(name):
         ],
         max_appliance_powers=[2500, 300, 500, 200, 2400],
         on_power_thresholds=[20, 20, 20, 20, 20],
-        min_on_durations=[60, 60, 60, 300, 300],
+        min_on_durations=[60, 60, 60, 1800, 1800],
         window=("2013-06-01", "2014-07-01"),
-        seq_length=1000,
+        seq_length=1500,
         output_one_appliance=True,
         boolean_targets=False,
         min_off_duration=60,
         subsample_target=5,
         train_buildings=[1],
-        validation_buildings=[1]
+        validation_buildings=[1], skip_probability=0.7
     )
 
     net = Net(
@@ -439,15 +442,15 @@ def exp_f(name):
         ],
         max_appliance_powers=[2500, 300, 500, 200, 2400],
         on_power_thresholds=[20, 20, 20, 20, 20],
-        min_on_durations=[300, 60, 60, 60, 300],
+        min_on_durations=[1800, 60, 60, 60, 1800],
         window=("2013-06-01", "2014-07-01"),
-        seq_length=1000,
+        seq_length=1500,
         output_one_appliance=True,
         boolean_targets=False,
         min_off_duration=60,
         subsample_target=5,
         train_buildings=[1],
-        validation_buildings=[1]
+        validation_buildings=[1], skip_probability=0.7
     )
 
     net = Net(
@@ -520,16 +523,16 @@ def exp_g(name):
         ],
         max_appliance_powers=[2500, 300, 500, 200, 2400],
         on_power_thresholds=[20, 20, 20, 20, 20],
-        min_on_durations=[300, 60, 60, 60, 300],
+        min_on_durations=[1800, 60, 60, 60, 1800],
         window=("2013-06-01", "2014-07-01"),
-        seq_length=1000,
+        seq_length=1500,
         output_one_appliance=False,
         boolean_targets=False,
         min_off_duration=60,
         subsample_target=5,
         input_padding=4,
         train_buildings=[1],
-        validation_buildings=[1]
+        validation_buildings=[1], skip_probability=0.7
     )
 
     net = Net(
@@ -615,16 +618,16 @@ def exp_h(name):
         ],
         max_appliance_powers=[2500, 300, 500, 200, 2400],
         on_power_thresholds=[20, 20, 20, 20, 20],
-        min_on_durations=[300, 60, 60, 60, 300],
+        min_on_durations=[1800, 60, 60, 60, 1800],
         window=("2013-06-01", "2014-07-01"),
-        seq_length=1000,
+        seq_length=1500,
         output_one_appliance=True,
         boolean_targets=False,
         min_off_duration=60,
         subsample_target=5,
         input_padding=4,
         train_buildings=[1],
-        validation_buildings=[1]
+        validation_buildings=[1], skip_probability=0.7
     )
 
     net = Net(
@@ -709,16 +712,16 @@ def exp_i(name):
         ],
         max_appliance_powers=[300, 2500, 500, 200, 2400],
         on_power_thresholds=[20, 20, 20, 20, 20],
-        min_on_durations=[60, 300, 60, 60, 300],
+        min_on_durations=[60, 1800, 60, 60, 1800],
         window=("2013-06-01", "2014-07-01"),
-        seq_length=1000,
+        seq_length=1500,
         output_one_appliance=True,
         boolean_targets=False,
         min_off_duration=60,
         subsample_target=5,
         input_padding=4,
         train_buildings=[1],
-        validation_buildings=[1]
+        validation_buildings=[1], skip_probability=0.7
     )
 
     net = Net(
@@ -802,16 +805,16 @@ def exp_j(name):
         ],
         max_appliance_powers=[300, 2500, 500, 200, 2400],
         on_power_thresholds=[20, 20, 20, 20, 20],
-        min_on_durations=[60, 300, 60, 60, 300],
+        min_on_durations=[60, 1800, 60, 60, 1800],
         window=("2013-06-01", "2014-07-01"),
-        seq_length=1000,
+        seq_length=1500,
         output_one_appliance=False,
         boolean_targets=True,
         min_off_duration=60,
         subsample_target=5,
         input_padding=4,
         train_buildings=[1],
-        validation_buildings=[1]
+        validation_buildings=[1], skip_probability=0.7
     )
 
     net = Net(
@@ -896,16 +899,16 @@ def exp_k(name):
         ],
         max_appliance_powers=[300, 2500, 500, 200, 2400],
         on_power_thresholds=[20, 20, 20, 20, 20],
-        min_on_durations=[60, 300, 60, 60, 300],
+        min_on_durations=[60, 1800, 60, 60, 1800],
         window=("2013-06-01", "2014-07-01"),
-        seq_length=1000,
+        seq_length=1500,
         output_one_appliance=True,
         boolean_targets=True,
         min_off_duration=60,
         subsample_target=5,
         input_padding=4,
         train_buildings=[1],
-        validation_buildings=[1]
+        validation_buildings=[1], skip_probability=0.7
     )
 
     net = Net(
@@ -990,15 +993,15 @@ def exp_l(name):
         ],
         max_appliance_powers=[300, 500, 200, 2500, 2400],
         on_power_thresholds=[20, 20, 20, 20, 20],
-        min_on_durations=[60, 60, 60, 300, 300],
+        min_on_durations=[60, 60, 60, 1800, 1800],
         window=("2013-06-01", "2014-07-01"),
-        seq_length=1000,
+        seq_length=1500,
         output_one_appliance=False,
         boolean_targets=True,
         min_off_duration=60,
         subsample_target=5,
         train_buildings=[1],
-        validation_buildings=[1]
+        validation_buildings=[1], skip_probability=0.7
     )
 
     net = Net(
@@ -1071,15 +1074,15 @@ def exp_m(name):
         ],
         max_appliance_powers=[300, 500, 200, 2500, 2400],
         on_power_thresholds=[20, 20, 20, 20, 20],
-        min_on_durations=[60, 60, 60, 300, 300],
+        min_on_durations=[60, 60, 60, 1800, 1800],
         window=("2013-06-01", "2014-07-01"),
-        seq_length=1000,
+        seq_length=1500,
         output_one_appliance=True,
         boolean_targets=True,
         min_off_duration=60,
         subsample_target=5,
         train_buildings=[1],
-        validation_buildings=[1]
+        validation_buildings=[1], skip_probability=0.7
     )
 
     net = Net(
