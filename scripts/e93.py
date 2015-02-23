@@ -53,7 +53,7 @@ def exp_a(name):
         source=source,
         save_plot_interval=SAVE_PLOT_INTERVAL,
         loss_function=crossentropy,
-        updates=partial(nesterov_momentum, learning_rate=0.005),
+        updates=partial(nesterov_momentum, learning_rate=0.001),
         layers_config=[
             {
                 'type': DenseLayer,
@@ -1144,7 +1144,7 @@ def exp_m(name):
 def run_experiment(experiment):
     exp_name = 'exp_{:s}(NAME)'.format(experiment)
     print("***********************************")
-    print("Running", exp_name, "...")
+    print("Preparing", NAME + experiment, "...")
     net = eval(exp_name)
     net.print_net()
     net.compile()
@@ -1157,14 +1157,18 @@ def run_experiment(experiment):
         else:
             raise
     os.chdir(path)
+    print("Running net.fit for", NAME + experiment)
+    save_plots = "y"
     try:
-        net.fit(1501)
+        net.fit(1500)
     except KeyboardInterrupt:
         print("Keyboard interrupt received.")
-        response = raw_input("Save latest data [Y/n]? ")
-        if not response or response.lower() == "y":
+        save_plots = raw_input("Save latest data [Y/n]? ")
+        raise
+    finally:
+        if not save_plots or save_plots.lower() == "y":
             print("Saving plots...")
-            net.plot_estimates(save=True)
+            net.plot_estimates(save=True) # TODO: save all plots 
             net.plot_costs(save=True)
             print("Done saving plots")
 
