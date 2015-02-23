@@ -10,18 +10,19 @@ from lasagne.updates import adagrad, nesterov_momentum
 from functools import partial
 import os
 
-NAME = "e91"
+NAME = "e92"
 PATH = "/homes/dk3810/workspace/python/neuralnilm/figures"
 SAVE_PLOT_INTERVAL=250
 
-"""Conclusions:
-length 1000 and 5 appliances still dies immediately if learning rate is 0.1
+"""
+Changes common to all these (compared to e91)
+* on_power_thresh is now 20 watts for everything
+* fixed max_appliance_powers and min_on_durations
 """
 
 
 def exp_a(name):
-    """RESULTS: Died immediately."""
-    print("e82 with seq length 1000 and 5 appliances")
+    print("e91d but with bigger net")
     source = RealApplianceSource(
         filename='/data/dk3810/ukdale.h5',
         appliances=[
@@ -32,7 +33,7 @@ def exp_a(name):
             ['washer dryer', 'washing machine']
         ],
         max_appliance_powers=[300, 500, 200, 2500, 2400],
-        on_power_thresholds=[80, 20, 20, 20, 600],
+        on_power_thresholds=[20, 20, 20, 20, 20],
         min_on_durations=[60, 60, 60, 300, 300],
         window=("2013-06-01", "2014-07-01"),
         seq_length=1000,
@@ -49,11 +50,25 @@ def exp_a(name):
         source=source,
         save_plot_interval=SAVE_PLOT_INTERVAL,
         loss_function=crossentropy,
-        updates=partial(nesterov_momentum, learning_rate=0.1),
+        updates=partial(nesterov_momentum, learning_rate=0.01),
         layers_config=[
             {
+                'type': DenseLayer,
+                'num_units': 100,
+                'nonlinearity': sigmoid,
+                'W': Uniform(25),
+                'b': Uniform(25)
+            },
+            {
+                'type': DenseLayer,
+                'num_units': 100,
+                'nonlinearity': sigmoid,
+                'W': Uniform(10),
+                'b': Uniform(10)
+            },
+            {
                 'type': BLSTMLayer,
-                'num_units': 60,
+                'num_units': 100,
                 'W_in_to_cell': Uniform(5)
             },
             {
@@ -62,7 +77,7 @@ def exp_a(name):
             },
             {
                 'type': Conv1DLayer,
-                'num_filters': 80,
+                'num_filters': 150,
                 'filter_length': 5,
                 'stride': 5,
                 'nonlinearity': sigmoid
@@ -73,7 +88,7 @@ def exp_a(name):
             },
             {
                 'type': BLSTMLayer,
-                'num_units': 80,
+                'num_units': 200,
                 'W_in_to_cell': Uniform(5)
             },
             {
@@ -87,10 +102,8 @@ def exp_a(name):
 
 
 
-
 def exp_b(name):
-    """RESULTS: Finishes training.  Learns dish washer pretty well and something else."""
-    print("e82 with seq length 1000 and 5 appliances and learning rate 0.01")
+    print("e91d but with MSE cost (with sigmoid outputs)")
     source = RealApplianceSource(
         filename='/data/dk3810/ukdale.h5',
         appliances=[
@@ -101,7 +114,7 @@ def exp_b(name):
             ['washer dryer', 'washing machine']
         ],
         max_appliance_powers=[300, 500, 200, 2500, 2400],
-        on_power_thresholds=[80, 20, 20, 20, 600],
+        on_power_thresholds=[20, 20, 20, 20, 20],
         min_on_durations=[60, 60, 60, 300, 300],
         window=("2013-06-01", "2014-07-01"),
         seq_length=1000,
@@ -117,12 +130,26 @@ def exp_b(name):
         experiment_name=name + 'b',
         source=source,
         save_plot_interval=SAVE_PLOT_INTERVAL,
-        loss_function=crossentropy,
+        loss_function=mse,
         updates=partial(nesterov_momentum, learning_rate=0.01),
         layers_config=[
             {
+                'type': DenseLayer,
+                'num_units': 50,
+                'nonlinearity': sigmoid,
+                'W': Uniform(25),
+                'b': Uniform(25)
+            },
+            {
+                'type': DenseLayer,
+                'num_units': 50,
+                'nonlinearity': sigmoid,
+                'W': Uniform(10),
+                'b': Uniform(10)
+            },
+            {
                 'type': BLSTMLayer,
-                'num_units': 60,
+                'num_units': 40,
                 'W_in_to_cell': Uniform(5)
             },
             {
@@ -131,7 +158,7 @@ def exp_b(name):
             },
             {
                 'type': Conv1DLayer,
-                'num_filters': 80,
+                'num_filters': 60,
                 'filter_length': 5,
                 'stride': 5,
                 'nonlinearity': sigmoid
@@ -156,9 +183,9 @@ def exp_b(name):
 
 
 
+
 def exp_c(name):
-    """RESULTS: Fails after 250 epochs. But learning looks promising!"""
-    print("e59 but with 5 appliances and 60 units in Conv1D")
+    print("e59 but with 5 appliances and learning rate 0.01, and single output (Fridge)")
     source = RealApplianceSource(
         filename='/data/dk3810/ukdale.h5',
         appliances=[
@@ -169,11 +196,11 @@ def exp_c(name):
             ['washer dryer', 'washing machine']
         ],
         max_appliance_powers=[300, 500, 200, 2500, 2400],
-        on_power_thresholds=[80, 20, 20, 20, 600],
+        on_power_thresholds=[20, 20, 20, 20, 20],
         min_on_durations=[60, 60, 60, 300, 300],
         window=("2013-06-01", "2014-07-01"),
         seq_length=1000,
-        output_one_appliance=False,
+        output_one_appliance=True,
         boolean_targets=False,
         min_off_duration=60,
         subsample_target=5,
@@ -186,87 +213,6 @@ def exp_c(name):
         source=source,
         save_plot_interval=SAVE_PLOT_INTERVAL,
         loss_function=crossentropy,
-        updates=partial(nesterov_momentum, learning_rate=0.1),
-        layers_config=[
-            {
-                'type': DenseLayer,
-                'num_units': 50,
-                'nonlinearity': sigmoid,
-                'W': Uniform(25),
-                'b': Uniform(25)
-            },
-            {
-                'type': DenseLayer,
-                'num_units': 50,
-                'nonlinearity': sigmoid,
-                'W': Uniform(10),
-                'b': Uniform(10)
-            },
-            {
-                'type': BLSTMLayer,
-                'num_units': 40,
-                'W_in_to_cell': Uniform(5)
-            },
-            {
-                'type': DimshuffleLayer,
-                'pattern': (0, 2, 1)
-            },
-            {
-                'type': Conv1DLayer,
-                'num_filters': 60,
-                'filter_length': 5,
-                'stride': 5,
-                'nonlinearity': sigmoid
-            },
-            {
-                'type': DimshuffleLayer,
-                'pattern': (0, 2, 1)
-            },
-            {
-                'type': BLSTMLayer,
-                'num_units': 80,
-                'W_in_to_cell': Uniform(5)
-            },
-            {
-                'type': DenseLayer,
-                'num_units': source.n_outputs,
-                'nonlinearity': sigmoid
-            }
-        ]
-    )
-    return net
-
-
-def exp_d(name):
-    """Most promising yet! Finishes training.  Learns everything but fridge and hair straighteners."""
-    print("e59 but with 5 appliances and learning rate 0.01")
-    source = RealApplianceSource(
-        filename='/data/dk3810/ukdale.h5',
-        appliances=[
-            ['fridge freezer', 'fridge', 'freezer'], 
-            'hair straighteners', 
-            'television',
-            'dish washer',
-            ['washer dryer', 'washing machine']
-        ],
-        max_appliance_powers=[300, 500, 200, 2500, 2400],
-        on_power_thresholds=[80, 20, 20, 20, 600],
-        min_on_durations=[60, 60, 60, 300, 300],
-        window=("2013-06-01", "2014-07-01"),
-        seq_length=1000,
-        output_one_appliance=False,
-        boolean_targets=False,
-        min_off_duration=60,
-        subsample_target=5,
-        train_buildings=[1],
-        validation_buildings=[1]
-    )
-
-    net = Net(
-        experiment_name=name + 'd',
-        source=source,
-        save_plot_interval=SAVE_PLOT_INTERVAL,
-        loss_function=crossentropy,
         updates=partial(nesterov_momentum, learning_rate=0.01),
         layers_config=[
             {
@@ -319,9 +265,8 @@ def exp_d(name):
 
 
 
-def exp_e(name):
-    """Finishes training.  Learns dish washer and that's about it. Worse than D."""
-    print("e59 but with 5 appliances and learning rate 0.01, linear outputs and MSE")
+def exp_d(name):
+    print("e59 but with 5 appliances and learning rate 0.01, and single output (Fridge), linear output and MSE")
     source = RealApplianceSource(
         filename='/data/dk3810/ukdale.h5',
         appliances=[
@@ -332,11 +277,91 @@ def exp_e(name):
             ['washer dryer', 'washing machine']
         ],
         max_appliance_powers=[300, 500, 200, 2500, 2400],
-        on_power_thresholds=[80, 20, 20, 20, 600],
+        on_power_thresholds=[20, 20, 20, 20, 20],
         min_on_durations=[60, 60, 60, 300, 300],
         window=("2013-06-01", "2014-07-01"),
         seq_length=1000,
-        output_one_appliance=False,
+        output_one_appliance=True,
+        boolean_targets=False,
+        min_off_duration=60,
+        subsample_target=5,
+        train_buildings=[1],
+        validation_buildings=[1]
+    )
+
+    net = Net(
+        experiment_name=name + 'd',
+        source=source,
+        save_plot_interval=SAVE_PLOT_INTERVAL,
+        loss_function=mse,
+        updates=partial(nesterov_momentum, learning_rate=0.01),
+        layers_config=[
+            {
+                'type': DenseLayer,
+                'num_units': 50,
+                'nonlinearity': sigmoid,
+                'W': Uniform(25),
+                'b': Uniform(25)
+            },
+            {
+                'type': DenseLayer,
+                'num_units': 50,
+                'nonlinearity': sigmoid,
+                'W': Uniform(10),
+                'b': Uniform(10)
+            },
+            {
+                'type': BLSTMLayer,
+                'num_units': 40,
+                'W_in_to_cell': Uniform(5)
+            },
+            {
+                'type': DimshuffleLayer,
+                'pattern': (0, 2, 1)
+            },
+            {
+                'type': Conv1DLayer,
+                'num_filters': 60,
+                'filter_length': 5,
+                'stride': 5,
+                'nonlinearity': sigmoid
+            },
+            {
+                'type': DimshuffleLayer,
+                'pattern': (0, 2, 1)
+            },
+            {
+                'type': BLSTMLayer,
+                'num_units': 80,
+                'W_in_to_cell': Uniform(5)
+            },
+            {
+                'type': DenseLayer,
+                'num_units': source.n_outputs,
+                'nonlinearity': None
+            }
+        ]
+    )
+    return net
+
+
+def exp_e(name):
+    print("e59 but with 5 appliances and learning rate 0.01, and single output (washer), linear output and MSE")
+    source = RealApplianceSource(
+        filename='/data/dk3810/ukdale.h5',
+        appliances=[
+            'dish washer',
+            ['fridge freezer', 'fridge', 'freezer'], 
+            'hair straighteners', 
+            'television',
+            ['washer dryer', 'washing machine']
+        ],
+        max_appliance_powers=[2500, 300, 500, 200, 2400],
+        on_power_thresholds=[20, 20, 20, 20, 20],
+        min_on_durations=[60, 60, 60, 300, 300],
+        window=("2013-06-01", "2014-07-01"),
+        seq_length=1000,
+        output_one_appliance=True,
         boolean_targets=False,
         min_off_duration=60,
         subsample_target=5,
@@ -402,20 +427,19 @@ def exp_e(name):
 
 
 def exp_f(name):
-    """Fails immediately."""
-    print("e59 but with 5 appliances and learning rate 0.1, and single output (Fridge)")
+    print("e59 but with 5 appliances and learning rate 0.01, and single output (washer)")
     source = RealApplianceSource(
         filename='/data/dk3810/ukdale.h5',
         appliances=[
+            'dish washer',
             ['fridge freezer', 'fridge', 'freezer'], 
             'hair straighteners', 
             'television',
-            'dish washer',
             ['washer dryer', 'washing machine']
         ],
-        max_appliance_powers=[300, 500, 200, 2500, 2400],
-        on_power_thresholds=[80, 20, 20, 20, 600],
-        min_on_durations=[60, 60, 60, 300, 300],
+        max_appliance_powers=[2500, 300, 500, 200, 2400],
+        on_power_thresholds=[20, 20, 20, 20, 20],
+        min_on_durations=[300, 60, 60, 60, 300],
         window=("2013-06-01", "2014-07-01"),
         seq_length=1000,
         output_one_appliance=True,
@@ -431,7 +455,7 @@ def exp_f(name):
         source=source,
         save_plot_interval=SAVE_PLOT_INTERVAL,
         loss_function=crossentropy,
-        updates=partial(nesterov_momentum, learning_rate=0.1),
+        updates=partial(nesterov_momentum, learning_rate=0.01),
         layers_config=[
             {
                 'type': DenseLayer,
@@ -484,26 +508,26 @@ def exp_f(name):
 
 
 def exp_g(name):
-    """Fails immediately"""
-    print("e59 but with 5 appliances and learning rate 0.1, and single output (Fridge), linear output and MSE")
+    print("e81 but 5 appliances and learning rate 0.01")
     source = RealApplianceSource(
         filename='/data/dk3810/ukdale.h5',
         appliances=[
+            'dish washer',
             ['fridge freezer', 'fridge', 'freezer'], 
             'hair straighteners', 
             'television',
-            'dish washer',
             ['washer dryer', 'washing machine']
         ],
-        max_appliance_powers=[300, 500, 200, 2500, 2400],
-        on_power_thresholds=[80, 20, 20, 20, 600],
-        min_on_durations=[60, 60, 60, 300, 300],
+        max_appliance_powers=[2500, 300, 500, 200, 2400],
+        on_power_thresholds=[20, 20, 20, 20, 20],
+        min_on_durations=[300, 60, 60, 60, 300],
         window=("2013-06-01", "2014-07-01"),
         seq_length=1000,
-        output_one_appliance=True,
+        output_one_appliance=False,
         boolean_targets=False,
         min_off_duration=60,
         subsample_target=5,
+        input_padding=4,
         train_buildings=[1],
         validation_buildings=[1]
     )
@@ -512,26 +536,38 @@ def exp_g(name):
         experiment_name=name + 'g',
         source=source,
         save_plot_interval=SAVE_PLOT_INTERVAL,
-        loss_function=mse,
-        updates=partial(nesterov_momentum, learning_rate=0.1),
+        loss_function=crossentropy,
+        updates=partial(nesterov_momentum, learning_rate=0.01),
         layers_config=[
             {
-                'type': DenseLayer,
-                'num_units': 50,
+                'type': DimshuffleLayer,
+                'pattern': (0, 2, 1)
+            },
+            {
+                'type': Conv1DLayer,
+                'num_filters': 50,
+                'filter_length': 3,
+                'stride': 1,
                 'nonlinearity': sigmoid,
                 'W': Uniform(25),
                 'b': Uniform(25)
             },
             {
-                'type': DenseLayer,
-                'num_units': 50,
+                'type': Conv1DLayer,
+                'num_filters': 50,
+                'filter_length': 3,
+                'stride': 1,
                 'nonlinearity': sigmoid,
                 'W': Uniform(10),
                 'b': Uniform(10)
             },
             {
+                'type': DimshuffleLayer,
+                'pattern': (0, 2, 1)
+            },
+            {
                 'type': BLSTMLayer,
-                'num_units': 40,
+                'num_units': 50,
                 'W_in_to_cell': Uniform(5)
             },
             {
@@ -540,7 +576,7 @@ def exp_g(name):
             },
             {
                 'type': Conv1DLayer,
-                'num_filters': 60,
+                'num_filters': 80,
                 'filter_length': 5,
                 'stride': 5,
                 'nonlinearity': sigmoid
@@ -557,98 +593,17 @@ def exp_g(name):
             {
                 'type': DenseLayer,
                 'num_units': source.n_outputs,
-                'nonlinearity': None
-            }
-        ]
-    )
-    return net
-
-
-def exp_g(name):
-    """Fails immediately."""
-    print("e59 but with 5 appliances and learning rate 0.1, and single output (washer), linear output and MSE")
-    source = RealApplianceSource(
-        filename='/data/dk3810/ukdale.h5',
-        appliances=[
-            'dish washer',
-            ['fridge freezer', 'fridge', 'freezer'], 
-            'hair straighteners', 
-            'television',
-            ['washer dryer', 'washing machine']
-        ],
-        max_appliance_powers=[300, 500, 200, 2500, 2400],
-        on_power_thresholds=[80, 20, 20, 20, 600],
-        min_on_durations=[60, 60, 60, 300, 300],
-        window=("2013-06-01", "2014-07-01"),
-        seq_length=1000,
-        output_one_appliance=True,
-        boolean_targets=False,
-        min_off_duration=60,
-        subsample_target=5,
-        train_buildings=[1],
-        validation_buildings=[1]
-    )
-
-    net = Net(
-        experiment_name=name + 'g',
-        source=source,
-        save_plot_interval=SAVE_PLOT_INTERVAL,
-        loss_function=mse,
-        updates=partial(nesterov_momentum, learning_rate=0.1),
-        layers_config=[
-            {
-                'type': DenseLayer,
-                'num_units': 50,
-                'nonlinearity': sigmoid,
-                'W': Uniform(25),
-                'b': Uniform(25)
-            },
-            {
-                'type': DenseLayer,
-                'num_units': 50,
-                'nonlinearity': sigmoid,
-                'W': Uniform(10),
-                'b': Uniform(10)
-            },
-            {
-                'type': BLSTMLayer,
-                'num_units': 40,
-                'W_in_to_cell': Uniform(5)
-            },
-            {
-                'type': DimshuffleLayer,
-                'pattern': (0, 2, 1)
-            },
-            {
-                'type': Conv1DLayer,
-                'num_filters': 60,
-                'filter_length': 5,
-                'stride': 5,
                 'nonlinearity': sigmoid
-            },
-            {
-                'type': DimshuffleLayer,
-                'pattern': (0, 2, 1)
-            },
-            {
-                'type': BLSTMLayer,
-                'num_units': 80,
-                'W_in_to_cell': Uniform(5)
-            },
-            {
-                'type': DenseLayer,
-                'num_units': source.n_outputs,
-                'nonlinearity': None
             }
         ]
     )
     return net
+
 
 
 
 def exp_h(name):
-    """Fails immediately"""
-    print("e59 but with 5 appliances and learning rate 0.1, and single output (washer)")
+    print("e81 but 5 appliances and learning rate 0.01 and one output (washer)")
     source = RealApplianceSource(
         filename='/data/dk3810/ukdale.h5',
         appliances=[
@@ -658,15 +613,16 @@ def exp_h(name):
             'television',
             ['washer dryer', 'washing machine']
         ],
-        max_appliance_powers=[300, 500, 200, 2500, 2400],
-        on_power_thresholds=[80, 20, 20, 20, 600],
-        min_on_durations=[60, 60, 60, 300, 300],
+        max_appliance_powers=[2500, 300, 500, 200, 2400],
+        on_power_thresholds=[20, 20, 20, 20, 20],
+        min_on_durations=[300, 60, 60, 60, 300],
         window=("2013-06-01", "2014-07-01"),
         seq_length=1000,
         output_one_appliance=True,
         boolean_targets=False,
         min_off_duration=60,
         subsample_target=5,
+        input_padding=4,
         train_buildings=[1],
         validation_buildings=[1]
     )
@@ -676,25 +632,37 @@ def exp_h(name):
         source=source,
         save_plot_interval=SAVE_PLOT_INTERVAL,
         loss_function=crossentropy,
-        updates=partial(nesterov_momentum, learning_rate=0.1),
+        updates=partial(nesterov_momentum, learning_rate=0.01),
         layers_config=[
             {
-                'type': DenseLayer,
-                'num_units': 50,
+                'type': DimshuffleLayer,
+                'pattern': (0, 2, 1)
+            },
+            {
+                'type': Conv1DLayer,
+                'num_filters': 50,
+                'filter_length': 3,
+                'stride': 1,
                 'nonlinearity': sigmoid,
                 'W': Uniform(25),
                 'b': Uniform(25)
             },
             {
-                'type': DenseLayer,
-                'num_units': 50,
+                'type': Conv1DLayer,
+                'num_filters': 50,
+                'filter_length': 3,
+                'stride': 1,
                 'nonlinearity': sigmoid,
                 'W': Uniform(10),
                 'b': Uniform(10)
             },
             {
+                'type': DimshuffleLayer,
+                'pattern': (0, 2, 1)
+            },
+            {
                 'type': BLSTMLayer,
-                'num_units': 40,
+                'num_units': 50,
                 'W_in_to_cell': Uniform(5)
             },
             {
@@ -703,7 +671,7 @@ def exp_h(name):
             },
             {
                 'type': Conv1DLayer,
-                'num_filters': 60,
+                'num_filters': 80,
                 'filter_length': 5,
                 'stride': 5,
                 'nonlinearity': sigmoid
@@ -729,8 +697,288 @@ def exp_h(name):
 
 
 def exp_i(name):
-    """Finishes training.  Learns dish washer.  Not much more."""
-    print("e59 but with 5 appliances and 60 units in Conv1D and seq length of 500")
+    print("e81 but 5 appliances and learning rate 0.01 and one output (fridge)")
+    source = RealApplianceSource(
+        filename='/data/dk3810/ukdale.h5',
+        appliances=[
+            ['fridge freezer', 'fridge', 'freezer'], 
+            'dish washer',
+            'hair straighteners', 
+            'television',
+            ['washer dryer', 'washing machine']
+        ],
+        max_appliance_powers=[300, 2500, 500, 200, 2400],
+        on_power_thresholds=[20, 20, 20, 20, 20],
+        min_on_durations=[60, 300, 60, 60, 300],
+        window=("2013-06-01", "2014-07-01"),
+        seq_length=1000,
+        output_one_appliance=True,
+        boolean_targets=False,
+        min_off_duration=60,
+        subsample_target=5,
+        input_padding=4,
+        train_buildings=[1],
+        validation_buildings=[1]
+    )
+
+    net = Net(
+        experiment_name=name + 'i',
+        source=source,
+        save_plot_interval=SAVE_PLOT_INTERVAL,
+        loss_function=crossentropy,
+        updates=partial(nesterov_momentum, learning_rate=0.01),
+        layers_config=[
+            {
+                'type': DimshuffleLayer,
+                'pattern': (0, 2, 1)
+            },
+            {
+                'type': Conv1DLayer,
+                'num_filters': 50,
+                'filter_length': 3,
+                'stride': 1,
+                'nonlinearity': sigmoid,
+                'W': Uniform(25),
+                'b': Uniform(25)
+            },
+            {
+                'type': Conv1DLayer,
+                'num_filters': 50,
+                'filter_length': 3,
+                'stride': 1,
+                'nonlinearity': sigmoid,
+                'W': Uniform(10),
+                'b': Uniform(10)
+            },
+            {
+                'type': DimshuffleLayer,
+                'pattern': (0, 2, 1)
+            },
+            {
+                'type': BLSTMLayer,
+                'num_units': 50,
+                'W_in_to_cell': Uniform(5)
+            },
+            {
+                'type': DimshuffleLayer,
+                'pattern': (0, 2, 1)
+            },
+            {
+                'type': Conv1DLayer,
+                'num_filters': 80,
+                'filter_length': 5,
+                'stride': 5,
+                'nonlinearity': sigmoid
+            },
+            {
+                'type': DimshuffleLayer,
+                'pattern': (0, 2, 1)
+            },
+            {
+                'type': BLSTMLayer,
+                'num_units': 80,
+                'W_in_to_cell': Uniform(5)
+            },
+            {
+                'type': DenseLayer,
+                'num_units': source.n_outputs,
+                'nonlinearity': sigmoid
+            }
+        ]
+    )
+    return net
+
+
+def exp_j(name):
+    print("e81 but 5 appliances and learning rate 0.01 and bool output")
+    source = RealApplianceSource(
+        filename='/data/dk3810/ukdale.h5',
+        appliances=[
+            ['fridge freezer', 'fridge', 'freezer'], 
+            'dish washer',
+            'hair straighteners', 
+            'television',
+            ['washer dryer', 'washing machine']
+        ],
+        max_appliance_powers=[300, 2500, 500, 200, 2400],
+        on_power_thresholds=[20, 20, 20, 20, 20],
+        min_on_durations=[60, 300, 60, 60, 300],
+        window=("2013-06-01", "2014-07-01"),
+        seq_length=1000,
+        output_one_appliance=False,
+        boolean_targets=True,
+        min_off_duration=60,
+        subsample_target=5,
+        input_padding=4,
+        train_buildings=[1],
+        validation_buildings=[1]
+    )
+
+    net = Net(
+        experiment_name=name + 'j',
+        source=source,
+        save_plot_interval=SAVE_PLOT_INTERVAL,
+        loss_function=crossentropy,
+        updates=partial(nesterov_momentum, learning_rate=0.01),
+        layers_config=[
+            {
+                'type': DimshuffleLayer,
+                'pattern': (0, 2, 1)
+            },
+            {
+                'type': Conv1DLayer,
+                'num_filters': 50,
+                'filter_length': 3,
+                'stride': 1,
+                'nonlinearity': sigmoid,
+                'W': Uniform(25),
+                'b': Uniform(25)
+            },
+            {
+                'type': Conv1DLayer,
+                'num_filters': 50,
+                'filter_length': 3,
+                'stride': 1,
+                'nonlinearity': sigmoid,
+                'W': Uniform(10),
+                'b': Uniform(10)
+            },
+            {
+                'type': DimshuffleLayer,
+                'pattern': (0, 2, 1)
+            },
+            {
+                'type': BLSTMLayer,
+                'num_units': 50,
+                'W_in_to_cell': Uniform(5)
+            },
+            {
+                'type': DimshuffleLayer,
+                'pattern': (0, 2, 1)
+            },
+            {
+                'type': Conv1DLayer,
+                'num_filters': 80,
+                'filter_length': 5,
+                'stride': 5,
+                'nonlinearity': sigmoid
+            },
+            {
+                'type': DimshuffleLayer,
+                'pattern': (0, 2, 1)
+            },
+            {
+                'type': BLSTMLayer,
+                'num_units': 80,
+                'W_in_to_cell': Uniform(5)
+            },
+            {
+                'type': DenseLayer,
+                'num_units': source.n_outputs,
+                'nonlinearity': sigmoid
+            }
+        ]
+    )
+    return net
+
+
+
+def exp_k(name):
+    print("e81 but 5 appliances and learning rate 0.01 and bool output and single appliance output (Fridge)")
+    source = RealApplianceSource(
+        filename='/data/dk3810/ukdale.h5',
+        appliances=[
+            ['fridge freezer', 'fridge', 'freezer'], 
+            'dish washer',
+            'hair straighteners', 
+            'television',
+            ['washer dryer', 'washing machine']
+        ],
+        max_appliance_powers=[300, 2500, 500, 200, 2400],
+        on_power_thresholds=[20, 20, 20, 20, 20],
+        min_on_durations=[60, 300, 60, 60, 300],
+        window=("2013-06-01", "2014-07-01"),
+        seq_length=1000,
+        output_one_appliance=True,
+        boolean_targets=True,
+        min_off_duration=60,
+        subsample_target=5,
+        input_padding=4,
+        train_buildings=[1],
+        validation_buildings=[1]
+    )
+
+    net = Net(
+        experiment_name=name + 'k',
+        source=source,
+        save_plot_interval=SAVE_PLOT_INTERVAL,
+        loss_function=crossentropy,
+        updates=partial(nesterov_momentum, learning_rate=0.01),
+        layers_config=[
+            {
+                'type': DimshuffleLayer,
+                'pattern': (0, 2, 1)
+            },
+            {
+                'type': Conv1DLayer,
+                'num_filters': 50,
+                'filter_length': 3,
+                'stride': 1,
+                'nonlinearity': sigmoid,
+                'W': Uniform(25),
+                'b': Uniform(25)
+            },
+            {
+                'type': Conv1DLayer,
+                'num_filters': 50,
+                'filter_length': 3,
+                'stride': 1,
+                'nonlinearity': sigmoid,
+                'W': Uniform(10),
+                'b': Uniform(10)
+            },
+            {
+                'type': DimshuffleLayer,
+                'pattern': (0, 2, 1)
+            },
+            {
+                'type': BLSTMLayer,
+                'num_units': 50,
+                'W_in_to_cell': Uniform(5)
+            },
+            {
+                'type': DimshuffleLayer,
+                'pattern': (0, 2, 1)
+            },
+            {
+                'type': Conv1DLayer,
+                'num_filters': 80,
+                'filter_length': 5,
+                'stride': 5,
+                'nonlinearity': sigmoid
+            },
+            {
+                'type': DimshuffleLayer,
+                'pattern': (0, 2, 1)
+            },
+            {
+                'type': BLSTMLayer,
+                'num_units': 80,
+                'W_in_to_cell': Uniform(5)
+            },
+            {
+                'type': DenseLayer,
+                'num_units': source.n_outputs,
+                'nonlinearity': sigmoid
+            }
+        ]
+    )
+    return net
+
+
+
+def exp_l(name):
+    print("e91d but with bool outputs")
     source = RealApplianceSource(
         filename='/data/dk3810/ukdale.h5',
         appliances=[
@@ -741,12 +989,12 @@ def exp_i(name):
             ['washer dryer', 'washing machine']
         ],
         max_appliance_powers=[300, 500, 200, 2500, 2400],
-        on_power_thresholds=[80, 20, 20, 20, 600],
+        on_power_thresholds=[20, 20, 20, 20, 20],
         min_on_durations=[60, 60, 60, 300, 300],
         window=("2013-06-01", "2014-07-01"),
-        seq_length=500,
+        seq_length=1000,
         output_one_appliance=False,
-        boolean_targets=False,
+        boolean_targets=True,
         min_off_duration=60,
         subsample_target=5,
         train_buildings=[1],
@@ -754,11 +1002,92 @@ def exp_i(name):
     )
 
     net = Net(
-        experiment_name=name + 'i',
+        experiment_name=name + 'l',
         source=source,
         save_plot_interval=SAVE_PLOT_INTERVAL,
         loss_function=crossentropy,
-        updates=partial(nesterov_momentum, learning_rate=0.1),
+        updates=partial(nesterov_momentum, learning_rate=0.01),
+        layers_config=[
+            {
+                'type': DenseLayer,
+                'num_units': 50,
+                'nonlinearity': sigmoid,
+                'W': Uniform(25),
+                'b': Uniform(25)
+            },
+            {
+                'type': DenseLayer,
+                'num_units': 50,
+                'nonlinearity': sigmoid,
+                'W': Uniform(10),
+                'b': Uniform(10)
+            },
+            {
+                'type': BLSTMLayer,
+                'num_units': 40,
+                'W_in_to_cell': Uniform(5)
+            },
+            {
+                'type': DimshuffleLayer,
+                'pattern': (0, 2, 1)
+            },
+            {
+                'type': Conv1DLayer,
+                'num_filters': 60,
+                'filter_length': 5,
+                'stride': 5,
+                'nonlinearity': sigmoid
+            },
+            {
+                'type': DimshuffleLayer,
+                'pattern': (0, 2, 1)
+            },
+            {
+                'type': BLSTMLayer,
+                'num_units': 80,
+                'W_in_to_cell': Uniform(5)
+            },
+            {
+                'type': DenseLayer,
+                'num_units': source.n_outputs,
+                'nonlinearity': sigmoid
+            }
+        ]
+    )
+    return net
+
+
+
+def exp_m(name):
+    print("e91d but with bool outputs and just one output (Fridge)")
+    source = RealApplianceSource(
+        filename='/data/dk3810/ukdale.h5',
+        appliances=[
+            ['fridge freezer', 'fridge', 'freezer'], 
+            'hair straighteners', 
+            'television',
+            'dish washer',
+            ['washer dryer', 'washing machine']
+        ],
+        max_appliance_powers=[300, 500, 200, 2500, 2400],
+        on_power_thresholds=[20, 20, 20, 20, 20],
+        min_on_durations=[60, 60, 60, 300, 300],
+        window=("2013-06-01", "2014-07-01"),
+        seq_length=1000,
+        output_one_appliance=True,
+        boolean_targets=True,
+        min_off_duration=60,
+        subsample_target=5,
+        train_buildings=[1],
+        validation_buildings=[1]
+    )
+
+    net = Net(
+        experiment_name=name + 'm',
+        source=source,
+        save_plot_interval=SAVE_PLOT_INTERVAL,
+        loss_function=crossentropy,
+        updates=partial(nesterov_momentum, learning_rate=0.01),
         layers_config=[
             {
                 'type': DenseLayer,
@@ -825,7 +1154,7 @@ def run_experiment(experiment):
 
 
 def main():
-    for experiment in list('abcdefghij'):
+    for experiment in list('abcdefghijklm'):
         try:
             run_experiment(experiment)
         except Exception as e:
