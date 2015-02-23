@@ -204,6 +204,15 @@ class RealApplianceSource(Source):
         self.dataset.store.close()
         print("\nDone loading activations.")
 
+    def get_labels(self):
+        labels = []
+        for appliance in self.appliances:
+            if isinstance(appliance, list):
+                labels.append(appliance[0])
+            else:
+                labels.append(appliance)
+        return labels
+
     def _load_activations(self, buildings, min_on_durations, min_off_duration, on_power_thresholds):
         activations = OrderedDict()
         for building_i in buildings:

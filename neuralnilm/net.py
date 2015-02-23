@@ -228,6 +228,7 @@ class Net(object):
         axes[0].plot(y_predictions[seq_i, :, :])
         axes[1].set_title('Appliance ground truth')
         axes[1].plot(y[seq_i, :, :])
+        axes[1].legend(self.source.get_labels(), fancybox=True, framealpha=0.8)
         axes[2].set_title('Aggregate')
         start, end = self.source.inside_padding()
         axes[2].plot(X[seq_i, start:end, :])
@@ -248,7 +249,7 @@ class Net(object):
             string +
             ("_{:d}epochs".format(n_epochs) if include_epochs else "") + 
             ("_" if end_string else "") + end_string +
-            ".eps")
+            ".pdf")
 
 
 def BLSTMLayer(l_previous, num_units, **kwargs):
