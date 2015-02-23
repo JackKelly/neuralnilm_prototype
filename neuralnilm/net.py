@@ -233,6 +233,7 @@ class Net(object):
         axes[2].set_title('Aggregate')
         start, end = self.source.inside_padding()
         axes[2].plot(X[seq_i, start:end, :])
+        axes[2].set_xlim([0, self.source.seq_length])
         fig.tight_layout()
         if save:
             filename = self._plot_filename('estimates', end_string=seq_i)
