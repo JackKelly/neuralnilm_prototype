@@ -25,6 +25,11 @@ e92: Changes common to all these (compared to e91)
 
 
 def exp_a(name):
+    """With a training rate of 0.001, it doesn't seem to learn anything,
+    and costs seem to plataue after only 200 epochs.
+    With a training rate of 0.005, it seems to be starting to learn, 
+    but we get NaNs after about 700 epochs.
+    """
     print("e91d but with bigger net and lower training rate")
     source = RealApplianceSource(
         filename='/data/dk3810/ukdale.h5',
@@ -106,6 +111,8 @@ def exp_a(name):
 
 
 def exp_b(name):
+    """Is learning something sane.  But not amazing.  A little hard to tell
+    because the validation data isn't great!"""
     print("e91d but with new data source.")
     source = RealApplianceSource(
         filename='/data/dk3810/ukdale.h5',
@@ -188,6 +195,8 @@ def exp_b(name):
 
 
 def exp_c(name):
+    """Might be working well but none of the validation data contains the target!
+    But does a good job of ignoring non-fridges."""
     print("e59 but with 5 appliances and learning rate 0.01, and single output (Fridge)")
     source = RealApplianceSource(
         filename='/data/dk3810/ukdale.h5',
@@ -269,6 +278,7 @@ def exp_c(name):
 
 
 def exp_d(name):
+    """Dies immediately.  Don't have log output."""
     print("e59 but with 5 appliances and learning rate 0.01, and single output (Fridge), linear output and MSE")
     source = RealApplianceSource(
         filename='/data/dk3810/ukdale.h5',
@@ -349,6 +359,8 @@ def exp_d(name):
 
 
 def exp_e(name):
+    """Might be doing good job but validation data doesn't include any dish washers!
+    But ignores other appliances."""
     print("e59 but with 5 appliances and learning rate 0.01, and single output (washer), linear output and MSE")
     source = RealApplianceSource(
         filename='/data/dk3810/ukdale.h5',
@@ -1168,7 +1180,7 @@ def run_experiment(experiment):
     finally:
         if not save_plots or save_plots.lower() == "y":
             print("Saving plots...")
-            net.plot_estimates(save=True) # TODO: save all plots 
+            net.plot_estimates(save=True, all_sequences=True)
             net.plot_costs(save=True)
             print("Done saving plots")
 

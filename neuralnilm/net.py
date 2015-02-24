@@ -172,8 +172,7 @@ class Net(object):
                 self.validation_costs.append(validation_cost)
             if not epoch % self.save_plot_interval:
                 self.plot_costs(save=True)
-                for seq_i in range(self.n_seq_per_batch):
-                    self.plot_estimates(save=True, seq_i=seq_i)
+                self.plot_estimates(save=True, all_sequences=True)
             # Print progress
             duration = time() - t0
             is_best_train = train_cost == min(self.training_costs)
@@ -214,8 +213,13 @@ class Net(object):
             plt.show()
         return ax
 
-    def plot_estimates(self, save=False, seq_i=0, use_validation_data=True, 
-                       X=None, y=None):
+    def plot_estimates(self, all_sequences=False, seq_i=0, **kwargs):
+        sequences = range(self.n_seq_per_batch) if all_sequences else [seq_i]
+        for seq_i in sequences:
+            self._plot_estimates(seq_i=seq_i, **kwargs)
+
+    def _plot_estimates(self, save=False, seq_i=0, use_validation_data=True, 
+                        X=None, y=None):
         fig, axes = plt.subplots(3)
         if X is None or y is None:
             if use_validation_data:
