@@ -3,6 +3,7 @@ from functools import partial
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import h5py
 from datetime import datetime, timedelta
 from numpy.random import rand
 from time import time
@@ -35,8 +36,11 @@ class Net(object):
     def __init__(self, source, layers_config, 
                  updates=partial(nesterov_momentum, learning_rate=0.1),
                  experiment_name="", 
-                 validation_interval=10, save_plot_interval=100,
-                 loss_function=lasagne.objectives.mse):
+                 validation_interval=10, 
+                 save_plot_interval=100,
+                 loss_function=lasagne.objectives.mse,
+                 X_processing_func=lambda X: X
+    ):
         """
         Parameters
         ----------
@@ -46,11 +50,12 @@ class Net(object):
         """
         print("Initialising network...")
         self.source = source
+        self.updates = updates
         self.experiment_name = experiment_name
         self.validation_interval = validation_interval
         self.save_plot_interval = save_plot_interval
         self.loss_function = loss_function
-        self.updates = updates
+        self.X_processing_func = X_processing_func
 
         self.input_shape = source.input_shape()
         self.output_shape = source.output_shape()
@@ -173,6 +178,7 @@ class Net(object):
                 validation_cost = self.compute_cost(self.X_val, self.y_val).flatten()[0]
                 self.validation_costs.append(validation_cost)
             if not epoch % self.save_plot_interval:
+                self.save_params()
                 self.plot_costs(save=True)
                 self.plot_estimates(save=True, all_sequences=True)
             # Print progress
@@ -250,16 +256,54 @@ class Net(object):
         return axes
 
     def _plot_filename(self, string, include_epochs=True, end_string=""):
-        n_epochs = len(self.training_costs)
         end_string = str(end_string)
         return (
             self.experiment_name + ("_" if self.experiment_name else "") + 
             string +
-            ("_{:d}epochs".format(n_epochs) if include_epochs else "") + 
+            ("_{:d}epochs".format(self.n_epochs()) if include_epochs else "") +
             ("_" if end_string else "") + end_string +
             ".pdf")
 
+    def n_epochs(self):
+        return len(self.training_costs)
 
+    def save_params(self, filename=None, layers=None, mode='a'):
+        """
+        Save it to HDF in the following format:
+            /epoch<N>/layer<I>/{weights, biases}
+
+        Parameters
+        ----------
+        layers : list of ints
+        """
+        # Process function parameters
+        if filename is None:
+            filename = self.experiment_name + ".hdf5"
+        if layers is None:
+            layers = range(len(self.layers))
+
+        f = h5py.File(filename, mode=mode)
+        epoch_name = 'epoch{:d}'.format(self.n_epochs())
+        epoch_group = f.create_group(epoch_name)
+
+        def _save(layer, data_name, layer_name, attr):
+            try:
+                data = getattr(layer, attr)
+            except AttributeError:
+                pass
+            else:
+                data = data.get_value()
+                layer_group = epoch_group.require_group(layer_name)
+                dataset = layer_group.create_dataset(data_name, data=data)
+            
+        for layer_i in layers:
+            layer = self.layers[layer_i]
+            layer_name = 'layer{:d}'.format(layer_i)
+            _save(layer, 'weights', layer_name, 'W')
+            _save(layer, 'biases', layer_name, 'b')
+            
+        f.close()
+            
 def BLSTMLayer(l_previous, num_units, **kwargs):
     # setup forward and backwards LSTM layers.  Note that
     # LSTMLayer takes a backwards flag. The backwards flag tells

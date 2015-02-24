@@ -10,7 +10,8 @@ from sys import stdout
 from collections import OrderedDict
 
 class Source(object):
-    def __init__(self, seq_length, n_seq_per_batch, n_inputs, n_outputs):
+    def __init__(self, seq_length, n_seq_per_batch, n_inputs, n_outputs,
+                 X_processing_func=None):
         super(Source, self).__init__()
         self.seq_length = seq_length
         self.n_seq_per_batch = n_seq_per_batch
@@ -19,6 +20,7 @@ class Source(object):
         self.queue = Queue(maxsize=2)
         self._stop = threading.Event()
         self._thread = None
+        self.X_processing_func = X_processing_func
 
     def start(self):
         if self._thread is not None:
@@ -30,7 +32,9 @@ class Source(object):
     def run(self):
         """Puts training data into a Queue"""
         while not self._stop.is_set():
-            self.queue.put(self._gen_data())
+            X, y = self._gen_data()
+            X, y = self._process_data(X, y)
+            self.queue.put((X, y))
         self.empty_queue()
         self._thread = None
             
@@ -46,7 +50,13 @@ class Source(object):
                 break
         
     def validation_data(self):
-        return self._gen_data(validation=True)
+        X, y = self._gen_data(validation=True)
+        return self._process_data(X, y)
+
+    def _process_data(self, X, y):
+        if self.X_processing_func is not None:
+            X = self.X_processing_func(X)
+        return X, y
 
     def _gen_data(self, validation=False):
         raise NotImplementedError()
@@ -149,7 +159,8 @@ class RealApplianceSource(Source):
                  subsample_target=1, 
                  input_padding=0,
                  min_off_duration=0,
-                 skip_probability=0):
+                 skip_probability=0,
+                 **kwargs):
         """
         Parameters
         ----------
@@ -170,7 +181,8 @@ class RealApplianceSource(Source):
             seq_length=seq_length, 
             n_seq_per_batch=5,
             n_inputs=1,
-            n_outputs=1 if output_one_appliance else len(appliances)
+            n_outputs=1 if output_one_appliance else len(appliances),
+            **kwargs
         )
         self.dataset = DataSet(filename)
         self.appliances = appliances
@@ -271,7 +283,9 @@ class RealApplianceSource(Source):
             for appliance_i, appliance in enumerate(activations.keys()):
                 if not np.random.binomial(n=1, p=self.skip_probability):
                     random_appliances.append((appliance_i, appliance))
+
         appliances.extend(random_appliances)
+        appliances = list(set(appliances)) # make unique
         
         for appliance_i, appliance in appliances:
             n_activations = len(activations[appliance])
@@ -479,3 +493,38 @@ def quantize(data, n_bins, all_hot=True, range=(-1, 1), length=None):
                 hist[where:midpoint] = 1
         out[i,:] = hist
     return (out * 2) - 1
+
+
+
+def standardise(X, how='range=2', mean=None, std=None, midrange=None, ptp=None):
+    """Standardise.
+    ftp://ftp.sas.com/pub/neural/FAQ2.html#A_std_in
+    
+    Parameters
+    ----------
+    X : matrix
+        Each sample is in range [0, 1]
+    how : str, {'range=2', 'std=1'}
+        'range=2' sets midrange to 0 and enforces
+        all values to be in the range [-1,1]
+        'std=1' sets mean = 0 and std = 1
+
+    Returns
+    -------
+    new_X : matrix
+        Same shape as `X`.  Sample is in range [lower, upper]
+    """
+    if how == 'std=1':
+        if mean is None:
+            mean = X.mean()
+        if std is None:
+            std = X.std()
+        return (X - mean) / std
+    elif how == 'range=2':
+        if midrange is None:
+            midrange = (X.max() + X.min()) / 2
+        if ptp is None:
+            ptp = X.ptp()
+        return (X - midrange) / (ptp / 2)
+    else:
+        raise RuntimeError("unrecognised how '" + how + "'")
