@@ -52,6 +52,10 @@ def exp_a(name):
     only 50 units in first layer
     back to just 3 appliances
     skip prob = 0
+
+    e100
+    boolean_targets = False
+    output_one_appliance=False
     """
     source = RealApplianceSource(
         filename='/data/dk3810/ukdale.h5',
@@ -68,8 +72,8 @@ def exp_a(name):
         min_on_durations=[60, 60, 60], #, 1800, 1800],
         window=("2013-06-01", "2014-07-01"),
         seq_length=1000,
-        output_one_appliance=True,
-        boolean_targets=True,
+        output_one_appliance=False,
+        boolean_targets=False,
         min_off_duration=60,
         subsample_target=5,
         train_buildings=[1],
@@ -153,8 +157,8 @@ def exp_b(name):
         min_on_durations=[60, 60, 60], #, 1800, 1800],
         window=("2013-06-01", "2014-07-01"),
         seq_length=1000,
-        output_one_appliance=True,
-        boolean_targets=True,
+        output_one_appliance=False,
+        boolean_targets=False,
         min_off_duration=60,
         subsample_target=5,
         train_buildings=[1],
@@ -239,8 +243,8 @@ def exp_c(name):
         min_on_durations=[60, 60, 60], #, 1800, 1800],
         window=("2013-06-01", "2014-07-01"),
         seq_length=1500,
-        output_one_appliance=True,
-        boolean_targets=True,
+        output_one_appliance=False,
+        boolean_targets=False,
         min_off_duration=60,
         subsample_target=5,
         train_buildings=[1],
@@ -324,8 +328,8 @@ def exp_d(name):
         min_on_durations=[60, 60, 60], #, 1800, 1800],
         window=("2013-06-01", "2014-07-01"),
         seq_length=1500,
-        output_one_appliance=True,
-        boolean_targets=True,
+        output_one_appliance=False,
+        boolean_targets=False,
         min_off_duration=60,
         subsample_target=5,
         train_buildings=[1],
@@ -409,8 +413,8 @@ def exp_e(name):
         min_on_durations=[60, 60, 60], #, 1800, 1800],
         window=("2013-06-01", "2014-07-01"),
         seq_length=1500,
-        output_one_appliance=True,
-        boolean_targets=True,
+        output_one_appliance=False,
+        boolean_targets=False,
         min_off_duration=60,
         subsample_target=5,
         train_buildings=[1],
@@ -494,8 +498,8 @@ def exp_f(name):
         min_on_durations=[60, 60, 60], #, 1800, 1800],
         window=("2013-06-01", "2014-07-01"),
         seq_length=1500,
-        output_one_appliance=True,
-        boolean_targets=True,
+        output_one_appliance=False,
+        boolean_targets=False,
         min_off_duration=60,
         subsample_target=5,
         train_buildings=[1],
@@ -581,8 +585,8 @@ def exp_g(name):
         min_on_durations=[60, 60, 60], #, 1800, 1800],
         window=("2013-06-01", "2014-07-01"),
         seq_length=1500,
-        output_one_appliance=True,
-        boolean_targets=True,
+        output_one_appliance=False,
+        boolean_targets=False,
         min_off_duration=60,
         subsample_target=5,
         train_buildings=[1],
@@ -637,6 +641,89 @@ def exp_g(name):
                 'num_units': 80,
                 'W_in_to_cell': Uniform(5),
                 'gradient_steps': GRADIENT_STEPS
+            },
+            {
+                'type': DenseLayer,
+                'num_units': source.n_outputs,
+                'nonlinearity': sigmoid
+            }
+        ]
+    )
+    return net
+
+
+
+def exp_h(name):
+    # Same as A but without gradient_steps = 100
+    source = RealApplianceSource(
+        filename='/data/dk3810/ukdale.h5',
+        appliances=[
+            ['fridge freezer', 'fridge', 'freezer'], 
+            'hair straighteners', 
+            'television'
+            # 'dish washer',
+            # ['washer dryer', 'washing machine']
+        ],
+        max_appliance_powers=[300, 500, 200], #, 2500, 2400],
+        on_power_thresholds=[20, 20, 20], #, 20, 20],
+        max_input_power=500,
+        min_on_durations=[60, 60, 60], #, 1800, 1800],
+        window=("2013-06-01", "2014-07-01"),
+        seq_length=1000,
+        output_one_appliance=False,
+        boolean_targets=False,
+        min_off_duration=60,
+        subsample_target=5,
+        train_buildings=[1],
+        validation_buildings=[1], 
+        skip_probability=0
+    )
+
+    net = Net(
+        experiment_name=name + 'h',
+        source=source,
+        save_plot_interval=SAVE_PLOT_INTERVAL,
+        loss_function=crossentropy,
+        updates=partial(nesterov_momentum, learning_rate=0.01),
+        layers_config=[
+            {
+                'type': DenseLayer,
+                'num_units': 50,
+                'nonlinearity': sigmoid,
+                'W': Uniform(10),
+                'b': Uniform(10)
+            },
+            {
+                'type': DenseLayer,
+                'num_units': 50,
+                'nonlinearity': sigmoid,
+                'W': Uniform(5),
+                'b': Uniform(5)
+            },
+            {
+                'type': BLSTMLayer,
+                'num_units': 40,
+                'W_in_to_cell': Uniform(5)
+            },
+            {
+                'type': DimshuffleLayer,
+                'pattern': (0, 2, 1)
+            },
+            {
+                'type': Conv1DLayer,
+                'num_filters': 60,
+                'filter_length': 5,
+                'stride': 5,
+                'nonlinearity': sigmoid
+            },
+            {
+                'type': DimshuffleLayer,
+                'pattern': (0, 2, 1)
+            },
+            {
+                'type': BLSTMLayer,
+                'num_units': 80,
+                'W_in_to_cell': Uniform(5)
             },
             {
                 'type': DenseLayer,
@@ -704,7 +791,7 @@ def fit(net, experiment, epochs=2998):
 
 
 def main():
-    for experiment in list('abcdefg'):
+    for experiment in list('abcdefgh'):
         try:
             run_experiment(experiment)
         except Exception as e:
