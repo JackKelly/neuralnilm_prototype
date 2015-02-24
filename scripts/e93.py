@@ -1175,8 +1175,13 @@ def run_experiment(experiment):
         net.fit(1500)
     except KeyboardInterrupt:
         print("Keyboard interrupt received.")
+        enter_debugger = raw_input("Enter debugger [N/y]? ")
+        if enter_debugger.lower() == 'y':
+            import ipdb; ipdb.set_trace()
         save_plots = raw_input("Save latest data [Y/n]? ")
-        raise
+        stop_all = raw_input("Stop all experiments [Y/n]? ")
+        if not stop_all or stop_all.lower() == "y":
+            raise
     finally:
         if not save_plots or save_plots.lower() == "y":
             print("Saving plots...")
