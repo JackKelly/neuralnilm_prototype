@@ -1169,12 +1169,12 @@ def run_experiment(experiment):
     fit(net, experiment)
 
 
-def fit(net, experiment):
+def fit(net, experiment, epochs=1500):
     print("Running net.fit for", NAME + experiment)
     save_plots = "y"
     continue_fit = "n"
     try:
-        net.fit(1500)
+        net.fit(epochs)
     except KeyboardInterrupt:
         print("Keyboard interrupt received.")
         enter_debugger = raw_input("Enter debugger [N/y]? ")
@@ -1193,7 +1193,11 @@ def fit(net, experiment):
             print("Done saving plots")
 
     if continue_fit == "y":
-        fit(net, experiment)
+        new_epochs = raw_input("Change number of epochs [currently {:d}]? "
+                               .format(epochs))
+        if new_epochs:
+            epochs = int(new_epochs)
+        fit(net, experiment, epochs)
 
 
 def main():
