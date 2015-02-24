@@ -109,7 +109,6 @@ def exp_a(name):
     return net
 
 
-
 def exp_b(name):
     """Is learning something sane.  But not amazing.  A little hard to tell
     because the validation data isn't great!"""
@@ -190,8 +189,6 @@ def exp_b(name):
         ]
     )
     return net
-
-
 
 
 def exp_c(name):
@@ -1191,7 +1188,7 @@ def run_experiment(experiment):
 
 
 def main():
-    for experiment in list('abcdefghijklm'):
+    for experiment in list('bcdefghijklm'):
         try:
             run_experiment(experiment)
         except Exception as e:
