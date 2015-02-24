@@ -160,6 +160,11 @@ class RealApplianceSource(Source):
         building : int
         subsample_target : int
             If > 1 then subsample the targets.
+        skip_probability : float, [0, 1]
+            If `skip_probability` == 0 then all appliances will be included in 
+            every sequence.  Else each appliance will be skipped with this 
+            probability but every appliance will be present in at least
+            one sequence per batch.
         """
         super(RealApplianceSource, self).__init__(
             seq_length=seq_length, 
@@ -251,7 +256,9 @@ class RealApplianceSource(Source):
             activations[i] = activation
         return activations
 
-    def _gen_single_example(self, validation=False):
+    def _gen_single_example(self, validation=False, appliances=None):
+        if appliances is None:
+            appliances = []
         X = np.zeros(shape=(self.seq_length, self.n_inputs))
         y = np.zeros(shape=(self.seq_length, self.n_outputs))
         POWER_THRESHOLD = 5
@@ -259,12 +266,13 @@ class RealApplianceSource(Source):
         activations = (self.validation_activations if validation 
                        else self.train_activations)
 
-        appliances = []
-        while not appliances:
+        random_appliances = []
+        while not random_appliances:
             for appliance_i, appliance in enumerate(activations.keys()):
                 if not np.random.binomial(n=1, p=self.skip_probability):
-                    appliances.append((appliance_i, appliance))
-
+                    random_appliances.append((appliance_i, appliance))
+        appliances.extend(random_appliances)
+        
         for appliance_i, appliance in appliances:
             n_activations = len(activations[appliance])
             if n_activations == 0:
@@ -318,12 +326,37 @@ class RealApplianceSource(Source):
             end = None
         return start, end
 
+    def _appliances_for_sequence(self):
+        """Returns a dict which maps from seq_i to a list of appliance which
+        must be included in that sequence.  This is used to ensure that,
+        if `skip_probability` > 0 then every appliance must be represented in
+        at least one sequence.
+        """
+        if self.skip_probability == 0:
+            return {i:[] for i in range(self.n_seq_per_batch)}
+        n_appliances = len(self.appliances)
+        n_appliances_per_seq = n_appliances // self.n_seq_per_batch
+        remainder = n_appliances % self.n_seq_per_batch
+        appliances_for_sequence = {}
+        all_appliances = list(enumerate(self.get_labels()))
+        for i in range(self.n_seq_per_batch):
+            start = n_appliances_per_seq * i
+            end = start + n_appliances_per_seq
+            if remainder:
+                end += 1
+                remainder -= 1
+            appliances = all_appliances[start:end]
+            appliances_for_sequence[i] = appliances
+        return appliances_for_sequence
+
     def _gen_data(self, validation=False):
         X = np.zeros(self.input_shape())
         y = np.zeros(self.output_shape())
         start, end = self.inside_padding()
+        deterministic_appliances = self._appliances_for_sequence()
         for i in range(self.n_seq_per_batch):
-            X[i,start:end,:], y[i,:,:] = self._gen_single_example(validation)
+            X[i,start:end,:], y[i,:,:] = self._gen_single_example(
+                validation, deterministic_appliances[i])
         self._check_data(X, y)
         return X, y
 
