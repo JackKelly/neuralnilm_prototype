@@ -1166,8 +1166,13 @@ def run_experiment(experiment):
         else:
             raise
     os.chdir(path)
+    fit(net, experiment)
+
+
+def fit(net, experiment):
     print("Running net.fit for", NAME + experiment)
     save_plots = "y"
+    continue_fit = "n"
     try:
         net.fit(1500)
     except KeyboardInterrupt:
@@ -1179,12 +1184,16 @@ def run_experiment(experiment):
         stop_all = raw_input("Stop all experiments [Y/n]? ")
         if not stop_all or stop_all.lower() == "y":
             raise
+        continue_fit = raw_input("Continue fitting this experiment [N/y]? ")
     finally:
         if not save_plots or save_plots.lower() == "y":
             print("Saving plots...")
             net.plot_estimates(save=True, all_sequences=True)
             net.plot_costs(save=True)
             print("Done saving plots")
+
+    if continue_fit == "y":
+        fit(net, experiment)
 
 
 def main():

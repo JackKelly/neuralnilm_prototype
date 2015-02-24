@@ -143,7 +143,8 @@ class Net(object):
         print("Done compiling Theano functions.")
 
     def fit(self, n_iterations=None):
-        # Training loop
+        # Training loop. Need to wrap this in a try-except loop so
+        # we can always call self.source.stop()
         self.source.start()
         try:
             self._training_loop(n_iterations)
@@ -160,8 +161,9 @@ class Net(object):
 """)
         validation_cost = (self.validation_costs[-1] if self.validation_costs 
                            else None)
-        i = 0
-        while i != n_iterations:
+
+        epoch = max(len(self.training_costs) - 1, 0)
+        while epoch != n_iterations:
             t0 = time() # for calculating training duration
             X, y = self.source.queue.get(timeout=30)
             train_cost = self.train(X, y).flatten()[0]
@@ -189,7 +191,6 @@ class Net(object):
                       train_cost / validation_cost,
                       duration
             ))
-            i += 1
             old_X = X
             old_y = y
             if np.isnan(train_cost):
