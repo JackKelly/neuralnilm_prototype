@@ -2,7 +2,7 @@ from __future__ import print_function, division
 import os
 
 
-def run_experiment(net, path):
+def run_experiment(net, path, epochs=1500):
     net.print_net()
     net.compile()
     try:
@@ -13,7 +13,7 @@ def run_experiment(net, path):
         else:
             raise
     os.chdir(path)
-    fit(net)
+    fit(net, epochs)
 
 
 def save(net):
@@ -25,7 +25,7 @@ def save(net):
     print("Done saving.")
 
 
-def fit(net, epochs=1500):
+def fit(net, epochs):
     print("Running net.fit for", net.experiment_name)
     try:
         net.fit(epochs)

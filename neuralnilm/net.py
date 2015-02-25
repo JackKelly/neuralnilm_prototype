@@ -11,7 +11,8 @@ import theano
 import theano.tensor as T
 import lasagne
 from lasagne.layers import (InputLayer, LSTMLayer, ReshapeLayer, Layer,
-                            ConcatLayer, ElemwiseSumLayer, DenseLayer)
+                            ConcatLayer, ElemwiseSumLayer, DenseLayer,
+                            get_all_layers)
 from lasagne.nonlinearities import sigmoid, rectify
 from lasagne.utils import floatX
 from lasagne.updates import nesterov_momentum
@@ -270,10 +271,10 @@ class Net(object):
     def n_epochs(self):
         return max(len(self.training_costs) - 1, 0)
 
-    def save_params(self, filename=None, layers=None, mode=None):
+    def save_params(self, filename=None):
         """
         Save it to HDF in the following format:
-            /epoch<N>/layer<I>/{weights, biases}
+            /epoch<N>/L<I>_<type>/P<I>_<name>
 
         Parameters
         ----------
@@ -282,39 +283,31 @@ class Net(object):
         # Process function parameters
         if filename is None:
             filename = self.experiment_name + ".hdf5"
-        if layers is None:
-            layers = range(len(self.layers))
-        if mode is None:
-            mode = 'w' if self.n_epochs() == 0 else 'a'
 
+        mode = 'w' if self.n_epochs() == 0 else 'a'
         f = h5py.File(filename, mode=mode)
-        epoch_name = 'epoch{:d}'.format(self.n_epochs())
+        epoch_name = 'epoch{:05d}'.format(self.n_epochs())
         try:
             epoch_group = f.create_group(epoch_name)
         except ValueError as exception:
             print("Not saving params because", exception)
             f.close()
             return
-
-        def _save(layer, data_name, layer_name, attr):
-            try:
-                data = getattr(layer, attr)
-            except AttributeError:
-                pass
-            else:
-                data = data.get_value()
-                # Does need to be `require_group` not `create_group`
-                # because the former doesn't throw an exception if the
-                # group already exists, and it will when we call this
-                # function for the biases (after saving the weights).
-                layer_group = epoch_group.require_group(layer_name)
-                dataset = layer_group.create_dataset(data_name, data=data)
             
-        for layer_i in layers:
-            layer = self.layers[layer_i]
-            layer_name = 'layer{:d}'.format(layer_i)
-            _save(layer, 'weights', layer_name, 'W')
-            _save(layer, 'biases', layer_name, 'b')
+        layers = get_all_layers(self.layers[-1])
+        layers.reverse()
+        for layer_i, layer in enumerate(layers):
+            params = layer.get_params()
+            if not params:
+                continue
+            layer_name = 'L{:02d}_{}'.format(layer_i, layer.__class__.__name__)
+            layer_group = epoch_group.create_group(layer_name)
+            for param_i, param in enumerate(params):
+                param_name = 'P{:02d}'.format(param_i)
+                if param.name:
+                    param_name += "_" + param.name
+                data = param.get_value()
+                dataset = layer_group.create_dataset(param_name, data=data)
             
         f.close()
             
