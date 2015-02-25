@@ -754,11 +754,10 @@ def run_experiment(experiment):
         else:
             raise
     os.chdir(path)
-    net.save_params(mode='w') # delete old hdf5 file
     fit(net, experiment)
 
 
-def fit(net, experiment, epochs=1498):
+def fit(net, experiment, epochs=1500):
     print("Running net.fit for", NAME + experiment)
     save_plots = "y"
     continue_fit = "n"

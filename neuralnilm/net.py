@@ -171,8 +171,8 @@ class Net(object):
         while epoch != n_iterations:
             t0 = time() # for calculating training duration
             X, y = self.source.queue.get(timeout=30)
-            train_cost = self.train(X, y).flatten()[0]
             epoch = len(self.training_costs)
+            train_cost = self.train(X, y).flatten()[0]
             self.training_costs.append(train_cost)
             if not epoch % self.validation_interval:
                 validation_cost = self.compute_cost(self.X_val, self.y_val).flatten()[0]
@@ -187,7 +187,7 @@ class Net(object):
             is_best_valid = validation_cost == min(self.validation_costs)
             print("  {:>5} |  {}{:>10.6f}{}  |  {}{:>10.6f}{}  |"
                   "  {:>11.6f}  |  {:>3.1f}s".format(
-                      len(self.training_costs),
+                      epoch,
                       ansi.BLUE if is_best_train else "",
                       train_cost,
                       ansi.ENDC if is_best_train else "",
@@ -262,9 +262,9 @@ class Net(object):
             ".pdf")
 
     def n_epochs(self):
-        return len(self.training_costs)
+        return max(len(self.training_costs) - 1, 0)
 
-    def save_params(self, filename=None, layers=None, mode='a'):
+    def save_params(self, filename=None, layers=None, mode=None):
         """
         Save it to HDF in the following format:
             /epoch<N>/layer<I>/{weights, biases}
@@ -278,6 +278,8 @@ class Net(object):
             filename = self.experiment_name + ".hdf5"
         if layers is None:
             layers = range(len(self.layers))
+        if mode is None:
+            mode = 'w' if self.n_epochs() == 0 else 'a'
 
         f = h5py.File(filename, mode=mode)
         epoch_name = 'epoch{:d}'.format(self.n_epochs())
