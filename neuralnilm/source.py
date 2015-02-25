@@ -151,6 +151,7 @@ class RealApplianceSource(Source):
                  max_input_power=None,
                  window=(None, None), 
                  seq_length=1000,
+                 n_seq_per_batch=5,
                  train_buildings=None, 
                  validation_buildings=None,
                  output_one_appliance=True, 
@@ -179,7 +180,7 @@ class RealApplianceSource(Source):
         """
         super(RealApplianceSource, self).__init__(
             seq_length=seq_length, 
-            n_seq_per_batch=5,
+            n_seq_per_batch=n_seq_per_batch,
             n_inputs=1,
             n_outputs=1 if output_one_appliance else len(appliances),
             **kwargs

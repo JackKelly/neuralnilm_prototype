@@ -185,7 +185,7 @@ class Net(object):
             if not epoch % self.save_plot_interval:
                 self.save_params()
                 self.plot_costs(save=True)
-                self.plot_estimates(save=True, all_sequences=True)
+                self.plot_estimates(save=True)
             # Print progress
             duration = time() - t0
             is_best_train = train_cost == min(self.training_costs)
@@ -222,8 +222,9 @@ class Net(object):
             plt.show()
         return ax
 
-    def plot_estimates(self, all_sequences=False, seq_i=0, **kwargs):
-        sequences = range(self.n_seq_per_batch) if all_sequences else [seq_i]
+    def plot_estimates(self, sequences=None, **kwargs):
+        if sequences is None:
+            sequences = range(min(self.n_seq_per_batch, 5))
         for seq_i in sequences:
             self._plot_estimates(seq_i=seq_i, **kwargs)
 

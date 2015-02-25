@@ -16,10 +16,17 @@ def run_experiment(net, path):
     fit(net)
 
 
+def save(net):
+    print("Saving plots...")
+    net.plot_estimates(save=True)
+    net.plot_costs(save=True)
+    print("Saving params...")
+    net.save_params()
+    print("Done saving.")
+
+
 def fit(net, epochs=1500):
     print("Running net.fit for", net.experiment_name)
-    save_plots = "y"
-    continue_fit = "n"
     try:
         net.fit(epochs)
     except KeyboardInterrupt:
@@ -27,23 +34,19 @@ def fit(net, epochs=1500):
         enter_debugger = raw_input("Enter debugger [N/y]? ")
         if enter_debugger.lower() == 'y':
             import ipdb; ipdb.set_trace()
-        save_plots = raw_input("Save latest data [Y/n]? ")
+        save_data = raw_input("Save latest data [Y/n]? ")
+        if save_data == "" or save_data.lower() == "y":
+            save(net)
         stop_all = raw_input("Stop all experiments [Y/n]? ")
-        if not stop_all or stop_all.lower() == "y":
+        if stop_all == "" or stop_all.lower() == "y":
             raise
         continue_fit = raw_input("Continue fitting this experiment [N/y]? ")
-    finally:
-        if not save_plots or save_plots.lower() == "y":
-            print("Saving plots...")
-            net.plot_estimates(save=True, all_sequences=True)
-            net.plot_costs(save=True)
-            print("Saving params...")
-            net.save_params()
-            print("Done saving.")
-
-    if continue_fit == "y":
-        new_epochs = raw_input("Change number of epochs [currently {}]? "
-                               .format(epochs))
-        if new_epochs:
-            epochs = int(new_epochs)
-        fit(net, epochs)
+        if continue_fit == "y":
+            new_epochs = raw_input("Change number of epochs [currently {}]? "
+                                   .format(epochs))
+            if new_epochs:
+                epochs = int(new_epochs)
+            fit(net, epochs)
+    except:
+        save(net)
+        raise
