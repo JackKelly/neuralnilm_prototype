@@ -29,6 +29,11 @@ class ansi:
     GREEN = '\033[32m'
     ENDC = '\033[0m'
 
+
+class TrainingError(Exception):
+    pass
+
+
 ######################## Neural network class ########################
 class Net(object):
     # Much of this code is adapted from craffel/nntools/examples/lstm.py
@@ -198,7 +203,7 @@ class Net(object):
                       duration
             ))
             if np.isnan(train_cost):
-                raise RuntimeError("training cost is NaN!")
+                raise TrainingError("training cost is NaN!")
 
     def plot_costs(self, save=False):
         fig, ax = plt.subplots(1)
