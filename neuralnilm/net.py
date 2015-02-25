@@ -167,13 +167,13 @@ class Net(object):
         validation_cost = (self.validation_costs[-1] if self.validation_costs 
                            else None)
 
-        epoch = max(len(self.training_costs) - 1, 0)
+        epoch = len(self.training_costs)
         while epoch != n_iterations:
             t0 = time() # for calculating training duration
             X, y = self.source.queue.get(timeout=30)
             train_cost = self.train(X, y).flatten()[0]
+            epoch = len(self.training_costs)
             self.training_costs.append(train_cost)
-            epoch = len(self.training_costs) - 1
             if not epoch % self.validation_interval:
                 validation_cost = self.compute_cost(self.X_val, self.y_val).flatten()[0]
                 self.validation_costs.append(validation_cost)
@@ -197,11 +197,8 @@ class Net(object):
                       train_cost / validation_cost,
                       duration
             ))
-            old_X = X
-            old_y = y
             if np.isnan(train_cost):
                 raise RuntimeError("training cost is NaN!")
-
 
     def plot_costs(self, save=False):
         fig, ax = plt.subplots(1)
@@ -284,7 +281,12 @@ class Net(object):
 
         f = h5py.File(filename, mode=mode)
         epoch_name = 'epoch{:d}'.format(self.n_epochs())
-        epoch_group = f.create_group(epoch_name)
+        try:
+            epoch_group = f.create_group(epoch_name)
+        except ValueError as exception:
+            print("Not saving params because", exception)
+            f.close()
+            return
 
         def _save(layer, data_name, layer_name, attr):
             try:
@@ -293,6 +295,10 @@ class Net(object):
                 pass
             else:
                 data = data.get_value()
+                # Does need to be `require_group` not `create_group`
+                # because the former doesn't throw an exception if the
+                # group already exists, and it will when we call this
+                # function for the biases (after saving the weights).
                 layer_group = epoch_group.require_group(layer_name)
                 dataset = layer_group.create_dataset(data_name, data=data)
             

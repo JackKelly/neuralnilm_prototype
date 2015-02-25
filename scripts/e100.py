@@ -11,7 +11,7 @@ from functools import partial
 import os
 from neuralnilm.source import standardise
 
-NAME = "e99"
+NAME = "e100"
 PATH = "/homes/dk3810/workspace/python/neuralnilm/figures"
 SAVE_PLOT_INTERVAL = 250
 GRADIENT_STEPS = 100
@@ -754,10 +754,11 @@ def run_experiment(experiment):
         else:
             raise
     os.chdir(path)
+    net.save_params(mode='w') # delete old hdf5 file
     fit(net, experiment)
 
 
-def fit(net, experiment, epochs=2998):
+def fit(net, experiment, epochs=1498):
     print("Running net.fit for", NAME + experiment)
     save_plots = "y"
     continue_fit = "n"
@@ -796,7 +797,6 @@ def main():
             run_experiment(experiment)
         except Exception as e:
             print("EXCEPTION:", e)
-            raise
 
 
 if __name__ == "__main__":
