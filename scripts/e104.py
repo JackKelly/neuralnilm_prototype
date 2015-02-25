@@ -77,6 +77,159 @@ def exp_a(name):
     return net
 
 
+
+def exp_b(name):
+    # Same as A but with Uniform(5)
+    source = RealApplianceSource(
+        filename='/data/dk3810/ukdale.h5',
+        appliances=[
+            ['fridge freezer', 'fridge', 'freezer'], 
+            'hair straighteners', 
+            'television'
+            # 'dish washer',
+            # ['washer dryer', 'washing machine']
+        ],
+        max_appliance_powers=[300, 500, 200], #, 2500, 2400],
+        on_power_thresholds=[20, 20, 20], #, 20, 20],
+        max_input_power=1000,
+        min_on_durations=[60, 60, 60], #, 1800, 1800],
+        window=("2013-06-01", "2014-07-01"),
+        seq_length=1000,
+        output_one_appliance=False,
+        boolean_targets=False,
+        min_off_duration=60,
+        train_buildings=[1],
+        validation_buildings=[1], 
+        skip_probability=0,
+        n_seq_per_batch=50
+    )
+
+    net = Net(
+        experiment_name=name,
+        source=source,
+        save_plot_interval=SAVE_PLOT_INTERVAL,
+        loss_function=crossentropy,
+        updates=partial(nesterov_momentum, learning_rate=0.01),
+        layers_config=[
+            {
+                'type': BLSTMLayer,
+                'num_units': 50,
+                'W_in_to_cell': Uniform(5),
+                'gradient_steps': GRADIENT_STEPS
+            },
+            {
+                'type': DenseLayer,
+                'num_units': source.n_outputs,
+                'nonlinearity': sigmoid
+            }
+        ]
+    )
+    return net
+
+
+
+def exp_c(name):
+    # Same as A but with Uniform(10)
+    source = RealApplianceSource(
+        filename='/data/dk3810/ukdale.h5',
+        appliances=[
+            ['fridge freezer', 'fridge', 'freezer'], 
+            'hair straighteners', 
+            'television'
+            # 'dish washer',
+            # ['washer dryer', 'washing machine']
+        ],
+        max_appliance_powers=[300, 500, 200], #, 2500, 2400],
+        on_power_thresholds=[20, 20, 20], #, 20, 20],
+        max_input_power=1000,
+        min_on_durations=[60, 60, 60], #, 1800, 1800],
+        window=("2013-06-01", "2014-07-01"),
+        seq_length=1000,
+        output_one_appliance=False,
+        boolean_targets=False,
+        min_off_duration=60,
+        train_buildings=[1],
+        validation_buildings=[1], 
+        skip_probability=0,
+        n_seq_per_batch=50
+    )
+
+    net = Net(
+        experiment_name=name,
+        source=source,
+        save_plot_interval=SAVE_PLOT_INTERVAL,
+        loss_function=crossentropy,
+        updates=partial(nesterov_momentum, learning_rate=0.01),
+        layers_config=[
+            {
+                'type': BLSTMLayer,
+                'num_units': 50,
+                'W_in_to_cell': Uniform(10),
+                'gradient_steps': GRADIENT_STEPS
+            },
+            {
+                'type': DenseLayer,
+                'num_units': source.n_outputs,
+                'nonlinearity': sigmoid
+            }
+        ]
+    )
+    return net
+
+
+
+
+def exp_d(name):
+    # Same as A but with Uniform(25)
+    source = RealApplianceSource(
+        filename='/data/dk3810/ukdale.h5',
+        appliances=[
+            ['fridge freezer', 'fridge', 'freezer'], 
+            'hair straighteners', 
+            'television'
+            # 'dish washer',
+            # ['washer dryer', 'washing machine']
+        ],
+        max_appliance_powers=[300, 500, 200], #, 2500, 2400],
+        on_power_thresholds=[20, 20, 20], #, 20, 20],
+        max_input_power=1000,
+        min_on_durations=[60, 60, 60], #, 1800, 1800],
+        window=("2013-06-01", "2014-07-01"),
+        seq_length=1000,
+        output_one_appliance=False,
+        boolean_targets=False,
+        min_off_duration=60,
+        train_buildings=[1],
+        validation_buildings=[1], 
+        skip_probability=0,
+        n_seq_per_batch=50
+    )
+
+    net = Net(
+        experiment_name=name,
+        source=source,
+        save_plot_interval=SAVE_PLOT_INTERVAL,
+        loss_function=crossentropy,
+        updates=partial(nesterov_momentum, learning_rate=0.01),
+        layers_config=[
+            {
+                'type': BLSTMLayer,
+                'num_units': 50,
+                'W_in_to_cell': Uniform(25),
+                'gradient_steps': GRADIENT_STEPS
+            },
+            {
+                'type': DenseLayer,
+                'num_units': source.n_outputs,
+                'nonlinearity': sigmoid
+            }
+        ]
+    )
+    return net
+
+
+
+
 def init_experiment(experiment):
     full_exp_name = NAME + experiment
     func_call = 'exp_{:s}(full_exp_name)'.format(experiment)
@@ -87,12 +240,12 @@ def init_experiment(experiment):
 
 
 def main():
-    for experiment in list('a'):
+    for experiment in list('abcd'):
         full_exp_name = NAME + experiment
         path = os.path.join(PATH, full_exp_name)
         try:
             net = init_experiment(experiment)
-            run_experiment(net, path, epochs=None)
+            run_experiment(net, path, epochs=5000)
         except KeyboardInterrupt:
             break
         except TrainingError as e:
