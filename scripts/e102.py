@@ -66,7 +66,7 @@ def exp_a(name):
     conv layer back to 20 filters
 
     e102
-    n_seq_per_batch = 500
+    n_seq_per_batch = 100  (50 ran.  500 got killed)
     """
     source = RealApplianceSource(
         filename='/data/dk3810/ukdale.h5',
@@ -90,7 +90,7 @@ def exp_a(name):
         train_buildings=[1],
         validation_buildings=[1], 
         skip_probability=0,
-        n_seq_per_batch=500
+        n_seq_per_batch=100
     )
 
     net = Net(
@@ -175,7 +175,7 @@ def exp_b(name):
         train_buildings=[1],
         validation_buildings=[1], 
         skip_probability=0,
-        n_seq_per_batch=500
+        n_seq_per_batch=100
     )
 
     net = Net(
@@ -262,7 +262,7 @@ def exp_c(name):
         train_buildings=[1],
         validation_buildings=[1], 
         skip_probability=0,
-        n_seq_per_batch=500
+        n_seq_per_batch=100
     )
 
     net = Net(
@@ -348,7 +348,7 @@ def exp_d(name):
         train_buildings=[1],
         validation_buildings=[1], 
         skip_probability=0,
-        n_seq_per_batch=500
+        n_seq_per_batch=100
     )
 
     net = Net(
@@ -434,7 +434,7 @@ def exp_e(name):
         train_buildings=[1],
         validation_buildings=[1], 
         skip_probability=0,
-        n_seq_per_batch=500
+        n_seq_per_batch=100
     )
 
     net = Net(
