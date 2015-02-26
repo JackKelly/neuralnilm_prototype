@@ -147,6 +147,7 @@ class RealApplianceSource(Source):
     def __init__(self, filename, appliances, 
                  max_appliance_powers, 
                  min_on_durations,
+                 min_off_durations=None,
                  on_power_thresholds=None,
                  max_input_power=None,
                  window=(None, None), 
@@ -159,7 +160,6 @@ class RealApplianceSource(Source):
                  boolean_targets=False,
                  subsample_target=1, 
                  input_padding=0,
-                 min_off_duration=0,
                  skip_probability=0,
                  **kwargs):
         """
@@ -213,21 +213,24 @@ class RealApplianceSource(Source):
         print("Loading training activations...")
         if on_power_thresholds is None:
             on_power_thresholds = [None] * len(self.appliances)
+        if min_on_durations is None:
+            min_on_durations = [0] * len(self.appliances)
+
         self.train_activations = self._load_activations(
-            train_buildings, min_on_durations, min_off_duration, on_power_thresholds)
+            train_buildings, min_on_durations, min_off_durations, on_power_thresholds)
         if train_buildings == validation_buildings:
             self.validation_activations = self.train_activations
         else:
             print("\nLoading validation activations...")
             self.validation_activations = self._load_activations(
-                validation_buildings, min_on_durations, min_off_duration, on_power_thresholds)
+                validation_buildings, min_on_durations, min_off_durations, on_power_thresholds)
         self.dataset.store.close()
         print("\nDone loading activations.")
 
     def get_labels(self):
         return self.train_activations.keys()
 
-    def _load_activations(self, buildings, min_on_durations, min_off_duration, on_power_thresholds):
+    def _load_activations(self, buildings, min_on_durations, min_off_durations, on_power_thresholds):
         activations = OrderedDict()
         for building_i in buildings:
             metergroup = self.dataset.buildings[building_i].elec
@@ -251,7 +254,7 @@ class RealApplianceSource(Source):
                 activation_series = meter.activation_series(
                     on_power_threshold=on_power_thresholds[appliance_i],
                     min_on_duration=min_on_durations[appliance_i], 
-                    min_off_duration=min_off_duration)
+                    min_off_duration=min_off_durations[appliance_i])
                 activations[appliances[0]] = self._preprocess_activations(
                     activation_series, self.max_appliance_powers[appliances[0]])
                 print("Loaded", len(activation_series), "activations.")

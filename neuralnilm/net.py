@@ -45,7 +45,8 @@ class Net(object):
                  validation_interval=10, 
                  save_plot_interval=100,
                  loss_function=lasagne.objectives.mse,
-                 X_processing_func=lambda X: X
+                 X_processing_func=lambda X: X,
+                 layer_changes=None
     ):
         """
         Parameters
@@ -62,6 +63,7 @@ class Net(object):
         self.save_plot_interval = save_plot_interval
         self.loss_function = loss_function
         self.X_processing_func = X_processing_func
+        self.layer_changes = {} if layer_changes is None else layer_changes
 
         self.input_shape = source.input_shape()
         self.output_shape = source.output_shape()
@@ -74,7 +76,13 @@ class Net(object):
         #           maximum number of time steps per example,
         #           number of features per example)
         self.layers.append(InputLayer(shape=self.input_shape))
+        self.add_layers(layers_config)
 
+        # Generate a "validation" sequence whose cost we will compute
+        self.X_val, self.y_val = self.source.validation_data()
+        print("Done initialising network.")
+
+    def add_layers(self, layers_config):
         for layer_config in layers_config:
             layer_type = layer_config.pop('type')
 
@@ -107,9 +115,6 @@ class Net(object):
         if self.layers[-1].get_output_shape() != self.output_shape:
             self.layers.append(ReshapeLayer(self.layers[-1], self.output_shape))
 
-        # Generate a "validation" sequence whose cost we will compute
-        self.X_val, self.y_val = self.source.validation_data()
-        print("Done initialising network.")
 
     def print_net(self):
         for layer in self.layers:
@@ -164,6 +169,17 @@ class Net(object):
         finally:
             self.source.stop()      
 
+    def _change_layers(self, epoch):
+        print("Changing layers...\nOld architecture:")
+        self.print_net()        
+        layer_changes = self.layer_changes[epoch]
+        for layer_to_remove in range(layer_changes['remove_from'], 0):
+            print("Removed", self.layers.pop(layer_to_remove))
+        self.add_layers(layer_changes['new_layers'])
+        print("New architecture:")
+        self.print_net()
+        self.compile()
+
     def _training_loop(self, n_iterations):
         # Adapted from dnouri/nolearn/nolearn/lasagne.py
         print("""
@@ -175,9 +191,10 @@ class Net(object):
 
         epoch = len(self.training_costs)
         while epoch != n_iterations:
+            if epoch in self.layer_changes:
+                self._change_layers(epoch)
             t0 = time() # for calculating training duration
             X, y = self.source.queue.get(timeout=30)
-            epoch = len(self.training_costs)
             train_cost = self.train(X, y).flatten()[0]
             self.training_costs.append(train_cost)
             if not epoch % self.validation_interval:
@@ -205,6 +222,7 @@ class Net(object):
             ))
             if np.isnan(train_cost):
                 raise TrainingError("training cost is NaN!")
+            epoch = len(self.training_costs)
 
     def plot_costs(self, save=False):
         fig, ax = plt.subplots(1)
