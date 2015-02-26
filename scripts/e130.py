@@ -106,7 +106,7 @@ def exp_a(name):
             ['washer dryer', 'washing machine']
         ],
         max_appliance_powers=[300, 500, 200, 2500, 2400],
-        on_power_thresholds=[20, 20, 20, 20, 20],
+        on_power_thresholds=[5, 5, 5, 5, 5],
         max_input_power=None,
         min_on_durations=[60, 60, 60, 1800, 1800],
         min_off_durations=[12, 12, 12, 1800, 600],

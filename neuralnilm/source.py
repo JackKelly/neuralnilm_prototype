@@ -277,7 +277,7 @@ class RealApplianceSource(Source):
             appliances = []
         X = np.zeros(shape=(self.seq_length, self.n_inputs))
         y = np.zeros(shape=(self.seq_length, self.n_outputs))
-        POWER_THRESHOLD = 5
+        POWER_THRESHOLD = 1
         BORDER = 5
         activations = (self.validation_activations if validation 
                        else self.train_activations)
