@@ -12,7 +12,7 @@ import theano.tensor as T
 import lasagne
 from lasagne.layers import (InputLayer, LSTMLayer, ReshapeLayer, Layer,
                             ConcatLayer, ElemwiseSumLayer, DenseLayer,
-                            get_all_layers)
+                            get_all_layers, Conv1DLayer)
 from lasagne.nonlinearities import sigmoid, rectify
 from lasagne.utils import floatX
 from lasagne.updates import nesterov_momentum
@@ -115,7 +115,6 @@ class Net(object):
         if self.layers[-1].get_output_shape() != self.output_shape:
             self.layers.append(ReshapeLayer(self.layers[-1], self.output_shape))
 
-
     def print_net(self):
         for layer in self.layers:
             print(layer)
@@ -175,6 +174,8 @@ class Net(object):
         layer_changes = self.layer_changes[epoch]
         for layer_to_remove in range(layer_changes['remove_from'], 0):
             print("Removed", self.layers.pop(layer_to_remove))
+        if 'callback' in layer_changes:
+            layer_changes['callback'](self, epoch)
         self.add_layers(layer_changes['new_layers'])
         print("New architecture:")
         self.print_net()
@@ -201,9 +202,10 @@ class Net(object):
                 validation_cost = self.compute_cost(self.X_val, self.y_val).flatten()[0]
                 self.validation_costs.append(validation_cost)
             if not epoch % self.save_plot_interval:
-                self.save_params()
                 self.plot_costs(save=True)
                 self.plot_estimates(save=True)
+                self.save_params()
+                self.save_activations()
             # Print progress
             duration = time() - t0
             is_best_train = train_cost == min(self.training_costs)
@@ -307,7 +309,7 @@ class Net(object):
 
         mode = 'w' if self.n_epochs() == 0 else 'a'
         f = h5py.File(filename, mode=mode)
-        epoch_name = 'epoch{:05d}'.format(self.n_epochs())
+        epoch_name = 'epoch{:06d}'.format(self.n_epochs())
         try:
             epoch_group = f.create_group(epoch_name)
         except ValueError as exception:
@@ -328,9 +330,48 @@ class Net(object):
                 if param.name:
                     param_name += "_" + param.name
                 data = param.get_value()
-                dataset = layer_group.create_dataset(param_name, data=data)
+                layer_group.create_dataset(param_name, data=data, compression="gzip")
             
         f.close()
+
+    def save_activations(self):
+        filename = self.experiment_name + "_activations.hdf5"
+        mode = 'w' if self.n_epochs() == 0 else 'a'
+        f = h5py.File(filename, mode=mode)
+        epoch_name = 'epoch{:06d}'.format(self.n_epochs())
+        try:
+            epoch_group = f.create_group(epoch_name)
+        except ValueError as exception:
+            print("Not saving params because", exception)
+            f.close()
+            return
+
+        layers = get_all_layers(self.layers[-1])
+        layers.reverse()
+        for layer_i, layer in enumerate(layers):
+            # We only care about layers with params
+            if not layer.get_params():
+                continue
+
+            output = layer.get_output(self.X_val).eval()
+            n_features = output.shape[-1]
+            seq_length = int(output.shape[0] / self.source.n_seq_per_batch)
+
+            if isinstance(layer, DenseLayer):
+                shape = (self.source.n_seq_per_batch, seq_length, n_features)
+                output = output.reshape(shape)
+            elif isinstance(layer, Conv1DLayer):
+                output = output.dimshuffle(0, 2, 1)
+
+            layer_name = 'L{:02d}_{}'.format(layer_i, layer.__class__.__name__)
+            epoch_group.create_dataset(layer_name, data=output, compression="gzip")
+
+        # save validation data
+        if self.n_epochs() == 0:
+            f.create_dataset('validation_data', data=self.X_val, compression="gzip")
+
+        f.close()
+
             
 def BLSTMLayer(l_previous, num_units, **kwargs):
     # setup forward and backwards LSTM layers.  Note that

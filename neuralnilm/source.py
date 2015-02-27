@@ -8,6 +8,7 @@ from nilmtk import DataSet, TimeFrame
 from datetime import timedelta
 from sys import stdout
 from collections import OrderedDict
+from lasagne.utils import floatX
 
 class Source(object):
     def __init__(self, seq_length, n_seq_per_batch, n_inputs, n_outputs,
@@ -56,7 +57,7 @@ class Source(object):
     def _process_data(self, X, y):
         if self.X_processing_func is not None:
             X = self.X_processing_func(X)
-        return X, y
+        return floatX(X), floatX(y)
 
     def _gen_data(self, validation=False):
         raise NotImplementedError()
@@ -269,14 +270,14 @@ class RealApplianceSource(Source):
             activation.fillna(method='ffill', inplace=True)
             activation.fillna(method='bfill', inplace=True)
             activation = activation.clip(0, max_power)
-            activations[i] = activation
+            activations[i] = floatX(activation)
         return activations
 
     def _gen_single_example(self, validation=False, appliances=None):
         if appliances is None:
             appliances = []
-        X = np.zeros(shape=(self.seq_length, self.n_inputs))
-        y = np.zeros(shape=(self.seq_length, self.n_outputs))
+        X = np.zeros(shape=(self.seq_length, self.n_inputs), dtype=np.float32)
+        y = np.zeros(shape=(self.seq_length, self.n_outputs), dtype=np.float32)
         POWER_THRESHOLD = 1
         BORDER = 5
         activations = (self.validation_activations if validation 
@@ -317,7 +318,7 @@ class RealApplianceSource(Source):
         if self.subsample_target > 1:
             shape = (int(self.seq_length / self.subsample_target), 
                      self.n_outputs)
-            subsampled_y = np.empty(shape=shape)
+            subsampled_y = np.empty(shape=shape, dtype=np.float32)
             for output_i in range(self.n_outputs):
                 subsampled_y[:,output_i] = np.mean(
                     y[:,output_i].reshape(-1, self.subsample_target), axis=-1)
@@ -368,8 +369,8 @@ class RealApplianceSource(Source):
         return appliances_for_sequence
 
     def _gen_data(self, validation=False):
-        X = np.zeros(self.input_shape())
-        y = np.zeros(self.output_shape())
+        X = np.zeros(self.input_shape(), dtype=np.float32)
+        y = np.zeros(self.output_shape(), dtype=np.float32)
         start, end = self.inside_padding()
         deterministic_appliances = self._appliances_for_sequence()
         for i in range(self.n_seq_per_batch):

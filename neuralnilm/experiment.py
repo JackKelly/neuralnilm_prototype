@@ -47,6 +47,6 @@ def fit(net, epochs):
             if new_epochs:
                 epochs = int(new_epochs)
             fit(net, epochs)
-    except:
-        save(net)
-        raise
+    # except:
+    #     save(net)
+    #     raise
