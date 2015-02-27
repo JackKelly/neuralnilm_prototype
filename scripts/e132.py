@@ -97,157 +97,10 @@ e131
 
 """
 
+
 def exp_a(name):
-    # e130a but no pretraining and 3 appliances but max_input_power is 5900
-    # Results: learns something. Still confuses TV for fridge. No aweful though.  Appears to train very quickly though (at 250 epochs it's doing about as well as it did at 1750 epochs)
-    source = RealApplianceSource(
-        filename='/data/dk3810/ukdale.h5',
-        appliances=[
-            ['fridge freezer', 'fridge', 'freezer'], 
-            'hair straighteners', 
-            'television'#,
-            #'dish washer',
-            #['washer dryer', 'washing machine']
-        ],
-        max_appliance_powers=[300, 500, 200],#, 2500, 2400],
-        on_power_thresholds=[5, 5, 5],#, 5, 5],
-        max_input_power=5900,
-        min_on_durations=[60, 60, 60],#, 1800, 1800],
-        min_off_durations=[12, 12, 12],#, 1800, 600],
-        window=("2013-06-01", "2014-07-01"),
-        seq_length=1500,
-        output_one_appliance=False,
-        boolean_targets=False,
-        train_buildings=[1],
-        validation_buildings=[1], 
-        skip_probability=0.7,
-        n_seq_per_batch=50
-    )
-
-    net = Net(
-        experiment_name=name,
-        source=source,
-        save_plot_interval=SAVE_PLOT_INTERVAL,
-        loss_function=crossentropy,
-        updates=partial(nesterov_momentum, learning_rate=1.0),
-        layers_config=[
-            {
-                'type': BLSTMLayer,
-                'num_units': 50,
-                'W_in_to_cell': Uniform(25),
-                'gradient_steps': GRADIENT_STEPS,
-                'peepholes': False
-            },
-            {
-                'type': BLSTMLayer,
-                'num_units': 50,
-                'W_in_to_cell': Uniform(5),
-                'gradient_steps': GRADIENT_STEPS,
-                'peepholes': False
-            },
-            {
-                'type': DenseLayer,
-                'num_units': source.n_outputs,
-                'nonlinearity': sigmoid
-            }
-        ]
-    )
-    return net
-
-
-
-def exp_b(name):
-    # same input as A but e59a's net (plus gradient steps) and batch size of 10
-    # hasn't learnt anything useful!  Just means.
-    source = RealApplianceSource(
-        filename='/data/dk3810/ukdale.h5',
-        appliances=[
-            ['fridge freezer', 'fridge', 'freezer'], 
-            'hair straighteners', 
-            'television'#,
-            #'dish washer',
-            #['washer dryer', 'washing machine']
-        ],
-        max_appliance_powers=[300, 500, 200],#, 2500, 2400],
-        on_power_thresholds=[5, 5, 5],#, 5, 5],
-        max_input_power=5900,
-        min_on_durations=[60, 60, 60],#, 1800, 1800],
-        min_off_durations=[12, 12, 12],#, 1800, 600],
-        window=("2013-06-01", "2014-07-01"),
-        seq_length=1500,
-        output_one_appliance=False,
-        boolean_targets=False,
-        train_buildings=[1],
-        validation_buildings=[1], 
-        skip_probability=0.7,
-        n_seq_per_batch=10,
-        subsample_target=5
-    )
-
-    net = Net(
-        experiment_name=name,
-        source=source,
-        save_plot_interval=SAVE_PLOT_INTERVAL,
-        loss_function=crossentropy,
-        updates=partial(nesterov_momentum, learning_rate=1.0),
-        layers_config=[
-        {
-            'type': DenseLayer,
-            'num_units': 50,
-            'nonlinearity': sigmoid,
-            'W': Uniform(25),
-            'b': Uniform(25)
-        },
-        {
-            'type': DenseLayer,
-            'num_units': 50,
-            'nonlinearity': sigmoid,
-            'W': Uniform(10),
-            'b': Uniform(10)
-        },
-        {
-            'type': BLSTMLayer,
-            'num_units': 40,
-            'W_in_to_cell': Uniform(5),
-            'gradient_steps': GRADIENT_STEPS,
-            'peepholes': False
-        },
-        {
-            'type': DimshuffleLayer,
-            'pattern': (0, 2, 1)
-        },
-        {
-            'type': Conv1DLayer,
-            'num_filters': 20,
-            'filter_length': 5,
-            'stride': 5,
-            'nonlinearity': sigmoid
-        },
-        {
-            'type': DimshuffleLayer,
-            'pattern': (0, 2, 1)
-        },
-        {
-            'type': BLSTMLayer,
-            'num_units': 80,
-            'W_in_to_cell': Uniform(5),
-            'gradient_steps': GRADIENT_STEPS,
-            'peepholes': False
-        },
-        {
-            'type': DenseLayer,
-            'num_units': source.n_outputs,
-            'nonlinearity': sigmoid
-        }
-        ]
-    )
-    return net
-
-
-
-def exp_c(name):
-    # same as B but all 5 appliances
-    # probably the best yet for all 5 appliances ;)
+    # 131c (probably the best yet for all 5 appliances ;))
+    # but with bigger conv layer and weight init using Uniform(1)
     source = RealApplianceSource(
         filename='/data/dk3810/ukdale.h5',
         appliances=[
@@ -307,10 +160,11 @@ def exp_c(name):
         },
         {
             'type': Conv1DLayer,
-            'num_filters': 20,
+            'num_filters': 60,
             'filter_length': 5,
             'stride': 5,
-            'nonlinearity': sigmoid
+            'nonlinearity': sigmoid,
+            'W': Uniform(1),
         },
         {
             'type': DimshuffleLayer,
@@ -334,10 +188,8 @@ def exp_c(name):
 
 
 
-def exp_d(name):
-    # same as C but bool targets
-    # NaN after 372
-    # Showing some (but little) promise at 250 epochs
+def exp_b(name):
+    # 131d but with lower learning rate and bigger conv layer
     source = RealApplianceSource(
         filename='/data/dk3810/ukdale.h5',
         appliances=[
@@ -368,7 +220,7 @@ def exp_d(name):
         source=source,
         save_plot_interval=SAVE_PLOT_INTERVAL,
         loss_function=crossentropy,
-        updates=partial(nesterov_momentum, learning_rate=1.0),
+        updates=partial(nesterov_momentum, learning_rate=.1),
         layers_config=[
         {
             'type': DenseLayer,
@@ -397,7 +249,7 @@ def exp_d(name):
         },
         {
             'type': Conv1DLayer,
-            'num_filters': 20,
+            'num_filters': 60,
             'filter_length': 5,
             'stride': 5,
             'nonlinearity': sigmoid
@@ -424,6 +276,185 @@ def exp_d(name):
 
 
 
+def exp_c(name):
+    # like A but pre-train and no conv1d
+    source = RealApplianceSource(
+        filename='/data/dk3810/ukdale.h5',
+        appliances=[
+            ['fridge freezer', 'fridge', 'freezer'], 
+            'hair straighteners', 
+            'television',
+            'dish washer',
+            ['washer dryer', 'washing machine']
+        ],
+        max_appliance_powers=[300, 500, 200, 2500, 2400],
+        on_power_thresholds=[5, 5, 5, 5, 5],
+        max_input_power=5900,
+        min_on_durations=[60, 60, 60, 1800, 1800],
+        min_off_durations=[12, 12, 12, 1800, 600],
+        window=("2013-06-01", "2014-07-01"),
+        seq_length=1500,
+        output_one_appliance=False,
+        boolean_targets=False,
+        train_buildings=[1],
+        validation_buildings=[1], 
+        skip_probability=0.7,
+        n_seq_per_batch=10
+    )
+
+    net = Net(
+        experiment_name=name,
+        source=source,
+        save_plot_interval=SAVE_PLOT_INTERVAL,
+        loss_function=crossentropy,
+        updates=partial(nesterov_momentum, learning_rate=1.0),
+        layers_config=[
+            {
+                'type': DenseLayer,
+                'num_units': 50,
+                'nonlinearity': sigmoid,
+                'W': Uniform(25),
+                'b': Uniform(25)
+            },
+            {
+                'type': DenseLayer,
+                'num_units': source.n_outputs,
+                'nonlinearity': sigmoid
+            }
+        ],
+        layer_changes={
+            501: {
+                'remove_from': -2,
+                'new_layers': 
+                [
+                    {
+                        'type': DenseLayer,
+                        'num_units': 50,
+                        'nonlinearity': sigmoid,
+                        'W': Uniform(10),
+                        'b': Uniform(10)
+                    },
+                    {
+                        'type': DenseLayer,
+                        'num_units': source.n_outputs,
+                        'nonlinearity': sigmoid
+                    }
+                ]
+            },
+            1001: {
+                'remove_from': -2,
+                'new_layers': 
+                [
+                    {
+                        'type': BLSTMLayer,
+                        'num_units': 40,
+                        'W_in_to_cell': Uniform(5),
+                        'gradient_steps': GRADIENT_STEPS,
+                        'peepholes': False
+                    },
+                    {
+                        'type': DenseLayer,
+                        'num_units': source.n_outputs,
+                        'nonlinearity': sigmoid
+                    }
+                ]
+            },
+            1501: {
+                'remove_from': -3,
+                'new_layers': 
+                [
+                    {
+                        'type': BLSTMLayer,
+                        'num_units': 80,
+                        'W_in_to_cell': Uniform(5),
+                        'gradient_steps': GRADIENT_STEPS,
+                        'peepholes': False
+                    },
+                    {
+                        'type': DenseLayer,
+                        'num_units': source.n_outputs,
+                        'nonlinearity': sigmoid
+                    }
+                ]
+            }
+        }
+    )
+    return net
+
+
+
+
+def exp_d(name):
+    # like  A but no conv1d
+    source = RealApplianceSource(
+        filename='/data/dk3810/ukdale.h5',
+        appliances=[
+            ['fridge freezer', 'fridge', 'freezer'], 
+            'hair straighteners', 
+            'television',
+            'dish washer',
+            ['washer dryer', 'washing machine']
+        ],
+        max_appliance_powers=[300, 500, 200, 2500, 2400],
+        on_power_thresholds=[5, 5, 5, 5, 5],
+        max_input_power=5900,
+        min_on_durations=[60, 60, 60, 1800, 1800],
+        min_off_durations=[12, 12, 12, 1800, 600],
+        window=("2013-06-01", "2014-07-01"),
+        seq_length=1500,
+        output_one_appliance=False,
+        boolean_targets=False,
+        train_buildings=[1],
+        validation_buildings=[1], 
+        skip_probability=0.7,
+        n_seq_per_batch=10
+    )
+
+    net = Net(
+        experiment_name=name,
+        source=source,
+        save_plot_interval=SAVE_PLOT_INTERVAL,
+        loss_function=crossentropy,
+        updates=partial(nesterov_momentum, learning_rate=1.0),
+        layers_config=[
+        {
+            'type': DenseLayer,
+            'num_units': 50,
+            'nonlinearity': sigmoid,
+            'W': Uniform(25),
+            'b': Uniform(25)
+        },
+        {
+            'type': DenseLayer,
+            'num_units': 50,
+            'nonlinearity': sigmoid,
+            'W': Uniform(10),
+            'b': Uniform(10)
+        },
+        {
+            'type': BLSTMLayer,
+            'num_units': 40,
+            'W_in_to_cell': Uniform(5),
+            'gradient_steps': GRADIENT_STEPS,
+            'peepholes': False
+        },
+        {
+            'type': BLSTMLayer,
+            'num_units': 80,
+            'W_in_to_cell': Uniform(5),
+            'gradient_steps': GRADIENT_STEPS,
+            'peepholes': False
+        },
+        {
+            'type': DenseLayer,
+            'num_units': source.n_outputs,
+            'nonlinearity': sigmoid
+        }
+        ]
+    )
+    return net
+
+
 
 def init_experiment(experiment):
     full_exp_name = NAME + experiment
@@ -440,7 +471,7 @@ def main():
         path = os.path.join(PATH, full_exp_name)
         try:
             net = init_experiment(experiment)
-            run_experiment(net, path, epochs=2000)
+            run_experiment(net, path, epochs=2001)
         except KeyboardInterrupt:
             break
         except TrainingError as e:
