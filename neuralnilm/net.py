@@ -257,13 +257,16 @@ class Net(object):
                 X, y = self.source.queue.get(timeout=30)
         y_predictions = self.y_pred(X)
 
+        n = len(y_predictions[seq_i, :, :])
         axes[0].set_title('Appliance estimates')
         axes[0].plot(y_predictions[seq_i, :, :])
+        axes[0].set_xlim([0, n])
         axes[1].set_title('Appliance ground truth')
         axes[1].plot(y[seq_i, :, :])
         # alpha: lower = more transparent
         axes[1].legend(self.source.get_labels(), fancybox=True, framealpha=0.5,
                        prop={'size': 6})
+        axes[1].set_xlim([0, n])
         axes[2].set_title('Aggregate')
         start, end = self.source.inside_padding()
         axes[2].plot(X[seq_i, start:end, :])
