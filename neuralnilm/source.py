@@ -162,6 +162,8 @@ class RealApplianceSource(Source):
                  subsample_target=1, 
                  input_padding=0,
                  skip_probability=0,
+                 include_diff=False,
+                 max_diff=3000,
                  **kwargs):
         """
         Parameters
@@ -182,7 +184,7 @@ class RealApplianceSource(Source):
         super(RealApplianceSource, self).__init__(
             seq_length=seq_length, 
             n_seq_per_batch=n_seq_per_batch,
-            n_inputs=1,
+            n_inputs=2 if include_diff else 1,
             n_outputs=1 if output_one_appliance else len(appliances),
             **kwargs
         )
@@ -210,6 +212,8 @@ class RealApplianceSource(Source):
         self.input_padding = input_padding
         self.skip_probability = skip_probability
         self._tz = self.dataset.metadata['timezone']
+        self.include_diff = include_diff
+        self.max_diff = max_diff
 
         print("Loading training activations...")
         if on_power_thresholds is None:
@@ -323,7 +327,10 @@ class RealApplianceSource(Source):
                 subsampled_y[:,output_i] = np.mean(
                     y[:,output_i].reshape(-1, self.subsample_target), axis=-1)
             y = subsampled_y
-        X /= self.max_input_power
+        if self.include_diff:
+            X[:-1,1] = np.diff(X[:,0])
+            X[:,1] /= self.max_diff
+        X[:,0] /= self.max_input_power
         return X, y
     
     def input_shape(self):
@@ -500,7 +507,6 @@ def quantize(data, n_bins, all_hot=True, range=(-1, 1), length=None):
     return (out * 2) - 1
 
 
-
 def standardise(X, how='range=2', mean=None, std=None, midrange=None, ptp=None):
     """Standardise.
     ftp://ftp.sas.com/pub/neural/FAQ2.html#A_std_in
@@ -533,3 +539,41 @@ def standardise(X, how='range=2', mean=None, std=None, midrange=None, ptp=None):
         return (X - midrange) / (ptp / 2)
     else:
         raise RuntimeError("unrecognised how '" + how + "'")
+
+
+def discretize_scalar(X, n_bins=10, all_hot=False, boolean=True):
+    output = np.zeros(n_bins) 
+    bin_i = int(X * n_bins)
+    bin_i = min(bin_i, n_bins-1)
+    output[bin_i] = 1 if boolean else ((X * n_bins) - bin_i)
+    if all_hot:
+        output[:bin_i] = 1
+    return output
+
+
+def discretize(X, n_bins=10, **kwargs):
+    assert X.shape[2] == 1
+    output = np.zeros((X.shape[0], X.shape[1], n_bins))
+    for i in range(X.shape[0]):
+        for j in range(X.shape[1]):
+            for k in range(X.shape[2]):
+                output[i,j,:] = discretize_scalar(X[i,j,k], n_bins, **kwargs)
+    return output
+
+
+def fdiff(X):
+    assert X.shape[2] == 1
+    output = np.zeros(X.shape)
+    for i in range(X.shape[0]):
+        output[i,:-1,0] = np.diff(X[i,:,0])
+    return output
+
+
+def power_and_fdiff(X):
+    assert X.shape[2] == 1
+    output = np.zeros((X.shape[0], X.shape[1], 2))
+    for i in range(X.shape[0]):
+        output[i,:  ,0] = X[i,:,0]
+        output[i,:-1,1] = np.diff(X[i,:,0])
+    return output
+    

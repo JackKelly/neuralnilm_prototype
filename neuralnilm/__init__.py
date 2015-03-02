@@ -1,2 +1,2 @@
-from net import Net, BLSTMLayer, SubsampleLayer, DimshuffleLayer
+from net import Net, BLSTMLayer, DimshuffleLayer
 from source import ToySource, NILMTKSource, RealApplianceSource

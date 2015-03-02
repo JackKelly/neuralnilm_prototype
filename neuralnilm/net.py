@@ -65,8 +65,12 @@ class Net(object):
         self.X_processing_func = X_processing_func
         self.layer_changes = {} if layer_changes is None else layer_changes
 
-        self.input_shape = source.input_shape()
-        self.output_shape = source.output_shape()
+        # Generate a "validation" sequence whose cost we will compute
+        self.X_val, self.y_val = self.source.validation_data()
+        print("Done initialising network.")
+
+        self.input_shape = self.X_val.shape
+        self.output_shape = self.y_val.shape
         self.n_seq_per_batch = self.input_shape[0]
         self.validation_costs = []
         self.training_costs = []
@@ -78,10 +82,6 @@ class Net(object):
         self.layers.append(InputLayer(shape=self.input_shape))
         self.add_layers(layers_config)
 
-        # Generate a "validation" sequence whose cost we will compute
-        self.X_val, self.y_val = self.source.validation_data()
-        print("Done initialising network.")
-
     def add_layers(self, layers_config):
         for layer_config in layers_config:
             layer_type = layer_config.pop('type')
@@ -90,8 +90,7 @@ class Net(object):
             prev_layer_output_shape = self.layers[-1].get_output_shape()
             n_dims = len(prev_layer_output_shape)
             n_features = prev_layer_output_shape[-1]
-            if layer_type in [LSTMLayer, BLSTMLayer, 
-                              SubsampleLayer, DimshuffleLayer]:
+            if layer_type in [LSTMLayer, BLSTMLayer, DimshuffleLayer]:
                 if n_dims == 2:
                     seq_length = int(prev_layer_output_shape[0] / 
                                      self.source.n_seq_per_batch)
@@ -192,6 +191,7 @@ class Net(object):
 
         epoch = len(self.training_costs)
         while epoch != n_iterations:
+            epoch = len(self.training_costs)
             if epoch in self.layer_changes:
                 self._change_layers(epoch)
             t0 = time() # for calculating training duration
@@ -224,7 +224,6 @@ class Net(object):
             ))
             if np.isnan(train_cost):
                 raise TrainingError("training cost is NaN!")
-            epoch = len(self.training_costs)
 
     def plot_costs(self, save=False):
         fig, ax = plt.subplots(1)
@@ -361,7 +360,7 @@ class Net(object):
                 shape = (self.source.n_seq_per_batch, seq_length, n_features)
                 output = output.reshape(shape)
             elif isinstance(layer, Conv1DLayer):
-                output = output.dimshuffle(0, 2, 1)
+                output = output.transpose(0, 2, 1)
 
             layer_name = 'L{:02d}_{}'.format(layer_i, layer.__class__.__name__)
             epoch_group.create_dataset(layer_name, data=output, compression="gzip")
@@ -387,25 +386,6 @@ def BLSTMLayer(l_previous, num_units, **kwargs):
     return ElemwiseSumLayer([l_fwd, l_bck])
 
 
-class SubsampleLayer(Layer):
-    def __init__(self, input_layer, stride):
-        if input_layer is not None:
-            super(SubsampleLayer, self).__init__(input_layer)
-        self.stride = stride
-
-    def get_output_shape_for(self, input_shape):
-        assert len(input_shape) == 3
-        if input_shape[1] % self.stride:
-            raise RuntimeError("Seq length must be exactly divisible by stride.")
-        seq_length = int(input_shape[1] / self.stride)
-        return (input_shape[0], seq_length, input_shape[2])
-
-    def get_output_for(self, input, *args, **kwargs):
-        shape = tuple(list(self.get_output_shape()) + [-1])
-        reshaped = input.reshape(shape)
-        return reshaped.sum(axis=-1)
-
-
 class DimshuffleLayer(Layer):
     def __init__(self, input_layer, pattern):
         super(DimshuffleLayer, self).__init__(input_layer)
@@ -416,39 +396,3 @@ class DimshuffleLayer(Layer):
 
     def get_output_for(self, input, *args, **kwargs):
         return input.dimshuffle(self.pattern)
-
-
-class QuantizeLayer(Layer):
-    def __init__(self, input_layer, n_bins=50, all_hot=False, boolean=False):
-        super(QuantizeLayer, self).__init__(input_layer)
-        self.n_bins = n_bins
-        self.all_hot = all_hot
-        self.boolean = boolean
-
-    def get_output_shape_for(self, input_shape):
-        assert input_shape[2] == 1
-        return (input_shape[0], input_shape[1], self.n_bins)
-
-    def get_output_for(self, input, *args, **kwargs):
-        output = np.empty(shape=self.get_output_shape())
-        for batch_i in range(self.input_shape[0]):
-            for i in range(self.input_shape[1]):
-                output[batch_i,i,:] = quantize_scalar(
-                    input[batch_i,i,0],
-                    n_bins=self.n_bins,
-                    all_hot=self.all_hot,
-                    boolean=self.boolean
-                )
-        return output
-
-
-def quantize_scalar(x, n_bins=10, all_hot=False, boolean=True):
-    output = np.empty(n_bins) 
-    # bin_i = T.floor(x * n_bins).astype('int32')
-    # bin_i = T.min([bin_i, n_bins-1])
-    bin_i = int(x * n_bins)
-    bin_i = min(bin_i, n_bins-1)
-    output[bin_i] = 1 if boolean else ((x * n_bins) - bin_i)
-    if all_hot:
-        output[:bin_i] = 1
-    return output
