@@ -5,7 +5,7 @@ from neuralnilm import Net, RealApplianceSource, BLSTMLayer, DimshuffleLayer
 from lasagne.nonlinearities import sigmoid, rectify
 from lasagne.objectives import crossentropy, mse
 from lasagne.init import Uniform, Normal
-from lasagne.layers import LSTMLayer, DenseLayer, Conv1DLayer, ReshapeLayer
+from lasagne.layers import LSTMLayer, DenseLayer, Conv1DLayer, ReshapeLayer, FeaturePoolLayer
 from neuralnilm.updates import nesterov_momentum
 from functools import partial
 import os
@@ -121,16 +121,17 @@ e147
 
 e148
 * learning rate 0.1
+
+e150
+* Same as e149 but without peepholes and using LSTM not BLSTM
+
+e151
+* Max pooling
 """
 
 
-def set_subsample_target(net, epoch):
-    net.source.subsample_target = 5
-
-
 def exp_a(name):
-    # e148 but with BLSTM and larger net
-    # RESULTS: did fairly well. Died with NaNs after 1085 updates
+    # e148 but with larger net
     source = RealApplianceSource(
         filename='/data/dk3810/ukdale.h5',
         appliances=[
@@ -154,7 +155,8 @@ def exp_a(name):
         skip_probability=0,
         n_seq_per_batch=50,
         subsample_target=5,
-        include_diff=True
+        include_diff=True,
+        input_padding=4
     )
 
     net = Net(
@@ -165,32 +167,40 @@ def exp_a(name):
         updates=partial(nesterov_momentum, learning_rate=.1, clip_range=(-1, 1)),
         layers_config=[
             {
-                'type': BLSTMLayer,
+                'type': LSTMLayer,
                 'num_units': 60,
                 'W_in_to_cell': Uniform(25),
-                'gradient_steps': GRADIENT_STEPS
+                'gradient_steps': GRADIENT_STEPS,
+                'peepholes': False
             },
             {
                 'type': DimshuffleLayer,
-                'pattern': (0, 2, 1)
+                'pattern': (0, 2, 1)  # (batch, features, time)
             },
             {
-                'type': Conv1DLayer,
+                'type': Conv1DLayer, # convolve over the time axis
                 'num_filters': 80,
                 'filter_length': 5,
-                'stride': 5,
+                'stride': 1,
                 'nonlinearity': sigmoid,
                 'W': Uniform(1)
             },
             {
                 'type': DimshuffleLayer,
-                'pattern': (0, 2, 1)
+                'pattern': (0, 2, 1) # back to (batch, time, features)
             },
             {
-                'type': BLSTMLayer,
+                'type': FeaturePoolLayer,
+                'ds': 5, # number of feature maps to be pooled together
+                'axis': 1 # pool over the time axis
+            },
+            {
+                'type': LSTMLayer,
                 'num_units': 80,
                 'W_in_to_cell': Uniform(1),
-                'gradient_steps': GRADIENT_STEPS
+                'gradient_steps': GRADIENT_STEPS,
+                'peepholes': False
+
             },
             {
                 'type': DenseLayer,
@@ -229,7 +239,8 @@ def exp_b(name):
         skip_probability=0,
         n_seq_per_batch=25,
         subsample_target=5,
-        include_diff=True
+        include_diff=True,
+        input_padding=4
     )
 
     net = Net(
@@ -240,10 +251,12 @@ def exp_b(name):
         updates=partial(nesterov_momentum, learning_rate=.1, clip_range=(-1, 1)),
         layers_config=[
             {
-                'type': BLSTMLayer,
+                'type': LSTMLayer,
                 'num_units': 60,
                 'W_in_to_cell': Uniform(25),
-                'gradient_steps': GRADIENT_STEPS
+                'gradient_steps': GRADIENT_STEPS,
+                'peepholes': False
+
             },
             {
                 'type': DimshuffleLayer,
@@ -253,7 +266,7 @@ def exp_b(name):
                 'type': Conv1DLayer,
                 'num_filters': 80,
                 'filter_length': 5,
-                'stride': 5,
+                'stride': 1,
                 'nonlinearity': sigmoid,
                 'W': Uniform(1)
             },
@@ -262,10 +275,17 @@ def exp_b(name):
                 'pattern': (0, 2, 1)
             },
             {
-                'type': BLSTMLayer,
+                'type': FeaturePoolLayer,
+                'ds': 5, # number of feature maps to be pooled together
+                'axis': 1 # pool over the time axis
+            },
+            {
+                'type': LSTMLayer,
                 'num_units': 80,
                 'W_in_to_cell': Uniform(1),
-                'gradient_steps': GRADIENT_STEPS
+                'gradient_steps': GRADIENT_STEPS,
+                'peepholes': False
+
             },
             {
                 'type': DenseLayer,
@@ -303,7 +323,8 @@ def exp_c(name):
         skip_probability=0,
         n_seq_per_batch=25,
         subsample_target=5,
-        include_diff=True
+        include_diff=True,
+        input_padding=4
     )
 
     net = Net(
@@ -314,10 +335,12 @@ def exp_c(name):
         updates=partial(nesterov_momentum, learning_rate=.1, clip_range=(-1, 1)),
         layers_config=[
             {
-                'type': BLSTMLayer,
+                'type': LSTMLayer,
                 'num_units': 60,
                 'W_in_to_cell': Uniform(25),
-                'gradient_steps': GRADIENT_STEPS
+                'gradient_steps': GRADIENT_STEPS,
+                'peepholes': False
+
             },
             {
                 'type': DimshuffleLayer,
@@ -327,7 +350,7 @@ def exp_c(name):
                 'type': Conv1DLayer,
                 'num_filters': 80,
                 'filter_length': 5,
-                'stride': 5,
+                'stride': 1,
                 'nonlinearity': sigmoid,
                 'W': Uniform(1)
             },
@@ -336,10 +359,17 @@ def exp_c(name):
                 'pattern': (0, 2, 1)
             },
             {
-                'type': BLSTMLayer,
+                'type': FeaturePoolLayer,
+                'ds': 5, # number of feature maps to be pooled together
+                'axis': 1 # pool over the time axis
+            },
+            {
+                'type': LSTMLayer,
                 'num_units': 80,
                 'W_in_to_cell': Uniform(1),
-                'gradient_steps': GRADIENT_STEPS
+                'gradient_steps': GRADIENT_STEPS,
+                'peepholes': False
+
             },
             {
                 'type': DenseLayer,
@@ -350,6 +380,12 @@ def exp_c(name):
     )
     return net
 
+
+def set_subsample_target(net, epoch):
+    net.source.subsample_target = 5
+    net.source.input_padding = 4
+    net.source.seq_length = 1500
+    net.generate_validation_data_and_set_shapes()
 
 
 def exp_d(name):
@@ -369,7 +405,7 @@ def exp_d(name):
         min_on_durations=[60, 60, 60, 1800, 1800],
         min_off_durations=[12, 12, 12, 1800, 600],
         window=("2013-06-01", "2014-07-01"),
-        seq_length=1500,
+        seq_length=1504,
         output_one_appliance=False,
         boolean_targets=False,
         train_buildings=[1],
@@ -387,10 +423,11 @@ def exp_d(name):
         updates=partial(nesterov_momentum, learning_rate=.1, clip_range=(-1, 1)),
         layers_config=[
             {
-                'type': BLSTMLayer,
+                'type': LSTMLayer,
                 'num_units': 60,
                 'W_in_to_cell': Uniform(25),
-                'gradient_steps': GRADIENT_STEPS
+                'gradient_steps': GRADIENT_STEPS,
+                'peepholes': False
             },
             {
                 'type': DenseLayer,
@@ -399,7 +436,7 @@ def exp_d(name):
             }            
         ],
         layer_changes={
-            1000: {
+            1001: {
                 'remove_from': -3,
                 'callback': set_subsample_target,
                 'new_layers': 
@@ -412,7 +449,7 @@ def exp_d(name):
                         'type': Conv1DLayer,
                         'num_filters': 80,
                         'filter_length': 5,
-                        'stride': 5,
+                        'stride': 1,
                         'nonlinearity': sigmoid,
                         'W': Uniform(1)
                     },
@@ -421,20 +458,27 @@ def exp_d(name):
                         'pattern': (0, 2, 1)
                     },
                     {
+                        'type': FeaturePoolLayer,
+                        'ds': 5, # number of feature maps to be pooled together
+                        'axis': 1 # pool over the time axis
+                    },
+                    {
                         'type': DenseLayer,
                         'num_units': source.n_outputs,
                         'nonlinearity': sigmoid
                     }
-                ],
-            2000: {
+                ]
+            },
+            2001: { # it didn't actually run this successfully
                 'remove_from': -3,
                 'new_layers': 
                 [
                     {
-                        'type': BLSTMLayer,
+                        'type': LSTMLayer,
                         'num_units': 80,
                         'W_in_to_cell': Uniform(1),
-                        'gradient_steps': GRADIENT_STEPS
+                        'gradient_steps': GRADIENT_STEPS,
+                        'peepholes': False
                     },
                     {
                         'type': DenseLayer,
@@ -443,7 +487,6 @@ def exp_d(name):
                     }            
                 ]
             }
-        }
         }
     )
     return net
@@ -475,7 +518,8 @@ def exp_e(name):
         skip_probability=0,
         n_seq_per_batch=25,
         subsample_target=3,
-        include_diff=True
+        include_diff=True,
+        input_padding=2
     )
 
     net = Net(
@@ -486,10 +530,12 @@ def exp_e(name):
         updates=partial(nesterov_momentum, learning_rate=.1, clip_range=(-1, 1)),
         layers_config=[
             {
-                'type': BLSTMLayer,
+                'type': LSTMLayer,
                 'num_units': 60,
                 'W_in_to_cell': Uniform(25),
-                'gradient_steps': GRADIENT_STEPS
+                'gradient_steps': GRADIENT_STEPS,
+                'peepholes': False
+
             },
             {
                 'type': DimshuffleLayer,
@@ -499,7 +545,7 @@ def exp_e(name):
                 'type': Conv1DLayer,
                 'num_filters': 80,
                 'filter_length': 3,
-                'stride': 3,
+                'stride': 1,
                 'nonlinearity': sigmoid,
                 'W': Uniform(1)
             },
@@ -508,10 +554,17 @@ def exp_e(name):
                 'pattern': (0, 2, 1)
             },
             {
-                'type': BLSTMLayer,
+                'type': FeaturePoolLayer,
+                'ds': 3, # number of feature maps to be pooled together
+                'axis': 1 # pool over the time axis
+            },
+            {
+                'type': LSTMLayer,
                 'num_units': 80,
                 'W_in_to_cell': Uniform(1),
-                'gradient_steps': GRADIENT_STEPS
+                'gradient_steps': GRADIENT_STEPS,
+                'peepholes': False
+
             },
             {
                 'type': DenseLayer,
@@ -549,7 +602,8 @@ def exp_f(name):
         skip_probability=0,
         n_seq_per_batch=25,
         subsample_target=9,
-        include_diff=True
+        include_diff=True,
+        input_padding=8
     )
 
     net = Net(
@@ -560,10 +614,12 @@ def exp_f(name):
         updates=partial(nesterov_momentum, learning_rate=.1, clip_range=(-1, 1)),
         layers_config=[
             {
-                'type': BLSTMLayer,
+                'type': LSTMLayer,
                 'num_units': 60,
                 'W_in_to_cell': Uniform(25),
-                'gradient_steps': GRADIENT_STEPS
+                'gradient_steps': GRADIENT_STEPS,
+                'peepholes': False
+
             },
             {
                 'type': DimshuffleLayer,
@@ -573,7 +629,7 @@ def exp_f(name):
                 'type': Conv1DLayer,
                 'num_filters': 80,
                 'filter_length': 3,
-                'stride': 3,
+                'stride': 1,
                 'nonlinearity': sigmoid,
                 'W': Uniform(1)
             },
@@ -582,10 +638,17 @@ def exp_f(name):
                 'pattern': (0, 2, 1)
             },
             {
-                'type': BLSTMLayer,
+                'type': FeaturePoolLayer,
+                'ds': 3, # number of feature maps to be pooled together
+                'axis': 1 # pool over the time axis
+            },
+            {
+                'type': LSTMLayer,
                 'num_units': 80,
                 'W_in_to_cell': Uniform(1),
-                'gradient_steps': GRADIENT_STEPS
+                'gradient_steps': GRADIENT_STEPS,
+                'peepholes': False
+
             },
             {
                 'type': DimshuffleLayer,
@@ -595,7 +658,7 @@ def exp_f(name):
                 'type': Conv1DLayer,
                 'num_filters': 80,
                 'filter_length': 3,
-                'stride': 3,
+                'stride': 1,
                 'nonlinearity': sigmoid,
                 'W': Uniform(1)
             },
@@ -604,10 +667,17 @@ def exp_f(name):
                 'pattern': (0, 2, 1)
             },
             {
-                'type': BLSTMLayer,
+                'type': FeaturePoolLayer,
+                'ds': 3, # number of feature maps to be pooled together
+                'axis': 1 # pool over the time axis
+            },
+            {
+                'type': LSTMLayer,
                 'num_units': 80,
                 'W_in_to_cell': Uniform(1),
-                'gradient_steps': GRADIENT_STEPS
+                'gradient_steps': GRADIENT_STEPS,
+                'peepholes': False
+
             },
             {
                 'type': DenseLayer,
@@ -645,7 +715,8 @@ def exp_g(name):
         skip_probability=0,
         n_seq_per_batch=25,
         subsample_target=9,
-        include_diff=True
+        include_diff=True,
+        input_padding=8
     )
 
     net = Net(
@@ -656,10 +727,12 @@ def exp_g(name):
         updates=partial(nesterov_momentum, learning_rate=.1, clip_range=(-1, 1)),
         layers_config=[
             {
-                'type': BLSTMLayer,
+                'type': LSTMLayer,
                 'num_units': 30,
                 'W_in_to_cell': Uniform(25),
-                'gradient_steps': GRADIENT_STEPS
+                'gradient_steps': GRADIENT_STEPS,
+                'peepholes': False
+
             },
             {
                 'type': DimshuffleLayer,
@@ -669,7 +742,7 @@ def exp_g(name):
                 'type': Conv1DLayer,
                 'num_filters': 50,
                 'filter_length': 3,
-                'stride': 3,
+                'stride': 1,
                 'nonlinearity': sigmoid,
                 'W': Uniform(1)
             },
@@ -678,10 +751,17 @@ def exp_g(name):
                 'pattern': (0, 2, 1)
             },
             {
-                'type': BLSTMLayer,
+                'type': FeaturePoolLayer,
+                'ds': 3, # number of feature maps to be pooled together
+                'axis': 1 # pool over the time axis
+            },
+            {
+                'type': LSTMLayer,
                 'num_units': 50,
                 'W_in_to_cell': Uniform(1),
-                'gradient_steps': GRADIENT_STEPS
+                'gradient_steps': GRADIENT_STEPS,
+                'peepholes': False
+
             },
             {
                 'type': DimshuffleLayer,
@@ -691,7 +771,7 @@ def exp_g(name):
                 'type': Conv1DLayer,
                 'num_filters': 70,
                 'filter_length': 3,
-                'stride': 3,
+                'stride': 1,
                 'nonlinearity': sigmoid,
                 'W': Uniform(1)
             },
@@ -700,10 +780,16 @@ def exp_g(name):
                 'pattern': (0, 2, 1)
             },
             {
-                'type': BLSTMLayer,
+                'type': FeaturePoolLayer,
+                'ds': 3, # number of feature maps to be pooled together
+                'axis': 1 # pool over the time axis
+            },
+            {
+                'type': LSTMLayer,
                 'num_units': 70,
                 'W_in_to_cell': Uniform(1),
-                'gradient_steps': GRADIENT_STEPS
+                'gradient_steps': GRADIENT_STEPS,
+                'peepholes': False
             },
             {
                 'type': DenseLayer,
@@ -728,7 +814,7 @@ def init_experiment(experiment):
 
 
 def main():
-    for experiment in list('bcdefg'):
+    for experiment in list('d'):
         full_exp_name = NAME + experiment
         path = os.path.join(PATH, full_exp_name)
         try:
@@ -736,8 +822,11 @@ def main():
             run_experiment(net, path, epochs=3000)
         except KeyboardInterrupt:
             break
-        except TrainingError as e:
-            print("EXCEPTION:", e)
+        except TrainingError as exception:
+            print("EXCEPTION:", exception)
+        except Exception as exception:
+            print("EXCEPTION:", exception)
+            import ipdb; ipdb.set_trace()
 
 
 if __name__ == "__main__":

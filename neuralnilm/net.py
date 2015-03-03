@@ -12,7 +12,7 @@ import theano.tensor as T
 import lasagne
 from lasagne.layers import (InputLayer, LSTMLayer, ReshapeLayer, Layer,
                             ConcatLayer, ElemwiseSumLayer, DenseLayer,
-                            get_all_layers, Conv1DLayer)
+                            get_all_layers, Conv1DLayer, FeaturePoolLayer)
 from lasagne.nonlinearities import sigmoid, rectify
 from lasagne.utils import floatX
 from lasagne.updates import nesterov_momentum
@@ -65,13 +65,8 @@ class Net(object):
         self.X_processing_func = X_processing_func
         self.layer_changes = {} if layer_changes is None else layer_changes
 
-        # Generate a "validation" sequence whose cost we will compute
-        self.X_val, self.y_val = self.source.validation_data()
-        print("Done initialising network.")
+        self.generate_validation_data_and_set_shapes()
 
-        self.input_shape = self.X_val.shape
-        self.output_shape = self.y_val.shape
-        self.n_seq_per_batch = self.input_shape[0]
         self.validation_costs = []
         self.training_costs = []
         self.layers = []
@@ -81,6 +76,14 @@ class Net(object):
         #           number of features per example)
         self.layers.append(InputLayer(shape=self.input_shape))
         self.add_layers(layers_config)
+        print("Done initialising network for", self.experiment_name)
+
+    def generate_validation_data_and_set_shapes(self):
+        # Generate a "validation" sequence whose cost we will compute
+        self.X_val, self.y_val = self.source.validation_data()
+        self.input_shape = self.X_val.shape
+        self.output_shape = self.y_val.shape
+        self.n_seq_per_batch = self.input_shape[0]
 
     def add_layers(self, layers_config):
         for layer_config in layers_config:
@@ -168,6 +171,8 @@ class Net(object):
             self.source.stop()      
 
     def _change_layers(self, epoch):
+        self.source.stop()
+        self.source.empty_queue()
         print("Changing layers...\nOld architecture:")
         self.print_net()        
         layer_changes = self.layer_changes[epoch]
@@ -179,6 +184,7 @@ class Net(object):
         print("New architecture:")
         self.print_net()
         self.compile()
+        self.source.start()
 
     def _training_loop(self, n_iterations):
         # Adapted from dnouri/nolearn/nolearn/lasagne.py
@@ -349,7 +355,7 @@ class Net(object):
         layers.reverse()
         for layer_i, layer in enumerate(layers):
             # We only care about layers with params
-            if not layer.get_params():
+            if not (layer.get_params() or isinstance(layer, FeaturePoolLayer)):
                 continue
 
             output = layer.get_output(self.X_val).eval()

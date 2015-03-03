@@ -121,6 +121,9 @@ e147
 
 e148
 * learning rate 0.1
+
+e150
+* Same as e149 but without peepholes and using LSTM not BLSTM
 """
 
 
@@ -129,8 +132,7 @@ def set_subsample_target(net, epoch):
 
 
 def exp_a(name):
-    # e148 but with BLSTM and larger net
-    # RESULTS: did fairly well. Died with NaNs after 1085 updates
+    # e148 but with larger net
     source = RealApplianceSource(
         filename='/data/dk3810/ukdale.h5',
         appliances=[
@@ -165,10 +167,11 @@ def exp_a(name):
         updates=partial(nesterov_momentum, learning_rate=.1, clip_range=(-1, 1)),
         layers_config=[
             {
-                'type': BLSTMLayer,
+                'type': LSTMLayer,
                 'num_units': 60,
                 'W_in_to_cell': Uniform(25),
-                'gradient_steps': GRADIENT_STEPS
+                'gradient_steps': GRADIENT_STEPS,
+                'peepholes': False
             },
             {
                 'type': DimshuffleLayer,
@@ -187,10 +190,12 @@ def exp_a(name):
                 'pattern': (0, 2, 1)
             },
             {
-                'type': BLSTMLayer,
+                'type': LSTMLayer,
                 'num_units': 80,
                 'W_in_to_cell': Uniform(1),
-                'gradient_steps': GRADIENT_STEPS
+                'gradient_steps': GRADIENT_STEPS,
+                'peepholes': False
+
             },
             {
                 'type': DenseLayer,
@@ -240,10 +245,12 @@ def exp_b(name):
         updates=partial(nesterov_momentum, learning_rate=.1, clip_range=(-1, 1)),
         layers_config=[
             {
-                'type': BLSTMLayer,
+                'type': LSTMLayer,
                 'num_units': 60,
                 'W_in_to_cell': Uniform(25),
-                'gradient_steps': GRADIENT_STEPS
+                'gradient_steps': GRADIENT_STEPS,
+                'peepholes': False
+
             },
             {
                 'type': DimshuffleLayer,
@@ -262,10 +269,12 @@ def exp_b(name):
                 'pattern': (0, 2, 1)
             },
             {
-                'type': BLSTMLayer,
+                'type': LSTMLayer,
                 'num_units': 80,
                 'W_in_to_cell': Uniform(1),
-                'gradient_steps': GRADIENT_STEPS
+                'gradient_steps': GRADIENT_STEPS,
+                'peepholes': False
+
             },
             {
                 'type': DenseLayer,
@@ -314,10 +323,12 @@ def exp_c(name):
         updates=partial(nesterov_momentum, learning_rate=.1, clip_range=(-1, 1)),
         layers_config=[
             {
-                'type': BLSTMLayer,
+                'type': LSTMLayer,
                 'num_units': 60,
                 'W_in_to_cell': Uniform(25),
-                'gradient_steps': GRADIENT_STEPS
+                'gradient_steps': GRADIENT_STEPS,
+                'peepholes': False
+
             },
             {
                 'type': DimshuffleLayer,
@@ -336,10 +347,12 @@ def exp_c(name):
                 'pattern': (0, 2, 1)
             },
             {
-                'type': BLSTMLayer,
+                'type': LSTMLayer,
                 'num_units': 80,
                 'W_in_to_cell': Uniform(1),
-                'gradient_steps': GRADIENT_STEPS
+                'gradient_steps': GRADIENT_STEPS,
+                'peepholes': False
+
             },
             {
                 'type': DenseLayer,
@@ -387,10 +400,12 @@ def exp_d(name):
         updates=partial(nesterov_momentum, learning_rate=.1, clip_range=(-1, 1)),
         layers_config=[
             {
-                'type': BLSTMLayer,
+                'type': LSTMLayer,
                 'num_units': 60,
                 'W_in_to_cell': Uniform(25),
-                'gradient_steps': GRADIENT_STEPS
+                'gradient_steps': GRADIENT_STEPS,
+                'peepholes': False
+
             },
             {
                 'type': DenseLayer,
@@ -431,10 +446,12 @@ def exp_d(name):
                 'new_layers': 
                 [
                     {
-                        'type': BLSTMLayer,
+                        'type': LSTMLayer,
                         'num_units': 80,
                         'W_in_to_cell': Uniform(1),
-                        'gradient_steps': GRADIENT_STEPS
+                        'gradient_steps': GRADIENT_STEPS,
+                'peepholes': False
+
                     },
                     {
                         'type': DenseLayer,
@@ -486,10 +503,12 @@ def exp_e(name):
         updates=partial(nesterov_momentum, learning_rate=.1, clip_range=(-1, 1)),
         layers_config=[
             {
-                'type': BLSTMLayer,
+                'type': LSTMLayer,
                 'num_units': 60,
                 'W_in_to_cell': Uniform(25),
-                'gradient_steps': GRADIENT_STEPS
+                'gradient_steps': GRADIENT_STEPS,
+                'peepholes': False
+
             },
             {
                 'type': DimshuffleLayer,
@@ -508,10 +527,12 @@ def exp_e(name):
                 'pattern': (0, 2, 1)
             },
             {
-                'type': BLSTMLayer,
+                'type': LSTMLayer,
                 'num_units': 80,
                 'W_in_to_cell': Uniform(1),
-                'gradient_steps': GRADIENT_STEPS
+                'gradient_steps': GRADIENT_STEPS,
+                'peepholes': False
+
             },
             {
                 'type': DenseLayer,
@@ -560,10 +581,12 @@ def exp_f(name):
         updates=partial(nesterov_momentum, learning_rate=.1, clip_range=(-1, 1)),
         layers_config=[
             {
-                'type': BLSTMLayer,
+                'type': LSTMLayer,
                 'num_units': 60,
                 'W_in_to_cell': Uniform(25),
-                'gradient_steps': GRADIENT_STEPS
+                'gradient_steps': GRADIENT_STEPS,
+                'peepholes': False
+
             },
             {
                 'type': DimshuffleLayer,
@@ -582,10 +605,12 @@ def exp_f(name):
                 'pattern': (0, 2, 1)
             },
             {
-                'type': BLSTMLayer,
+                'type': LSTMLayer,
                 'num_units': 80,
                 'W_in_to_cell': Uniform(1),
-                'gradient_steps': GRADIENT_STEPS
+                'gradient_steps': GRADIENT_STEPS,
+                'peepholes': False
+
             },
             {
                 'type': DimshuffleLayer,
@@ -604,10 +629,12 @@ def exp_f(name):
                 'pattern': (0, 2, 1)
             },
             {
-                'type': BLSTMLayer,
+                'type': LSTMLayer,
                 'num_units': 80,
                 'W_in_to_cell': Uniform(1),
-                'gradient_steps': GRADIENT_STEPS
+                'gradient_steps': GRADIENT_STEPS,
+                'peepholes': False
+
             },
             {
                 'type': DenseLayer,
@@ -656,10 +683,12 @@ def exp_g(name):
         updates=partial(nesterov_momentum, learning_rate=.1, clip_range=(-1, 1)),
         layers_config=[
             {
-                'type': BLSTMLayer,
+                'type': LSTMLayer,
                 'num_units': 30,
                 'W_in_to_cell': Uniform(25),
-                'gradient_steps': GRADIENT_STEPS
+                'gradient_steps': GRADIENT_STEPS,
+                'peepholes': False
+
             },
             {
                 'type': DimshuffleLayer,
@@ -678,10 +707,12 @@ def exp_g(name):
                 'pattern': (0, 2, 1)
             },
             {
-                'type': BLSTMLayer,
+                'type': LSTMLayer,
                 'num_units': 50,
                 'W_in_to_cell': Uniform(1),
-                'gradient_steps': GRADIENT_STEPS
+                'gradient_steps': GRADIENT_STEPS,
+                'peepholes': False
+
             },
             {
                 'type': DimshuffleLayer,
@@ -700,10 +731,12 @@ def exp_g(name):
                 'pattern': (0, 2, 1)
             },
             {
-                'type': BLSTMLayer,
+                'type': LSTMLayer,
                 'num_units': 70,
                 'W_in_to_cell': Uniform(1),
-                'gradient_steps': GRADIENT_STEPS
+                'gradient_steps': GRADIENT_STEPS,
+                'peepholes': False
+
             },
             {
                 'type': DenseLayer,
@@ -728,7 +761,7 @@ def init_experiment(experiment):
 
 
 def main():
-    for experiment in list('bcdefg'):
+    for experiment in list('abcdefg'):
         full_exp_name = NAME + experiment
         path = os.path.join(PATH, full_exp_name)
         try:
