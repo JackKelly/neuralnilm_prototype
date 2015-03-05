@@ -1,11 +1,11 @@
 from __future__ import print_function, division
 import matplotlib
 matplotlib.use('Agg') # Must be before importing matplotlib.pyplot or pylab!
-from neuralnilm import Net, RealApplianceSource, BBLSTMLayer, DimshuffleLayer
+from neuralnilm import Net, RealApplianceSource, BLSTMLayer, DimshuffleLayer
 from lasagne.nonlinearities import sigmoid, rectify
 from lasagne.objectives import crossentropy, mse
 from lasagne.init import Uniform, Normal
-from lasagne.layers import BLSTMLayer, DenseLayer, Conv1DLayer, ReshapeLayer, FeaturePoolLayer
+from lasagne.layers import LSTMLayer, DenseLayer, Conv1DLayer, ReshapeLayer, FeaturePoolLayer
 from neuralnilm.updates import nesterov_momentum
 from functools import partial
 import os
