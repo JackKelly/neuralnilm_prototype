@@ -146,8 +146,8 @@ class ToySource(Source):
 
 class RealApplianceSource(Source):
     def __init__(self, filename, appliances, 
-                 max_appliance_powers, 
                  min_on_durations,
+                 max_appliance_powers=None, 
                  min_off_durations=None,
                  on_power_thresholds=None,
                  max_input_power=None,
@@ -190,6 +190,8 @@ class RealApplianceSource(Source):
         )
         self.dataset = DataSet(filename)
         self.appliances = appliances
+        if max_appliance_powers is None:
+            max_appliance_powers = [None] * len(appliances)
         self.max_input_power = (np.sum(max_appliance_powers) 
                                 if max_input_power is None else max_input_power)
         self.max_appliance_powers = {}
@@ -316,7 +318,8 @@ class RealApplianceSource(Source):
                     target[target > POWER_THRESHOLD] = 1
                 else:
                     max_appliance_power = self.max_appliance_powers[appliance]
-                    target /= max_appliance_power
+                    if max_appliance_power is not None:
+                        target /= max_appliance_power
                 y[start_i:end_i, appliance_i] = target
         np.clip(X, 0, self.max_input_power, out=X)
         if self.subsample_target > 1:

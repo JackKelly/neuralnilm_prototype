@@ -281,6 +281,8 @@ def exp_a(name):
 
 def exp_b(name):
     # same as above but with bool targets
+    # RESULTS:
+    # NaN'd after 6544 epochs with learning rate 0.1
     source = RealApplianceSource(
         filename='/data/dk3810/ukdale.h5',
         appliances=[
@@ -311,7 +313,7 @@ def exp_b(name):
         source=source,
         save_plot_interval=5000,
         loss_function=crossentropy,
-        updates=partial(nesterov_momentum, learning_rate=.1, clip_range=(-1, 1)),
+        updates=partial(nesterov_momentum, learning_rate=.01, clip_range=(-1, 1)),
         layers_config=[
             {
                 'type': DenseLayer,
@@ -428,7 +430,7 @@ def init_experiment(experiment):
 
 
 def main():
-    for experiment in list('ab'):
+    for experiment in list('b'):
         full_exp_name = NAME + experiment
         path = os.path.join(PATH, full_exp_name)
         try:
