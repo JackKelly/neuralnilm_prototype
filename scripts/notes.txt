@@ -1,0 +1,33 @@
+WORKS (kind of):
+
+3 appliances
+124
+126
+138
+139 quantization!
+142 
+145
+148
+157a not great
+158 not bad
+
+180 mse
+
+5 appliances
+129: gets the fridge (once)!
+cross entropy, scale appliances
+
+131c: probably the best for all 5 appliances
+cross entropy, scale appliances, first 2 layers are dense layers
+
+132a: about as good as 131c
+cross entropy, scale appliances, first 2 layers are dense layers
+
+132c: not as good as 131c
+
+134a: not great but kind of works
+
+137a: not great but kind of works
+similar to 131c, but lots of pretraining
+
+156: not great

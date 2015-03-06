@@ -235,7 +235,10 @@ class Net(object):
         fig, ax = plt.subplots(1)
         ax.plot(self.training_costs, label='Training')
         validation_x = range(0, len(self.training_costs), self.validation_interval)
-        ax.plot(validation_x, self.validation_costs, label='Validation')
+        n_validations = min(len(validation_x), len(self.validation_costs))
+        ax.plot(validation_x[:n_validations], 
+                self.validation_costs[:n_validations],
+                label='Validation')
         ax.set_xlabel('Iteration')
         ax.set_ylabel('Cost')
         ax.legend()

@@ -164,6 +164,8 @@ class RealApplianceSource(Source):
                  skip_probability=0,
                  include_diff=False,
                  max_diff=3000,
+                 clip_appliance_power=True,
+                 lag=0,
                  **kwargs):
         """
         Parameters
@@ -216,6 +218,8 @@ class RealApplianceSource(Source):
         self._tz = self.dataset.metadata['timezone']
         self.include_diff = include_diff
         self.max_diff = max_diff
+        self.clip_appliance_power = clip_appliance_power
+        self.lag = lag
 
         print("Loading training activations...")
         if on_power_thresholds is None:
@@ -275,7 +279,8 @@ class RealApplianceSource(Source):
             activation = activation.resample("{:d}S".format(self.sample_period))
             activation.fillna(method='ffill', inplace=True)
             activation.fillna(method='bfill', inplace=True)
-            activation = activation.clip(0, max_power)
+            if self.clip_appliance_power:
+                activation = activation.clip(0, max_power)
             activations[i] = floatX(activation)
         return activations
 
@@ -304,11 +309,11 @@ class RealApplianceSource(Source):
                 continue
             activation_i = randint(0, n_activations)
             activation = activations[appliance][activation_i]
-            latest_start_i = (self.seq_length - len(activation)) - BORDER
+            latest_start_i = (self.seq_length - len(activation)) - (BORDER + self.lag) 
             latest_start_i = max(latest_start_i, BORDER)
             start_i = randint(0, latest_start_i)
             end_i = start_i + len(activation)
-            end_i = min(end_i, self.seq_length-1)
+            end_i = min(end_i, self.seq_length-(1+self.lag))
             target = activation.values[:end_i-start_i]
             X[start_i:end_i,0] += target 
             if appliance_i == 0 or not self.output_one_appliance:
@@ -320,7 +325,7 @@ class RealApplianceSource(Source):
                     max_appliance_power = self.max_appliance_powers[appliance]
                     if max_appliance_power is not None:
                         target /= max_appliance_power
-                y[start_i:end_i, appliance_i] = target
+                y[(start_i+self.lag):(end_i+self.lag), appliance_i] = target
         np.clip(X, 0, self.max_input_power, out=X)
         if self.subsample_target > 1:
             shape = (int(self.seq_length / self.subsample_target), 

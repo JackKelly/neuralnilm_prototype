@@ -6,7 +6,7 @@ from lasagne.nonlinearities import sigmoid, rectify
 from lasagne.objectives import crossentropy, mse
 from lasagne.init import Uniform, Normal
 from lasagne.layers import LSTMLayer, DenseLayer, Conv1DLayer, ReshapeLayer, FeaturePoolLayer
-from neuralnilm.updates import nesterov_momentum
+from lasagne.updates import nesterov_momentum
 from functools import partial
 import os
 from neuralnilm.source import standardise, discretize, fdiff, power_and_fdiff
@@ -35,10 +35,10 @@ e108
 is e107 but with batch size of 5
 
 e109
-Normal(1) for LSTM
+Normal(1) for BLSTM
 
 e110
-* Back to Uniform(5) for LSTM
+* Back to Uniform(5) for BLSTM
 * Using nntools eb17bd923ef9ff2cacde2e92d7323b4e51bb5f1f
 RESULTS: Seems to run fine again!
 
@@ -53,7 +53,7 @@ e112
 
 e114
 * Trying looking at layer by layer training again.
-* Start with single LSTM layer
+* Start with single BLSTM layer
 
 e115
 * Learning rate = 1
@@ -102,7 +102,7 @@ e140
 diff
 
 e141
-conv1D layer has Uniform(1), as does 2nd LSTM layer
+conv1D layer has Uniform(1), as does 2nd BLSTM layer
 
 e142
 diff AND power
@@ -123,23 +123,89 @@ e148
 * learning rate 0.1
 
 e150
-* Same as e149 but without peepholes and using LSTM not BLSTM
+* Same as e149 but without peepholes and using BLSTM not BBLSTM
 
 e151
 * Max pooling
+
+171
+lower learning rate
+
+172
+even lower learning rate
+
+173
+slightly higher learning rate!
+
+175
+same as 174 but with skip prob = 0, and LSTM not BLSTM, and only 4000 epochs
+
+176
+new cost function
+
+177
+another new cost func (this one avoids NaNs)
+skip prob 0.7
+10x higher learning rate
+
+178
+refactored cost func (functionally equiv to 177)
+0.1x learning rate
+
+e180
+* mse
+
+e181
+* back to scaled cost
+* different architecture:
+  - convd1 at input (2x)
+  - then 3 LSTM layers, each with a 2x conv in between
+  - no diff input
+
+e189
+* divide dominant appliance power
+* mse
+
+217
+no peepholes
+
+218
+don't clip gradient
+lag=64
+
+219
+back to lag=32
+try all 5 appliances (with max input = 500)
 """
 
 
+# def scaled_cost(x, t):
+#     raw_cost = (x - t) ** 2
+#     energy_per_seq = t.sum(axis=1)
+#     energy_per_batch = energy_per_seq.sum(axis=1)
+#     energy_per_batch = energy_per_batch.reshape((-1, 1))
+#     normaliser = energy_per_seq / energy_per_batch
+#     cost = raw_cost.mean(axis=1) * (1 - normaliser)
+#     return cost.mean()
+
+from theano.ifelse import ifelse
+import theano.tensor as T
+
+THRESHOLD = 0
 def scaled_cost(x, t):
-    raw_cost = (x - t) ** 2
-    energy_per_seq = t.sum(axis=1)
-    energy_per_batch = energy_per_seq.sum(axis=1)
-    energy_per_batch = energy_per_batch.reshape((-1, 1))
-    normaliser = energy_per_seq / energy_per_batch
-    cost = raw_cost.mean(axis=1) * (1 - normaliser)
-    return cost.mean()
+    sq_error = (x - t) ** 2
+    def mask_and_mean_sq_error(mask):
+        masked_sq_error = sq_error[mask.nonzero()]
+        mean = masked_sq_error.mean()
+        mean = ifelse(T.isnan(mean), 0.0, mean)
+        return mean
+    above_thresh_mean = mask_and_mean_sq_error(t > THRESHOLD)
+    below_thresh_mean = mask_and_mean_sq_error(t <= THRESHOLD)
+    return (above_thresh_mean + below_thresh_mean) / 2.0
+
 
 def exp_a(name):
+    global source
     source = RealApplianceSource(
         filename='/data/dk3810/ukdale.h5',
         appliances=[
@@ -149,9 +215,9 @@ def exp_a(name):
             'dish washer',
             ['washer dryer', 'washing machine']
         ],
-        max_appliance_powers=None,#[200, 100, 200, 2500, 2400],
-        on_power_thresholds=[5, 5, 5, 5, 5],
-        max_input_power=5900,
+        max_appliance_powers=None,#[500] * 5,
+        on_power_thresholds=[5] * 5,
+        max_input_power=2500,
         min_on_durations=[60, 60, 60, 1800, 1800],
         min_off_durations=[12, 12, 12, 1800, 600],
         window=("2013-06-01", "2014-07-01"),
@@ -160,9 +226,13 @@ def exp_a(name):
         boolean_targets=False,
         train_buildings=[1],
         validation_buildings=[1], 
-        skip_probability=0.0,
+        skip_probability=0.7,
         n_seq_per_batch=25,
-        include_diff=True
+        subsample_target=4,
+        input_padding=3,
+        include_diff=False,
+        clip_appliance_power=False,
+        lag=32
     )
 
     net = Net(
@@ -170,14 +240,63 @@ def exp_a(name):
         source=source,
         save_plot_interval=250,
         loss_function=scaled_cost,
-        updates=partial(nesterov_momentum, learning_rate=.0001, clip_range=(-1, 1)),
+        updates=partial(nesterov_momentum, learning_rate=0.0001),
         layers_config=[
             {
                 'type': LSTMLayer,
                 'num_units': 50,
-                'W_in_to_cell': Uniform(25),
+                'W_in_to_cell': Uniform(5),
                 'gradient_steps': GRADIENT_STEPS,
                 'peepholes': False
+            },
+            {
+                'type': DimshuffleLayer,
+                'pattern': (0, 2, 1)  # (batch, features, time)
+            },
+            {
+                'type': Conv1DLayer, # convolve over the time axis
+                'num_filters': 50,
+                'filter_length': 2,
+                'stride': 1,
+                'nonlinearity': sigmoid,
+                'W': Uniform(1)
+            },
+            {
+                'type': DimshuffleLayer,
+                'pattern': (0, 2, 1) # back to (batch, time, features)
+            },
+            {
+                'type': FeaturePoolLayer,
+                'ds': 2, # number of feature maps to be pooled together
+                'axis': 1 # pool over the time axis
+            },
+            {
+                'type': LSTMLayer,
+                'num_units': 50,
+                'W_in_to_cell': Uniform(5),
+                'gradient_steps': GRADIENT_STEPS,
+                'peepholes': False
+            },
+            {
+                'type': DimshuffleLayer,
+                'pattern': (0, 2, 1)  # (batch, features, time)
+            },
+            {
+                'type': Conv1DLayer, # convolve over the time axis
+                'num_filters': 50,
+                'filter_length': 2,
+                'stride': 1,
+                'nonlinearity': sigmoid,
+                'W': Uniform(1)
+            },
+            {
+                'type': DimshuffleLayer,
+                'pattern': (0, 2, 1) # back to (batch, time, features)
+            },
+            {
+                'type': FeaturePoolLayer,
+                'ds': 2, # number of feature maps to be pooled together
+                'axis': 1 # pool over the time axis
             },
             {
                 'type': LSTMLayer,
@@ -188,11 +307,6 @@ def exp_a(name):
             },
             {
                 'type': DenseLayer,
-                'num_units': 50,
-                'nonlinearity': rectify
-            },
-            {
-                'type': DenseLayer,
                 'num_units': source.n_outputs,
                 'nonlinearity': None,
                 'W': Uniform(25)
@@ -200,6 +314,8 @@ def exp_a(name):
         ]
     )
     return net
+
+
 
 def init_experiment(experiment):
     full_exp_name = NAME + experiment

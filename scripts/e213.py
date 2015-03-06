@@ -6,7 +6,7 @@ from lasagne.nonlinearities import sigmoid, rectify
 from lasagne.objectives import crossentropy, mse
 from lasagne.init import Uniform, Normal
 from lasagne.layers import LSTMLayer, DenseLayer, Conv1DLayer, ReshapeLayer, FeaturePoolLayer
-from neuralnilm.updates import nesterov_momentum
+from lasagne.updates import nesterov_momentum
 from functools import partial
 import os
 from neuralnilm.source import standardise, discretize, fdiff, power_and_fdiff
@@ -139,32 +139,74 @@ slightly higher learning rate!
 
 175
 same as 174 but with skip prob = 0, and LSTM not BLSTM, and only 4000 epochs
+
+176
+new cost function
+
+177
+another new cost func (this one avoids NaNs)
+skip prob 0.7
+10x higher learning rate
+
+178
+refactored cost func (functionally equiv to 177)
+0.1x learning rate
+
+e180
+* mse
+
+e181
+* back to scaled cost
+* different architecture:
+  - convd1 at input (2x)
+  - then 3 LSTM layers, each with a 2x conv in between
+  - no diff input
+
+e189
+* divide dominant appliance power
+* mse
 """
 
 
+# def scaled_cost(x, t):
+#     raw_cost = (x - t) ** 2
+#     energy_per_seq = t.sum(axis=1)
+#     energy_per_batch = energy_per_seq.sum(axis=1)
+#     energy_per_batch = energy_per_batch.reshape((-1, 1))
+#     normaliser = energy_per_seq / energy_per_batch
+#     cost = raw_cost.mean(axis=1) * (1 - normaliser)
+#     return cost.mean()
+
+from theano.ifelse import ifelse
+import theano.tensor as T
+
+THRESHOLD = 0
 def scaled_cost(x, t):
-    raw_cost = (x - t) ** 2
-    energy_per_seq = t.sum(axis=1)
-    energy_per_batch = energy_per_seq.sum(axis=1)
-    energy_per_batch = energy_per_batch.reshape((-1, 1))
-    normaliser = energy_per_seq / energy_per_batch
-    cost = raw_cost.mean(axis=1) * (1 - normaliser)
-    return cost.mean()
+    sq_error = (x - t) ** 2
+    def mask_and_mean_sq_error(mask):
+        masked_sq_error = sq_error[mask.nonzero()]
+        mean = masked_sq_error.mean()
+        mean = ifelse(T.isnan(mean), 0.0, mean)
+        return mean
+    above_thresh_mean = mask_and_mean_sq_error(t > THRESHOLD)
+    below_thresh_mean = mask_and_mean_sq_error(t <= THRESHOLD)
+    return (above_thresh_mean + below_thresh_mean) / 2.0
+
 
 def exp_a(name):
-    # 151d but training for much longer and skip prob = 0.7
+    global source
     source = RealApplianceSource(
         filename='/data/dk3810/ukdale.h5',
         appliances=[
             ['fridge freezer', 'fridge', 'freezer'], 
             'hair straighteners', 
-            'television',
-            'dish washer',
-            ['washer dryer', 'washing machine']
+            'television'
+#            'dish washer',
+#            ['washer dryer', 'washing machine']
         ],
-        max_appliance_powers=None,#[200, 100, 200, 2500, 2400],
-        on_power_thresholds=[5, 5, 5, 5, 5],
-        max_input_power=5900,
+        max_appliance_powers=None,#[500] * 5,
+        on_power_thresholds=[5] * 5,
+        max_input_power=500,
         min_on_durations=[60, 60, 60, 1800, 1800],
         min_off_durations=[12, 12, 12, 1800, 600],
         window=("2013-06-01", "2014-07-01"),
@@ -173,24 +215,77 @@ def exp_a(name):
         boolean_targets=False,
         train_buildings=[1],
         validation_buildings=[1], 
-        skip_probability=0,
+        skip_probability=0.7,
         n_seq_per_batch=25,
-        include_diff=True
+        subsample_target=4,
+        input_padding=3,
+        include_diff=False,
+        clip_appliance_power=False,
+        lag=0
     )
 
     net = Net(
         experiment_name=name,
         source=source,
-        save_plot_interval=1000,
+        save_plot_interval=250,
         loss_function=scaled_cost,
-        updates=partial(nesterov_momentum, learning_rate=.0000001, clip_range=(-1, 1)),
+        updates=partial(nesterov_momentum, learning_rate=0.0001),
         layers_config=[
             {
                 'type': LSTMLayer,
                 'num_units': 50,
-                'W_in_to_cell': Uniform(25),
+                'W_in_to_cell': Uniform(5),
                 'gradient_steps': GRADIENT_STEPS,
                 'peepholes': False
+            },
+            {
+                'type': DimshuffleLayer,
+                'pattern': (0, 2, 1)  # (batch, features, time)
+            },
+            {
+                'type': Conv1DLayer, # convolve over the time axis
+                'num_filters': 50,
+                'filter_length': 2,
+                'stride': 1,
+                'nonlinearity': sigmoid,
+                'W': Uniform(1)
+            },
+            {
+                'type': DimshuffleLayer,
+                'pattern': (0, 2, 1) # back to (batch, time, features)
+            },
+            {
+                'type': FeaturePoolLayer,
+                'ds': 2, # number of feature maps to be pooled together
+                'axis': 1 # pool over the time axis
+            },
+            {
+                'type': LSTMLayer,
+                'num_units': 50,
+                'W_in_to_cell': Uniform(5),
+                'gradient_steps': GRADIENT_STEPS,
+                'peepholes': False
+            },
+            {
+                'type': DimshuffleLayer,
+                'pattern': (0, 2, 1)  # (batch, features, time)
+            },
+            {
+                'type': Conv1DLayer, # convolve over the time axis
+                'num_filters': 50,
+                'filter_length': 2,
+                'stride': 1,
+                'nonlinearity': sigmoid,
+                'W': Uniform(1)
+            },
+            {
+                'type': DimshuffleLayer,
+                'pattern': (0, 2, 1) # back to (batch, time, features)
+            },
+            {
+                'type': FeaturePoolLayer,
+                'ds': 2, # number of feature maps to be pooled together
+                'axis': 1 # pool over the time axis
             },
             {
                 'type': LSTMLayer,
@@ -201,11 +296,6 @@ def exp_a(name):
             },
             {
                 'type': DenseLayer,
-                'num_units': 50,
-                'nonlinearity': rectify
-            },
-            {
-                'type': DenseLayer,
                 'num_units': source.n_outputs,
                 'nonlinearity': None,
                 'W': Uniform(25)
@@ -213,24 +303,23 @@ def exp_a(name):
         ]
     )
     return net
-
 
 
 def exp_b(name):
-    # A but with sigmoid penultimate layer
-    # RESULTS: appears to do worse
+    # same as above but with lag = 10
+    global source
     source = RealApplianceSource(
         filename='/data/dk3810/ukdale.h5',
         appliances=[
             ['fridge freezer', 'fridge', 'freezer'], 
             'hair straighteners', 
-            'television',
-            'dish washer',
-            ['washer dryer', 'washing machine']
+            'television'
+#            'dish washer',
+#            ['washer dryer', 'washing machine']
         ],
-        max_appliance_powers=None,#[200, 100, 200, 2500, 2400],
-        on_power_thresholds=[5, 5, 5, 5, 5],
-        max_input_power=5900,
+        max_appliance_powers=None,#[500] * 5,
+        on_power_thresholds=[5] * 5,
+        max_input_power=500,
         min_on_durations=[60, 60, 60, 1800, 1800],
         min_off_durations=[12, 12, 12, 1800, 600],
         window=("2013-06-01", "2014-07-01"),
@@ -239,162 +328,26 @@ def exp_b(name):
         boolean_targets=False,
         train_buildings=[1],
         validation_buildings=[1], 
-        skip_probability=0,
+        skip_probability=0.7,
         n_seq_per_batch=25,
-        include_diff=True
+        subsample_target=4,
+        input_padding=3,
+        include_diff=False,
+        clip_appliance_power=False,
+        lag=16
     )
 
     net = Net(
         experiment_name=name,
         source=source,
-        save_plot_interval=1000,
+        save_plot_interval=250,
         loss_function=scaled_cost,
-        updates=partial(nesterov_momentum, learning_rate=.0000001, clip_range=(-1, 1)),
+        updates=partial(nesterov_momentum, learning_rate=0.0001),
         layers_config=[
             {
                 'type': LSTMLayer,
                 'num_units': 50,
-                'W_in_to_cell': Uniform(25),
-                'gradient_steps': GRADIENT_STEPS,
-                'peepholes': False
-            },
-            {
-                'type': LSTMLayer,
-                'num_units': 50,
-                'W_in_to_cell': Uniform(1),
-                'gradient_steps': GRADIENT_STEPS,
-                'peepholes': False
-            },
-            {
-                'type': DenseLayer,
-                'num_units': 50,
-                'nonlinearity': sigmoid
-            },
-            {
-                'type': DenseLayer,
-                'num_units': source.n_outputs,
-                'nonlinearity': None,
-                'W': Uniform(25)
-            }
-        ]
-    )
-    return net
-
-
-
-def exp_c(name):
-    # A but with 3 BLSTM layers
-    source = RealApplianceSource(
-        filename='/data/dk3810/ukdale.h5',
-        appliances=[
-            ['fridge freezer', 'fridge', 'freezer'], 
-            'hair straighteners', 
-            'television',
-            'dish washer',
-            ['washer dryer', 'washing machine']
-        ],
-        max_appliance_powers=None,#[200, 100, 200, 2500, 2400],
-        on_power_thresholds=[5, 5, 5, 5, 5],
-        max_input_power=5900,
-        min_on_durations=[60, 60, 60, 1800, 1800],
-        min_off_durations=[12, 12, 12, 1800, 600],
-        window=("2013-06-01", "2014-07-01"),
-        seq_length=1500,
-        output_one_appliance=False,
-        boolean_targets=False,
-        train_buildings=[1],
-        validation_buildings=[1], 
-        skip_probability=0,
-        n_seq_per_batch=25,
-        include_diff=True
-    )
-
-    net = Net(
-        experiment_name=name,
-        source=source,
-        save_plot_interval=1000,
-        loss_function=scaled_cost,
-        updates=partial(nesterov_momentum, learning_rate=.0000001, clip_range=(-1, 1)),
-        layers_config=[
-            {
-                'type': LSTMLayer,
-                'num_units': 50,
-                'W_in_to_cell': Uniform(25),
-                'gradient_steps': GRADIENT_STEPS,
-                'peepholes': False
-            },
-            {
-                'type': LSTMLayer,
-                'num_units': 50,
-                'W_in_to_cell': Uniform(1),
-                'gradient_steps': GRADIENT_STEPS,
-                'peepholes': False
-            },
-            {
-                'type': LSTMLayer,
-                'num_units': 50,
-                'W_in_to_cell': Uniform(1),
-                'gradient_steps': GRADIENT_STEPS,
-                'peepholes': False
-            },
-            {
-                'type': DenseLayer,
-                'num_units': 50,
-                'nonlinearity': rectify
-            },
-            {
-                'type': DenseLayer,
-                'num_units': source.n_outputs,
-                'nonlinearity': None,
-                'W': Uniform(25)
-            }
-        ]
-    )
-    return net
-
-
-
-
-def exp_d(name):
-    # A but with downsampling 3x
-    source = RealApplianceSource(
-        filename='/data/dk3810/ukdale.h5',
-        appliances=[
-            ['fridge freezer', 'fridge', 'freezer'], 
-            'hair straighteners', 
-            'television',
-            'dish washer',
-            ['washer dryer', 'washing machine']
-        ],
-        max_appliance_powers=None,#[200, 100, 200, 2500, 2400],
-        on_power_thresholds=[5, 5, 5, 5, 5],
-        max_input_power=5900,
-        min_on_durations=[60, 60, 60, 1800, 1800],
-        min_off_durations=[12, 12, 12, 1800, 600],
-        window=("2013-06-01", "2014-07-01"),
-        seq_length=1500,
-        output_one_appliance=False,
-        boolean_targets=False,
-        train_buildings=[1],
-        validation_buildings=[1], 
-        skip_probability=0,
-        n_seq_per_batch=25,
-        include_diff=True,
-        subsample_target=3,
-        input_padding=2
-    )
-
-    net = Net(
-        experiment_name=name,
-        source=source,
-        save_plot_interval=1000,
-        loss_function=scaled_cost,
-        updates=partial(nesterov_momentum, learning_rate=.0000001, clip_range=(-1, 1)),
-        layers_config=[
-            {
-                'type': LSTMLayer,
-                'num_units': 50,
-                'W_in_to_cell': Uniform(25),
+                'W_in_to_cell': Uniform(5),
                 'gradient_steps': GRADIENT_STEPS,
                 'peepholes': False
             },
@@ -405,7 +358,7 @@ def exp_d(name):
             {
                 'type': Conv1DLayer, # convolve over the time axis
                 'num_filters': 50,
-                'filter_length': 3,
+                'filter_length': 2,
                 'stride': 1,
                 'nonlinearity': sigmoid,
                 'W': Uniform(1)
@@ -416,7 +369,35 @@ def exp_d(name):
             },
             {
                 'type': FeaturePoolLayer,
-                'ds': 3, # number of feature maps to be pooled together
+                'ds': 2, # number of feature maps to be pooled together
+                'axis': 1 # pool over the time axis
+            },
+            {
+                'type': LSTMLayer,
+                'num_units': 50,
+                'W_in_to_cell': Uniform(5),
+                'gradient_steps': GRADIENT_STEPS,
+                'peepholes': False
+            },
+            {
+                'type': DimshuffleLayer,
+                'pattern': (0, 2, 1)  # (batch, features, time)
+            },
+            {
+                'type': Conv1DLayer, # convolve over the time axis
+                'num_filters': 50,
+                'filter_length': 2,
+                'stride': 1,
+                'nonlinearity': sigmoid,
+                'W': Uniform(1)
+            },
+            {
+                'type': DimshuffleLayer,
+                'pattern': (0, 2, 1) # back to (batch, time, features)
+            },
+            {
+                'type': FeaturePoolLayer,
+                'ds': 2, # number of feature maps to be pooled together
                 'axis': 1 # pool over the time axis
             },
             {
@@ -428,11 +409,6 @@ def exp_d(name):
             },
             {
                 'type': DenseLayer,
-                'num_units': 50,
-                'nonlinearity': rectify
-            },
-            {
-                'type': DenseLayer,
                 'num_units': source.n_outputs,
                 'nonlinearity': None,
                 'W': Uniform(25)
@@ -440,95 +416,6 @@ def exp_d(name):
         ]
     )
     return net
-
-
-
-def exp_e(name):
-    # D but with downsampling 5x
-    source = RealApplianceSource(
-        filename='/data/dk3810/ukdale.h5',
-        appliances=[
-            ['fridge freezer', 'fridge', 'freezer'], 
-            'hair straighteners', 
-            'television',
-            'dish washer',
-            ['washer dryer', 'washing machine']
-        ],
-        max_appliance_powers=None,#[200, 100, 200, 2500, 2400],
-        on_power_thresholds=[5, 5, 5, 5, 5],
-        max_input_power=5900,
-        min_on_durations=[60, 60, 60, 1800, 1800],
-        min_off_durations=[12, 12, 12, 1800, 600],
-        window=("2013-06-01", "2014-07-01"),
-        seq_length=1500,
-        output_one_appliance=False,
-        boolean_targets=False,
-        train_buildings=[1],
-        validation_buildings=[1], 
-        skip_probability=0,
-        n_seq_per_batch=25,
-        include_diff=True,
-        subsample_target=5,
-        input_padding=4
-    )
-
-    net = Net(
-        experiment_name=name,
-        source=source,
-        save_plot_interval=1000,
-        loss_function=scaled_cost,
-        updates=partial(nesterov_momentum, learning_rate=.0000001, clip_range=(-1, 1)),
-        layers_config=[
-            {
-                'type': LSTMLayer,
-                'num_units': 50,
-                'W_in_to_cell': Uniform(25),
-                'gradient_steps': GRADIENT_STEPS,
-                'peepholes': False
-            },
-            {
-                'type': DimshuffleLayer,
-                'pattern': (0, 2, 1)  # (batch, features, time)
-            },
-            {
-                'type': Conv1DLayer, # convolve over the time axis
-                'num_filters': 50,
-                'filter_length': 5,
-                'stride': 1,
-                'nonlinearity': sigmoid,
-                'W': Uniform(1)
-            },
-            {
-                'type': DimshuffleLayer,
-                'pattern': (0, 2, 1) # back to (batch, time, features)
-            },
-            {
-                'type': FeaturePoolLayer,
-                'ds': 5, # number of feature maps to be pooled together
-                'axis': 1 # pool over the time axis
-            },
-            {
-                'type': LSTMLayer,
-                'num_units': 50,
-                'W_in_to_cell': Uniform(1),
-                'gradient_steps': GRADIENT_STEPS,
-                'peepholes': False
-            },
-            {
-                'type': DenseLayer,
-                'num_units': 50,
-                'nonlinearity': rectify
-            },
-            {
-                'type': DenseLayer,
-                'num_units': source.n_outputs,
-                'nonlinearity': None,
-                'W': Uniform(25)
-            }
-        ]
-    )
-    return net
-
 
 
 
@@ -542,12 +429,12 @@ def init_experiment(experiment):
 
 
 def main():
-    for experiment in list('abcde'):
+    for experiment in list('b'):
         full_exp_name = NAME + experiment
         path = os.path.join(PATH, full_exp_name)
         try:
             net = init_experiment(experiment)
-            run_experiment(net, path, epochs=4000)
+            run_experiment(net, path, epochs=1000)
         except KeyboardInterrupt:
             break
         except TrainingError as exception:

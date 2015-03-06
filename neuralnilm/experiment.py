@@ -22,6 +22,7 @@ def save(net):
     net.plot_costs(save=True)
     print("Saving params...")
     net.save_params()
+    net.save_activations()
     print("Done saving.")
 
 

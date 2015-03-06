@@ -35,10 +35,10 @@ e108
 is e107 but with batch size of 5
 
 e109
-Normal(1) for LSTM
+Normal(1) for BLSTM
 
 e110
-* Back to Uniform(5) for LSTM
+* Back to Uniform(5) for BLSTM
 * Using nntools eb17bd923ef9ff2cacde2e92d7323b4e51bb5f1f
 RESULTS: Seems to run fine again!
 
@@ -53,7 +53,7 @@ e112
 
 e114
 * Trying looking at layer by layer training again.
-* Start with single LSTM layer
+* Start with single BLSTM layer
 
 e115
 * Learning rate = 1
@@ -102,7 +102,7 @@ e140
 diff
 
 e141
-conv1D layer has Uniform(1), as does 2nd LSTM layer
+conv1D layer has Uniform(1), as does 2nd BLSTM layer
 
 e142
 diff AND power
@@ -123,23 +123,59 @@ e148
 * learning rate 0.1
 
 e150
-* Same as e149 but without peepholes and using LSTM not BLSTM
+* Same as e149 but without peepholes and using BLSTM not BBLSTM
 
 e151
 * Max pooling
+
+171
+lower learning rate
+
+172
+even lower learning rate
+
+173
+slightly higher learning rate!
+
+175
+same as 174 but with skip prob = 0, and LSTM not BLSTM, and only 4000 epochs
+
+176
+new cost function
+
+177
+another new cost func (this one avoids NaNs)
+skip prob 0.7
+10x higher learning rate
 """
 
 
+# def scaled_cost(x, t):
+#     raw_cost = (x - t) ** 2
+#     energy_per_seq = t.sum(axis=1)
+#     energy_per_batch = energy_per_seq.sum(axis=1)
+#     energy_per_batch = energy_per_batch.reshape((-1, 1))
+#     normaliser = energy_per_seq / energy_per_batch
+#     cost = raw_cost.mean(axis=1) * (1 - normaliser)
+#     return cost.mean()
+
+from theano.ifelse import ifelse
+import theano.tensor as T
+
+THRESHOLD = 0
 def scaled_cost(x, t):
-    raw_cost = (x - t) ** 2
-    energy_per_seq = t.sum(axis=1)
-    energy_per_batch = energy_per_seq.sum(axis=1)
-    energy_per_batch = energy_per_batch.reshape((-1, 1))
-    normaliser = energy_per_seq / energy_per_batch
-    cost = raw_cost.mean(axis=1) * (1 - normaliser)
-    return cost.mean()
+    sq_error = (x - t) ** 2
+    above_thresh_sq_error = sq_error[(t > THRESHOLD).nonzero()]
+    below_thresh_sq_error = sq_error[(t <= THRESHOLD).nonzero()]
+    above_thresh_mean = above_thresh_sq_error.mean()
+    below_thresh_mean = below_thresh_sq_error.mean()
+    above_thresh_mean = ifelse(T.isnan(above_thresh_mean), 0.0, above_thresh_mean)
+    below_thresh_mean = ifelse(T.isnan(below_thresh_mean), 0.0, below_thresh_mean)
+    return (above_thresh_mean + below_thresh_mean) / 2.0
+
 
 def exp_a(name):
+    # LR of 0.1 didn't NaN but didn't learn well.
     source = RealApplianceSource(
         filename='/data/dk3810/ukdale.h5',
         appliances=[
@@ -160,7 +196,7 @@ def exp_a(name):
         boolean_targets=False,
         train_buildings=[1],
         validation_buildings=[1], 
-        skip_probability=0.0,
+        skip_probability=0.7,
         n_seq_per_batch=25,
         include_diff=True
     )
