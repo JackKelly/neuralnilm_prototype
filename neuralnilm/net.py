@@ -46,7 +46,8 @@ class Net(object):
                  save_plot_interval=100,
                  loss_function=lasagne.objectives.mse,
                  X_processing_func=lambda X: X,
-                 layer_changes=None
+                 layer_changes=None,
+                 seed=42
     ):
         """
         Parameters
@@ -56,6 +57,8 @@ class Net(object):
             'num_units' : int
         """
         print("Initialising network...")
+        if seed is not None:
+            np.random.seed(seed)
         self.source = source
         self.updates = updates
         self.experiment_name = experiment_name

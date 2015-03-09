@@ -50,6 +50,9 @@ lag = 20
 LSTM not BLSTM
 various lags
 
+241
+output is prediction
+
 ideas for next TODO:
 * 3 LSTM layers with smaller conv between them
 * why does pooling hurt us?
@@ -75,75 +78,32 @@ source_dict = dict(
     boolean_targets=False,
     train_buildings=[1],
     validation_buildings=[1], 
-    skip_probability=0.7,
+    # skip_probability=0.0,
     n_seq_per_batch=10,
-    subsample_target=5,
+    # subsample_target=5,
     include_diff=False,
     clip_appliance_power=True,
-    lag=0
+    target_is_prediction=True
+    #lag=0
 )
 
 net_dict = dict(        
     save_plot_interval=SAVE_PLOT_INTERVAL,
     loss_function=crossentropy,
-    updates=partial(nesterov_momentum, learning_rate=1.0),
+    updates=partial(nesterov_momentum, learning_rate=.1),
     layers_config=[
         {
-            'type': DenseLayer,
-            'num_units': 50,
-            'nonlinearity': sigmoid,
-            'W': Uniform(25),
-            'b': Uniform(25)
-        },
-        {
-            'type': DenseLayer,
-            'num_units': 50,
-            'nonlinearity': sigmoid,
-            'W': Uniform(10),
-            'b': Uniform(10)
-        },
-        {
             'type': LSTMLayer,
-            'num_units': 40,
-            'W_in_to_cell': Uniform(5),
-            'gradient_steps': GRADIENT_STEPS,
-            'peepholes': False
-        },
-        {
-            'type': DimshuffleLayer,
-            'pattern': (0, 2, 1)
-        },
-        {
-            'type': Conv1DLayer,
-            'num_filters': 20,
-            'filter_length': 5,
-            'stride': 5,
-            'nonlinearity': sigmoid
-#           'W': Uniform(1)
-        },
-        {
-            'type': DimshuffleLayer,
-            'pattern': (0, 2, 1)
-        },
-        # {
-        #     'type': FeaturePoolLayer,
-        #     'ds': 5, # number of feature maps to be pooled together
-        #     'axis': 1 # pool over the time axis
-        # },
-        {
-            'type': LSTMLayer,
-            'num_units': 80,
-            'W_in_to_cell': Uniform(5),
+            'num_units': 50,
             'gradient_steps': GRADIENT_STEPS,
             'peepholes': False
         }
     ]
 )
 
+
 def exp_a(name):
-    # like 239 but LSTM not BLSTM and no lag and clip appliance power
-    # RESULTS: aweful
-    source = RealApplianceSource(**source_dict)
+#    source = RealApplianceSource(**source_dict)
     net_dict_copy = deepcopy(net_dict)
     net_dict_copy.update(dict(experiment_name=name, source=source))
     net_dict_copy['layers_config'].append(
@@ -152,88 +112,75 @@ def exp_a(name):
             'num_units': source.n_outputs,
             'nonlinearity': sigmoid
         }
-
     )
     net = Net(**net_dict_copy)
     return net
 
 
 def exp_b(name):
-    # as A but lag = 10
-    source_dict_copy = deepcopy(source_dict)
-    source_dict_copy['lag'] = 10
-    source = RealApplianceSource(**source_dict_copy)
-
+    # As A but with Uniform(1) init
+#    source = RealApplianceSource(**source_dict)
     net_dict_copy = deepcopy(net_dict)
     net_dict_copy.update(dict(experiment_name=name, source=source))
+    net_dict_copy['layers_config'][-1].update({'W_in_to_cell': Uniform(1)})
     net_dict_copy['layers_config'].append(
         {
             'type': DenseLayer,
             'num_units': source.n_outputs,
             'nonlinearity': sigmoid
         }
-
     )
     net = Net(**net_dict_copy)
     return net
 
 
 def exp_c(name):
-    # as A but lag = 20
-    source_dict_copy = deepcopy(source_dict)
-    source_dict_copy['lag'] = 20
-    source = RealApplianceSource(**source_dict_copy)
-
+    # As A but with Uniform(5) init
+    # The best so far.  Pretty good.
+#    source = RealApplianceSource(**source_dict)
     net_dict_copy = deepcopy(net_dict)
     net_dict_copy.update(dict(experiment_name=name, source=source))
+    net_dict_copy['layers_config'][-1].update({'W_in_to_cell': Uniform(5)})
     net_dict_copy['layers_config'].append(
         {
             'type': DenseLayer,
             'num_units': source.n_outputs,
             'nonlinearity': sigmoid
         }
-
     )
     net = Net(**net_dict_copy)
     return net
 
 
 def exp_d(name):
-    # as A but lag = 40
-    # possibly the best of this e240 lot
-    source_dict_copy = deepcopy(source_dict)
-    source_dict_copy['lag'] = 40
-    source = RealApplianceSource(**source_dict_copy)
-
+    # As A but with Uniform(10) init
+#    source = RealApplianceSource(**source_dict)
     net_dict_copy = deepcopy(net_dict)
     net_dict_copy.update(dict(experiment_name=name, source=source))
+    net_dict_copy['layers_config'][-1].update({'W_in_to_cell': Uniform(10)})
     net_dict_copy['layers_config'].append(
         {
             'type': DenseLayer,
             'num_units': source.n_outputs,
             'nonlinearity': sigmoid
         }
-
     )
     net = Net(**net_dict_copy)
     return net
 
 
 def exp_e(name):
-    # as A but lag = 80
-    source_dict_copy = deepcopy(source_dict)
-    source_dict_copy['lag'] = 80
-    source = RealApplianceSource(**source_dict_copy)
-
+    # As E but with Uniform(25) init
+#    source = RealApplianceSource(**source_dict)
     net_dict_copy = deepcopy(net_dict)
     net_dict_copy.update(dict(experiment_name=name, source=source))
+    net_dict_copy['layers_config'][-1].update({'W_in_to_cell': Uniform(25)})
     net_dict_copy['layers_config'].append(
         {
             'type': DenseLayer,
             'num_units': source.n_outputs,
             'nonlinearity': sigmoid
         }
-
     )
     net = Net(**net_dict_copy)
     return net

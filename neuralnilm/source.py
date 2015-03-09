@@ -9,6 +9,7 @@ from datetime import timedelta
 from sys import stdout
 from collections import OrderedDict
 from lasagne.utils import floatX
+from warnings import warn
 
 class Source(object):
     def __init__(self, seq_length, n_seq_per_batch, n_inputs, n_outputs,
@@ -165,7 +166,8 @@ class RealApplianceSource(Source):
                  include_diff=False,
                  max_diff=3000,
                  clip_appliance_power=True,
-                 lag=0,
+                 lag=None,
+                 target_is_prediction=False,
                  **kwargs):
         """
         Parameters
@@ -187,7 +189,7 @@ class RealApplianceSource(Source):
             seq_length=seq_length, 
             n_seq_per_batch=n_seq_per_batch,
             n_inputs=2 if include_diff else 1,
-            n_outputs=1 if output_one_appliance else len(appliances),
+            n_outputs=1 if output_one_appliance or target_is_prediction else len(appliances),
             **kwargs
         )
         self.dataset = DataSet(filename)
@@ -219,7 +221,12 @@ class RealApplianceSource(Source):
         self.include_diff = include_diff
         self.max_diff = max_diff
         self.clip_appliance_power = clip_appliance_power
+        if lag is None:
+            lag = 1 if target_is_prediction else 0
+        elif lag == 0 and target_is_prediction:
+            warn("lag is 0 and target_is_prediction==True.  Hence output will be identical to input.")
         self.lag = lag
+        self.target_is_prediction = target_is_prediction
 
         print("Loading training activations...")
         if on_power_thresholds is None:
@@ -316,7 +323,7 @@ class RealApplianceSource(Source):
             end_i = min(end_i, self.seq_length-(1+self.lag))
             target = activation.values[:end_i-start_i]
             X[start_i:end_i,0] += target 
-            if appliance_i == 0 or not self.output_one_appliance:
+            if not self.target_is_prediction and (appliance_i == 0 or not self.output_one_appliance):
                 target = np.copy(target)
                 if self.boolean_targets:
                     target[target <= POWER_THRESHOLD] = 0
@@ -327,6 +334,14 @@ class RealApplianceSource(Source):
                         target /= max_appliance_power
                 y[(start_i+self.lag):(end_i+self.lag), appliance_i] = target
         np.clip(X, 0, self.max_input_power, out=X)
+        if self.include_diff:
+            X[:-1,1] = np.diff(X[:,0])
+            X[:,1] /= self.max_diff
+        X[:,0] /= self.max_input_power
+
+        if self.target_is_prediction:
+            y[:-self.lag, :] = np.copy(X[self.lag:, :])
+
         if self.subsample_target > 1:
             shape = (int(self.seq_length / self.subsample_target), 
                      self.n_outputs)
@@ -335,10 +350,7 @@ class RealApplianceSource(Source):
                 subsampled_y[:,output_i] = np.mean(
                     y[:,output_i].reshape(-1, self.subsample_target), axis=-1)
             y = subsampled_y
-        if self.include_diff:
-            X[:-1,1] = np.diff(X[:,0])
-            X[:,1] /= self.max_diff
-        X[:,0] /= self.max_input_power
+
         return X, y
     
     def input_shape(self):
