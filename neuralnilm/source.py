@@ -13,7 +13,10 @@ from warnings import warn
 
 class Source(object):
     def __init__(self, seq_length, n_seq_per_batch, n_inputs, n_outputs,
-                 X_processing_func=None):
+                 X_processing_func=None, 
+                 standardise_input=False,
+                 standardise_targets=False
+    ):
         super(Source, self).__init__()
         self.seq_length = seq_length
         self.n_seq_per_batch = n_seq_per_batch
@@ -23,6 +26,10 @@ class Source(object):
         self._stop = threading.Event()
         self._thread = None
         self.X_processing_func = X_processing_func
+
+        self.standardise_input = standardise_input
+        self.standardise_targets = standardise_targets
+        self._initialise_standardisation()
 
     def start(self):
         if self._thread is not None:
@@ -40,6 +47,16 @@ class Source(object):
         self.empty_queue()
         self._thread = None
             
+    def _initialise_standardisation(self):
+        if not (self.standardise_input or self.standardise_targets):
+            return
+
+        X, y = self._gen_data()
+        X = X.reshape(self.n_seq_per_batch * self.seq_length, self.n_inputs)
+        y = y.reshape(self.n_seq_per_batch * self.seq_length, self.n_outputs)
+        self.input_stats = {'mean': X.mean(axis=0), 'std': X.std(axis=0)}
+        self.target_stats = {'mean': y.mean(axis=0), 'std': y.std(axis=0)}
+
     def stop(self):
         self.empty_queue()
         self._stop.set()
@@ -56,6 +73,19 @@ class Source(object):
         return self._process_data(X, y)
 
     def _process_data(self, X, y):
+        def _standardise(n, stats, data):
+            for i in range(n):
+                mean = stats['mean'][i]
+                std = stats['std'][i]
+                data[:,:,i] = standardise(data[:,:,i], how='std=1', mean=mean, std=std)
+            return data
+
+        if self.standardise_input:
+            X = _standardise(self.n_inputs, self.input_stats, X)
+
+        if self.standardise_targets:
+            y = _standardise(self.n_outputs, self.target_stats, y)
+
         if self.X_processing_func is not None:
             X = self.X_processing_func(X)
         return floatX(X), floatX(y)
@@ -97,15 +127,16 @@ class ToySource(Source):
         powers : list of numbers
         on_durations : list of numbers
         """
+        self.powers = [10,40] if powers is None else powers
+        self.on_durations = [3,10] if on_durations is None else on_durations
+        self.all_hot = all_hot
+        self.fdiff = fdiff
         super(ToySource, self).__init__(
             seq_length=seq_length, 
             n_seq_per_batch=n_seq_per_batch,
             n_inputs=n_inputs, 
             n_outputs=1)
-        self.powers = [10,40] if powers is None else powers
-        self.on_durations = [3,10] if on_durations is None else on_durations
-        self.all_hot = all_hot
-        self.fdiff = fdiff
+
 
     def _gen_single_appliance(self, power, on_duration, 
                               min_off_duration=20, p=0.2):
@@ -164,6 +195,8 @@ class RealApplianceSource(Source):
                  input_padding=0,
                  skip_probability=0,
                  include_diff=False,
+                 include_power=True,
+                 target_is_diff=False,
                  max_diff=3000,
                  clip_appliance_power=True,
                  lag=None,
@@ -185,13 +218,6 @@ class RealApplianceSource(Source):
             probability but every appliance will be present in at least
             one sequence per batch.
         """
-        super(RealApplianceSource, self).__init__(
-            seq_length=seq_length, 
-            n_seq_per_batch=n_seq_per_batch,
-            n_inputs=2 if include_diff else 1,
-            n_outputs=1 if output_one_appliance or target_is_prediction else len(appliances),
-            **kwargs
-        )
         self.dataset = DataSet(filename)
         self.appliances = appliances
         if max_appliance_powers is None:
@@ -219,14 +245,16 @@ class RealApplianceSource(Source):
         self.skip_probability = skip_probability
         self._tz = self.dataset.metadata['timezone']
         self.include_diff = include_diff
+        self.include_power = include_power
         self.max_diff = max_diff
         self.clip_appliance_power = clip_appliance_power
         if lag is None:
-            lag = 1 if target_is_prediction else 0
+            lag = -1 if target_is_prediction else 0
         elif lag == 0 and target_is_prediction:
             warn("lag is 0 and target_is_prediction==True.  Hence output will be identical to input.")
         self.lag = lag
         self.target_is_prediction = target_is_prediction
+        self.target_is_diff = target_is_diff
 
         print("Loading training activations...")
         if on_power_thresholds is None:
@@ -243,6 +271,16 @@ class RealApplianceSource(Source):
             self.validation_activations = self._load_activations(
                 validation_buildings, min_on_durations, min_off_durations, on_power_thresholds)
         self.dataset.store.close()
+
+        super(RealApplianceSource, self).__init__(
+            seq_length=seq_length, 
+            n_seq_per_batch=n_seq_per_batch,
+            n_inputs=sum([include_diff, include_power]),
+            n_outputs=1 if output_one_appliance or target_is_prediction else len(appliances),
+            **kwargs
+        )
+
+
         print("\nDone loading activations.")
 
     def get_labels(self):
@@ -332,15 +370,31 @@ class RealApplianceSource(Source):
                     max_appliance_power = self.max_appliance_powers[appliance]
                     if max_appliance_power is not None:
                         target /= max_appliance_power
-                y[(start_i+self.lag):(end_i+self.lag), appliance_i] = target
+                if self.target_is_diff:
+                    y[(start_i+self.lag):(end_i+self.lag-1), appliance_i] = np.diff(target)
+                else:
+                    y[(start_i+self.lag):(end_i+self.lag), appliance_i] = target
         np.clip(X, 0, self.max_input_power, out=X)
-        if self.include_diff:
-            X[:-1,1] = np.diff(X[:,0])
-            X[:,1] /= self.max_diff
+
+        fdiff = np.diff(X[:,0]) / self.max_diff
         X[:,0] /= self.max_input_power
 
         if self.target_is_prediction:
-            y[:-self.lag, :] = np.copy(X[self.lag:, :])
+            if self.target_is_diff:
+                data = np.concatenate([fdiff, [0]]).reshape(self.seq_length, 1)
+            else:
+                data = np.copy(X)
+
+            if self.lag > 0:
+                y[self.lag:, :] = data[:-self.lag, :]
+            elif self.lag == 0:
+                y = data
+            else:
+                y[:self.lag, :] = data[-self.lag:, :]
+
+        if self.include_diff:
+            feature_i = int(self.include_power)
+            X[:-1,feature_i] = fdiff
 
         if self.subsample_target > 1:
             shape = (int(self.seq_length / self.subsample_target), 

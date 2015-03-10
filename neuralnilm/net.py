@@ -47,7 +47,8 @@ class Net(object):
                  loss_function=lasagne.objectives.mse,
                  X_processing_func=lambda X: X,
                  layer_changes=None,
-                 seed=42
+                 seed=42,
+                 epoch_callbacks=None
     ):
         """
         Parameters
@@ -67,6 +68,7 @@ class Net(object):
         self.loss_function = loss_function
         self.X_processing_func = X_processing_func
         self.layer_changes = {} if layer_changes is None else layer_changes
+        self.epoch_callbacks = {} if epoch_callbacks is None else epoch_callbacks
 
         self.generate_validation_data_and_set_shapes()
 
@@ -203,6 +205,8 @@ class Net(object):
             epoch = len(self.training_costs)
             if epoch in self.layer_changes:
                 self._change_layers(epoch)
+            if epoch in self.epoch_callbacks:
+                self.epoch_callbacks[epoch](self, epoch)
             t0 = time() # for calculating training duration
             X, y = self.source.queue.get(timeout=30)
             train_cost = self.train(X, y).flatten()[0]
@@ -261,7 +265,7 @@ class Net(object):
             self._plot_estimates(seq_i=seq_i, **kwargs)
 
     def _plot_estimates(self, save=False, seq_i=0, use_validation_data=True, 
-                        X=None, y=None):
+                        X=None, y=None, linewidth=0.2):
         fig, axes = plt.subplots(3)
         if X is None or y is None:
             if use_validation_data:
@@ -271,19 +275,21 @@ class Net(object):
         y_predictions = self.y_pred(X)
 
         n = len(y_predictions[seq_i, :, :])
-        axes[0].set_title('Appliance estimates')
-        axes[0].plot(y_predictions[seq_i, :, :])
+        axes[0].set_title('Network output')
+        axes[0].plot(y_predictions[seq_i, :, :], linewidth=linewidth)
         axes[0].set_xlim([0, n])
-        axes[1].set_title('Appliance ground truth')
-        axes[1].plot(y[seq_i, :, :])
+        axes[1].set_title('Target')
+        axes[1].plot(y[seq_i, :, :], linewidth=linewidth)
         # alpha: lower = more transparent
         axes[1].legend(self.source.get_labels(), fancybox=True, framealpha=0.5,
                        prop={'size': 6})
         axes[1].set_xlim([0, n])
-        axes[2].set_title('Aggregate')
+        axes[2].set_title('Network input')
         start, end = self.source.inside_padding()
-        axes[2].plot(X[seq_i, start:end, :])
+        axes[2].plot(X[seq_i, start:end, :], linewidth=linewidth)
         axes[2].set_xlim([0, self.source.seq_length])
+        for ax in axes:
+            ax.grid(True)
         fig.tight_layout()
         if save:
             filename = self._plot_filename('estimates', end_string=seq_i)
