@@ -20,9 +20,9 @@ def save(net):
     print("Saving plots...")
     net.plot_estimates(save=True)
     net.plot_costs(save=True)
-    print("Saving params...")
-    net.save_params()
-    net.save_activations()
+    # print("Saving params...")
+    # net.save_params()
+    # net.save_activations()
     print("Done saving.")
 
 

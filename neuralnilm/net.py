@@ -217,8 +217,8 @@ class Net(object):
             if not epoch % self.save_plot_interval:
                 self.plot_costs(save=True)
                 self.plot_estimates(save=True)
-                self.save_params()
-                self.save_activations()
+                # self.save_params()
+                # self.save_activations()
             # Print progress
             duration = time() - t0
             is_best_train = train_cost == min(self.training_costs)

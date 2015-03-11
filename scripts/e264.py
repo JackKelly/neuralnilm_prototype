@@ -112,108 +112,69 @@ source_dict = dict(
     target_is_prediction=False,
     standardise_input = True,
     standardise_targets = True,
-    input_padding=4,
+    input_padding=0,
     lag=0
 )
+
+
+def change_learning_rate(net, epoch):
+    net.updates = partial(nesterov_momentum, learning_rate=0.01)
+    net.compile()
+
 
 net_dict = dict(        
     save_plot_interval=SAVE_PLOT_INTERVAL,
     loss_function=scaled_cost,
-    updates=partial(nesterov_momentum, learning_rate=0.01),
-    layers_config=[
-        {
-            'type': LSTMLayer,
-            'num_units': 50,
-            'gradient_steps': GRADIENT_STEPS,
-            'peepholes': False,
-            'W_in_to_cell': Normal(std=1.)
-        },
-        {
-            'type': DimshuffleLayer,
-            'pattern': (0, 2, 1)
-        },
-        {
-            'type': Conv1DLayer,
-            'num_filters': 50,
-            'filter_length': 5,
-            'stride': 1,
-            'nonlinearity': tanh,
-            'W': Normal(std=(1/sqrt(50)))
-        },
-        {
-            'type': DimshuffleLayer,
-            'pattern': (0, 2, 1)
-        },
-        {
-            'type': LSTMLayer,
-            'num_units': 50,
-            'gradient_steps': GRADIENT_STEPS,
-            'peepholes': False,
-            'W_in_to_cell': Normal(std=(1/sqrt(50)))
-        }
-    ]
+    updates=partial(nesterov_momentum, learning_rate=0.1),
+    epoch_callbacks={250: change_learning_rate}
 )
 
 
 def exp_a(name):
-    global source
-    source = RealApplianceSource(**source_dict)
-    try:
-        a = source
-    except NameError:
-        source = RealApplianceSource(**source_dict)
+    source_dict_copy = deepcopy(source_dict)
+    source = RealApplianceSource(**source_dict_copy)
+
     net_dict_copy = deepcopy(net_dict)
     net_dict_copy.update(dict(experiment_name=name, source=source))
-    net_dict_copy['layers_config'].append(
+    net_dict_copy['layers_config'] = [
+        {
+            'type': BLSTMLayer,
+            'num_units': 50,
+            'gradient_steps': GRADIENT_STEPS,
+            'peepholes': False,
+            'W_in_to_cell': Normal(std=1.)
+        },
         {
             'type': DenseLayer,
             'num_units': source.n_outputs,
             'nonlinearity': None,
             'W': Normal(std=(1/sqrt(50)))
         }
-    )
+    ]
     net = Net(**net_dict_copy)
     return net
-
 
 
 def exp_b(name):
-    # filter length = 3
     source_dict_copy = deepcopy(source_dict)
-    source_dict_copy['input_padding'] = 2
     source = RealApplianceSource(**source_dict_copy)
+
     net_dict_copy = deepcopy(net_dict)
     net_dict_copy.update(dict(experiment_name=name, source=source))
     net_dict_copy['layers_config'] = [
         {
-            'type': LSTMLayer,
+            'type': BLSTMLayer,
             'num_units': 50,
             'gradient_steps': GRADIENT_STEPS,
             'peepholes': False,
             'W_in_to_cell': Normal(std=1.)
         },
         {
-            'type': DimshuffleLayer,
-            'pattern': (0, 2, 1)
-        },
-        {
-            'type': Conv1DLayer,
-            'num_filters': 50,
-            'filter_length': 3,
-            'stride': 1,
-            'nonlinearity': tanh,
-            'W': Normal(std=(1/sqrt(50)))
-        },
-        {
-            'type': DimshuffleLayer,
-            'pattern': (0, 2, 1)
-        },
-        {
-            'type': LSTMLayer,
-            'num_units': 50,
+            'type': BLSTMLayer,
+            'num_units': 25,
             'gradient_steps': GRADIENT_STEPS,
             'peepholes': False,
-            'W_in_to_cell': Normal(std=(1/sqrt(50)))
+            'W_in_to_cell': Normal(std=1.)
         },
         {
             'type': DenseLayer,
@@ -224,46 +185,35 @@ def exp_b(name):
     ]
     net = Net(**net_dict_copy)
     return net
-
 
 
 def exp_c(name):
-    # filter length = 10
     source_dict_copy = deepcopy(source_dict)
-    source_dict_copy['input_padding'] = 9
     source = RealApplianceSource(**source_dict_copy)
+
     net_dict_copy = deepcopy(net_dict)
     net_dict_copy.update(dict(experiment_name=name, source=source))
     net_dict_copy['layers_config'] = [
         {
-            'type': LSTMLayer,
+            'type': BLSTMLayer,
             'num_units': 50,
             'gradient_steps': GRADIENT_STEPS,
             'peepholes': False,
             'W_in_to_cell': Normal(std=1.)
         },
         {
-            'type': DimshuffleLayer,
-            'pattern': (0, 2, 1)
-        },
-        {
-            'type': Conv1DLayer,
-            'num_filters': 50,
-            'filter_length': 10,
-            'stride': 1,
-            'nonlinearity': tanh,
-            'W': Normal(std=(1/sqrt(50)))
-        },
-        {
-            'type': DimshuffleLayer,
-            'pattern': (0, 2, 1)
-        },
-        {
-            'type': LSTMLayer,
-            'num_units': 50,
+            'type': BLSTMLayer,
+            'num_units': 25,
             'gradient_steps': GRADIENT_STEPS,
             'peepholes': False,
-            'W_in_to_cell': Normal(std=(1/sqrt(50)))
+            'W_in_to_cell': Normal(std=1.)
+        },
+        {
+            'type': BLSTMLayer,
+            'num_units': 25,
+            'gradient_steps': GRADIENT_STEPS,
+            'peepholes': False,
+            'W_in_to_cell': Normal(std=1.)
         },
         {
             'type': DenseLayer,
@@ -274,20 +224,18 @@ def exp_c(name):
     ]
     net = Net(**net_dict_copy)
     return net
-
-
 
 def exp_d(name):
-    # filter length = 3
-    # num filters = 10
     source_dict_copy = deepcopy(source_dict)
-    source_dict_copy['input_padding'] = 2
+    source_dict_copy['input_padding'] = 0
+    source_dict_copy['subsample_target'] = 5
     source = RealApplianceSource(**source_dict_copy)
+
     net_dict_copy = deepcopy(net_dict)
     net_dict_copy.update(dict(experiment_name=name, source=source))
     net_dict_copy['layers_config'] = [
         {
-            'type': LSTMLayer,
+            'type': BLSTMLayer,
             'num_units': 50,
             'gradient_steps': GRADIENT_STEPS,
             'peepholes': False,
@@ -299,9 +247,9 @@ def exp_d(name):
         },
         {
             'type': Conv1DLayer,
-            'num_filters': 10,
-            'filter_length': 3,
-            'stride': 1,
+            'num_filters': 80,
+            'filter_length': 5,
+            'stride': 5,
             'nonlinearity': tanh,
             'W': Normal(std=(1/sqrt(50)))
         },
@@ -310,7 +258,7 @@ def exp_d(name):
             'pattern': (0, 2, 1)
         },
         {
-            'type': LSTMLayer,
+            'type': BLSTMLayer,
             'num_units': 50,
             'gradient_steps': GRADIENT_STEPS,
             'peepholes': False,
@@ -325,20 +273,19 @@ def exp_d(name):
     ]
     net = Net(**net_dict_copy)
     return net
-
 
 
 def exp_e(name):
-    # filter length = 5
-    # num filters = 10
     source_dict_copy = deepcopy(source_dict)
-    source_dict_copy['input_padding'] = 4
+    source_dict_copy['input_padding'] = 0
+    source_dict_copy['subsample_target'] = 3
     source = RealApplianceSource(**source_dict_copy)
+
     net_dict_copy = deepcopy(net_dict)
     net_dict_copy.update(dict(experiment_name=name, source=source))
     net_dict_copy['layers_config'] = [
         {
-            'type': LSTMLayer,
+            'type': BLSTMLayer,
             'num_units': 50,
             'gradient_steps': GRADIENT_STEPS,
             'peepholes': False,
@@ -350,9 +297,9 @@ def exp_e(name):
         },
         {
             'type': Conv1DLayer,
-            'num_filters': 10,
-            'filter_length': 5,
-            'stride': 1,
+            'num_filters': 80,
+            'filter_length': 3,
+            'stride': 3,
             'nonlinearity': tanh,
             'W': Normal(std=(1/sqrt(50)))
         },
@@ -361,7 +308,7 @@ def exp_e(name):
             'pattern': (0, 2, 1)
         },
         {
-            'type': LSTMLayer,
+            'type': BLSTMLayer,
             'num_units': 50,
             'gradient_steps': GRADIENT_STEPS,
             'peepholes': False,
@@ -377,45 +324,24 @@ def exp_e(name):
     net = Net(**net_dict_copy)
     return net
 
+####################
 
 def exp_f(name):
-    # filter length = 10
-    # num filters = 10
+    source_dict['appliances'].append('dish washer')
+    source_dict['appliances'].append(['washer dryer', 'washing machine'])
+    source_dict['skip_probability'] = 0.7
     source_dict_copy = deepcopy(source_dict)
-    source_dict_copy['input_padding'] = 9
     source = RealApplianceSource(**source_dict_copy)
+
     net_dict_copy = deepcopy(net_dict)
     net_dict_copy.update(dict(experiment_name=name, source=source))
     net_dict_copy['layers_config'] = [
         {
-            'type': LSTMLayer,
+            'type': BLSTMLayer,
             'num_units': 50,
             'gradient_steps': GRADIENT_STEPS,
             'peepholes': False,
             'W_in_to_cell': Normal(std=1.)
-        },
-        {
-            'type': DimshuffleLayer,
-            'pattern': (0, 2, 1)
-        },
-        {
-            'type': Conv1DLayer,
-            'num_filters': 10,
-            'filter_length': 10,
-            'stride': 1,
-            'nonlinearity': tanh,
-            'W': Normal(std=(1/sqrt(50)))
-        },
-        {
-            'type': DimshuffleLayer,
-            'pattern': (0, 2, 1)
-        },
-        {
-            'type': LSTMLayer,
-            'num_units': 50,
-            'gradient_steps': GRADIENT_STEPS,
-            'peepholes': False,
-            'W_in_to_cell': Normal(std=(1/sqrt(50)))
         },
         {
             'type': DenseLayer,
@@ -429,17 +355,86 @@ def exp_f(name):
 
 
 def exp_g(name):
-    # 3 layers
-    # filter length = 5
-    # num filters = 50
     source_dict_copy = deepcopy(source_dict)
-    source_dict_copy['input_padding'] = 8
     source = RealApplianceSource(**source_dict_copy)
+
     net_dict_copy = deepcopy(net_dict)
     net_dict_copy.update(dict(experiment_name=name, source=source))
     net_dict_copy['layers_config'] = [
         {
-            'type': LSTMLayer,
+            'type': BLSTMLayer,
+            'num_units': 50,
+            'gradient_steps': GRADIENT_STEPS,
+            'peepholes': False,
+            'W_in_to_cell': Normal(std=1.)
+        },
+        {
+            'type': BLSTMLayer,
+            'num_units': 25,
+            'gradient_steps': GRADIENT_STEPS,
+            'peepholes': False,
+            'W_in_to_cell': Normal(std=1.)
+        },
+        {
+            'type': DenseLayer,
+            'num_units': source.n_outputs,
+            'nonlinearity': None,
+            'W': Normal(std=(1/sqrt(50)))
+        }
+    ]
+    net = Net(**net_dict_copy)
+    return net
+
+
+def exp_h(name):
+    source_dict_copy = deepcopy(source_dict)
+    source = RealApplianceSource(**source_dict_copy)
+
+    net_dict_copy = deepcopy(net_dict)
+    net_dict_copy.update(dict(experiment_name=name, source=source))
+    net_dict_copy['layers_config'] = [
+        {
+            'type': BLSTMLayer,
+            'num_units': 50,
+            'gradient_steps': GRADIENT_STEPS,
+            'peepholes': False,
+            'W_in_to_cell': Normal(std=1.)
+        },
+        {
+            'type': BLSTMLayer,
+            'num_units': 25,
+            'gradient_steps': GRADIENT_STEPS,
+            'peepholes': False,
+            'W_in_to_cell': Normal(std=1.)
+        },
+        {
+            'type': BLSTMLayer,
+            'num_units': 25,
+            'gradient_steps': GRADIENT_STEPS,
+            'peepholes': False,
+            'W_in_to_cell': Normal(std=1.)
+        },
+        {
+            'type': DenseLayer,
+            'num_units': source.n_outputs,
+            'nonlinearity': None,
+            'W': Normal(std=(1/sqrt(50)))
+        }
+    ]
+    net = Net(**net_dict_copy)
+    return net
+
+def exp_i(name):
+    source_dict_copy = deepcopy(source_dict)
+    source_dict_copy['input_padding'] = 0
+    source_dict_copy['subsample_target'] = 5
+    source = RealApplianceSource(**source_dict_copy)
+
+    net_dict_copy = deepcopy(net_dict)
+    net_dict_copy.update(dict(experiment_name=name, source=source))
+    net_dict_copy['layers_config'] = [
+        {
+            'type': BLSTMLayer,
             'num_units': 50,
             'gradient_steps': GRADIENT_STEPS,
             'peepholes': False,
@@ -451,9 +446,9 @@ def exp_g(name):
         },
         {
             'type': Conv1DLayer,
-            'num_filters': 50,
+            'num_filters': 80,
             'filter_length': 5,
-            'stride': 1,
+            'stride': 5,
             'nonlinearity': tanh,
             'W': Normal(std=(1/sqrt(50)))
         },
@@ -462,11 +457,38 @@ def exp_g(name):
             'pattern': (0, 2, 1)
         },
         {
-            'type': LSTMLayer,
+            'type': BLSTMLayer,
             'num_units': 50,
             'gradient_steps': GRADIENT_STEPS,
             'peepholes': False,
             'W_in_to_cell': Normal(std=(1/sqrt(50)))
+        },
+        {
+            'type': DenseLayer,
+            'num_units': source.n_outputs,
+            'nonlinearity': None,
+            'W': Normal(std=(1/sqrt(50)))
+        }
+    ]
+    net = Net(**net_dict_copy)
+    return net
+
+
+def exp_j(name):
+    source_dict_copy = deepcopy(source_dict)
+    source_dict_copy['input_padding'] = 0
+    source_dict_copy['subsample_target'] = 3
+    source = RealApplianceSource(**source_dict_copy)
+
+    net_dict_copy = deepcopy(net_dict)
+    net_dict_copy.update(dict(experiment_name=name, source=source))
+    net_dict_copy['layers_config'] = [
+        {
+            'type': BLSTMLayer,
+            'num_units': 50,
+            'gradient_steps': GRADIENT_STEPS,
+            'peepholes': False,
+            'W_in_to_cell': Normal(std=1.)
         },
         {
             'type': DimshuffleLayer,
@@ -474,9 +496,9 @@ def exp_g(name):
         },
         {
             'type': Conv1DLayer,
-            'num_filters': 50,
-            'filter_length': 5,
-            'stride': 1,
+            'num_filters': 80,
+            'filter_length': 3,
+            'stride': 3,
             'nonlinearity': tanh,
             'W': Normal(std=(1/sqrt(50)))
         },
@@ -485,7 +507,7 @@ def exp_g(name):
             'pattern': (0, 2, 1)
         },
         {
-            'type': LSTMLayer,
+            'type': BLSTMLayer,
             'num_units': 50,
             'gradient_steps': GRADIENT_STEPS,
             'peepholes': False,
@@ -514,19 +536,18 @@ def init_experiment(experiment):
 
 
 def main():
-    for experiment in list('ab'):
+    for experiment in list('abcdefghij'):
         full_exp_name = NAME + experiment
         path = os.path.join(PATH, full_exp_name)
         try:
             net = init_experiment(experiment)
-            run_experiment(net, path, epochs=2500)
+            run_experiment(net, path, epochs=3000)
         except KeyboardInterrupt:
             break
         except TrainingError as exception:
             print("EXCEPTION:", exception)
         except Exception as exception:
             print("EXCEPTION:", exception)
-            raise
 
 
 if __name__ == "__main__":
