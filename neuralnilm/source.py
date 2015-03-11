@@ -15,13 +15,15 @@ class Source(object):
     def __init__(self, seq_length, n_seq_per_batch, n_inputs, n_outputs,
                  X_processing_func=None, 
                  standardise_input=False,
-                 standardise_targets=False
+                 standardise_targets=False,
+                 input_padding=0
     ):
         super(Source, self).__init__()
         self.seq_length = seq_length
         self.n_seq_per_batch = n_seq_per_batch
         self.n_inputs = n_inputs
         self.n_outputs = n_outputs
+        self.input_padding = input_padding
         self.queue = Queue(maxsize=2)
         self._stop = threading.Event()
         self._thread = None
@@ -52,7 +54,7 @@ class Source(object):
             return
 
         X, y = self._gen_data()
-        X = X.reshape(self.n_seq_per_batch * self.seq_length, self.n_inputs)
+        X = X.reshape(self.n_seq_per_batch * (self.seq_length + self.input_padding), self.n_inputs)
         y = y.reshape(self.n_seq_per_batch * self.seq_length, self.n_outputs)
         self.input_stats = {'mean': X.mean(axis=0), 'std': X.std(axis=0)}
         self.target_stats = {'mean': y.mean(axis=0), 'std': y.std(axis=0)}
@@ -241,7 +243,6 @@ class RealApplianceSource(Source):
         self.sample_period = sample_period
         self.boolean_targets = boolean_targets
         self.subsample_target = subsample_target
-        self.input_padding = input_padding
         self.skip_probability = skip_probability
         self._tz = self.dataset.metadata['timezone']
         self.include_diff = include_diff
@@ -277,6 +278,7 @@ class RealApplianceSource(Source):
             n_seq_per_batch=n_seq_per_batch,
             n_inputs=sum([include_diff, include_power]),
             n_outputs=1 if output_one_appliance or target_is_prediction else len(appliances),
+            input_padding=input_padding,
             **kwargs
         )
 

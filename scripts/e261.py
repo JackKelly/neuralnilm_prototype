@@ -57,19 +57,38 @@ output is prediction
 260
 standardise inputs and outputs.
 
+261
+trying just 3 appliances.  Standardisation
+
 ideas for next TODO:
 * 3 LSTM layers with smaller conv between them
 * why does pooling hurt us?
 """
+
+from theano.ifelse import ifelse
+import theano.tensor as T
+
+THRESHOLD = 0
+def scaled_cost(x, t):
+    sq_error = (x - t) ** 2
+    def mask_and_mean_sq_error(mask):
+        masked_sq_error = sq_error[mask.nonzero()]
+        mean = masked_sq_error.mean()
+        mean = ifelse(T.isnan(mean), 0.0, mean)
+        return mean
+    above_thresh_mean = mask_and_mean_sq_error(t > THRESHOLD)
+    below_thresh_mean = mask_and_mean_sq_error(t <= THRESHOLD)
+    return (above_thresh_mean + below_thresh_mean) / 2.0
+
 
 source_dict = dict(
     filename='/data/dk3810/ukdale.h5',
     appliances=[
         ['fridge freezer', 'fridge', 'freezer'], 
         'hair straighteners', 
-        'television',
-        'dish washer',
-        ['washer dryer', 'washing machine']
+        'television'
+        #'dish washer',
+        #['washer dryer', 'washing machine']
     ],
     max_appliance_powers=[300, 500, 200, 2500, 2400],
     on_power_thresholds=[5] * 5,
@@ -111,22 +130,13 @@ net_dict = dict(
 
 def exp_a(name):
     global source
-    # source = RealApplianceSource(**source_dict)
+    source = RealApplianceSource(**source_dict)
     try:
         a = source
     except NameError:
         source = RealApplianceSource(**source_dict)
     net_dict_copy = deepcopy(net_dict)
     net_dict_copy.update(dict(experiment_name=name, source=source))
-    net_dict_copy['layers_config'].append(
-        {
-            'type': LSTMLayer,
-            'num_units': 50,
-            'gradient_steps': GRADIENT_STEPS,
-            'peepholes': False,
-            'W_in_to_cell': Normal(std=(1/sqrt(50)))
-        }
-    )
     net_dict_copy['layers_config'].append(
         {
             'type': DenseLayer,
@@ -140,14 +150,16 @@ def exp_a(name):
 
 
 def exp_b(name):
-    global source
-    source = RealApplianceSource(**source_dict)
     try:
         a = source
     except NameError:
         source = RealApplianceSource(**source_dict)
     net_dict_copy = deepcopy(net_dict)
-    net_dict_copy.update(dict(experiment_name=name, source=source))
+    net_dict_copy.update(dict(
+        experiment_name=name, 
+        source=source,
+        loss_function=scaled_cost
+    ))
     net_dict_copy['layers_config'].append(
         {
             'type': DenseLayer,
@@ -171,7 +183,7 @@ def init_experiment(experiment):
 
 
 def main():
-    for experiment in list('a'):
+    for experiment in list('ab'):
         full_exp_name = NAME + experiment
         path = os.path.join(PATH, full_exp_name)
         try:
