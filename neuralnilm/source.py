@@ -55,7 +55,7 @@ class Source(object):
 
         X, y = self._gen_data()
         X = X.reshape(self.n_seq_per_batch * (self.seq_length + self.input_padding), self.n_inputs)
-        y = y.reshape(self.n_seq_per_batch * self.seq_length, self.n_outputs)
+        y = y.reshape(self.n_seq_per_batch * (self.seq_length / self.subsample_target), self.n_outputs)
         self.input_stats = {'mean': X.mean(axis=0), 'std': X.std(axis=0)}
         self.target_stats = {'mean': y.mean(axis=0), 'std': y.std(axis=0)}
 
