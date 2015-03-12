@@ -12,7 +12,8 @@ import theano.tensor as T
 import lasagne
 from lasagne.layers import (InputLayer, LSTMLayer, ReshapeLayer, Layer,
                             ConcatLayer, ElemwiseSumLayer, DenseLayer,
-                            get_all_layers, Conv1DLayer, FeaturePoolLayer)
+                            get_all_layers, Conv1DLayer, FeaturePoolLayer, 
+                            RecurrentLayer)
 from lasagne.nonlinearities import sigmoid, rectify
 from lasagne.utils import floatX
 from lasagne.updates import nesterov_momentum
@@ -48,7 +49,8 @@ class Net(object):
                  X_processing_func=lambda X: X,
                  layer_changes=None,
                  seed=42,
-                 epoch_callbacks=None
+                 epoch_callbacks=None,
+                 do_save_activations=True
     ):
         """
         Parameters
@@ -69,6 +71,7 @@ class Net(object):
         self.X_processing_func = X_processing_func
         self.layer_changes = {} if layer_changes is None else layer_changes
         self.epoch_callbacks = {} if epoch_callbacks is None else epoch_callbacks
+        self.do_save_activations = do_save_activations
 
         self.generate_validation_data_and_set_shapes()
 
@@ -217,8 +220,8 @@ class Net(object):
             if not epoch % self.save_plot_interval:
                 self.plot_costs(save=True)
                 self.plot_estimates(save=True)
-                # self.save_params()
-                # self.save_activations()
+                self.save_params()
+                self.save_activations()
             # Print progress
             duration = time() - t0
             is_best_train = train_cost == min(self.training_costs)
@@ -249,6 +252,7 @@ class Net(object):
         ax.set_xlabel('Iteration')
         ax.set_ylabel('Cost')
         ax.legend()
+        ax.grid(True)
         fig.tight_layout()
         if save:
             filename = self._plot_filename('costs', include_epochs=False)
@@ -352,6 +356,8 @@ class Net(object):
         f.close()
 
     def save_activations(self):
+        if not self.do_save_activations:
+            return
         filename = self.experiment_name + "_activations.hdf5"
         mode = 'w' if self.n_epochs() == 0 else 'a'
         f = h5py.File(filename, mode=mode)
@@ -390,7 +396,7 @@ class Net(object):
         f.close()
 
             
-def BLSTMLayer(l_previous, num_units, **kwargs):
+def BLSTMLayer(*args, **kwargs):
     # setup forward and backwards LSTM layers.  Note that
     # LSTMLayer takes a backwards flag. The backwards flag tells
     # scan to go backwards before it returns the output from
@@ -399,8 +405,28 @@ def BLSTMLayer(l_previous, num_units, **kwargs):
 
     # If learn_init=True then you can't have multiple
     # layers of LSTM cells.
-    l_fwd = LSTMLayer(l_previous, num_units, backwards=False, **kwargs)
-    l_bck = LSTMLayer(l_previous, num_units, backwards=True, **kwargs)
+    return BidirectionalLayer(LSTMLayer, *args, **kwargs)
+
+
+
+            
+def BidirectionalRecurrentLayer(*args, **kwargs):
+    # setup forward and backwards LSTM layers.  Note that
+    # LSTMLayer takes a backwards flag. The backwards flag tells
+    # scan to go backwards before it returns the output from
+    # backwards layers.  It is reversed again such that the output
+    # from the layer is always from x_1 to x_n.
+
+    # If learn_init=True then you can't have multiple
+    # layers of LSTM cells.
+    return BidirectionalLayer(RecurrentLayer, *args, **kwargs)
+
+
+
+def BidirectionalLayer(layer_class, *args, **kwargs):
+    kwargs.pop('backwards', None)
+    l_fwd = layer_class(*args, backwards=False, **kwargs)
+    l_bck = layer_class(*args, backwards=True, **kwargs)
     return ElemwiseSumLayer([l_fwd, l_bck])
 
 

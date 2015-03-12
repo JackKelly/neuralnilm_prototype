@@ -131,6 +131,7 @@ net_dict = dict(
 
 
 def exp_a(name):
+    # solid performer, not perfect though.
     source_dict_copy = deepcopy(source_dict)
     source = RealApplianceSource(**source_dict_copy)
 
@@ -156,6 +157,7 @@ def exp_a(name):
 
 
 def exp_b(name):
+    # Better than A.  Pretty good!
     source_dict_copy = deepcopy(source_dict)
     source = RealApplianceSource(**source_dict_copy)
 
@@ -188,6 +190,7 @@ def exp_b(name):
 
 
 def exp_c(name):
+    # failed
     source_dict_copy = deepcopy(source_dict)
     source = RealApplianceSource(**source_dict_copy)
 
@@ -226,6 +229,7 @@ def exp_c(name):
     return net
 
 def exp_d(name):
+    # failed
     source_dict_copy = deepcopy(source_dict)
     source_dict_copy['input_padding'] = 0
     source_dict_copy['subsample_target'] = 5
@@ -276,6 +280,7 @@ def exp_d(name):
 
 
 def exp_e(name):
+    # failed
     source_dict_copy = deepcopy(source_dict)
     source_dict_copy['input_padding'] = 0
     source_dict_copy['subsample_target'] = 3
@@ -355,6 +360,7 @@ def exp_f(name):
 
 
 def exp_g(name):
+    # sensible but not amazing at all
     source_dict_copy = deepcopy(source_dict)
     source = RealApplianceSource(**source_dict_copy)
 

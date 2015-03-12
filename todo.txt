@@ -1,4 +1,0 @@
-TODO:
-
-* try linear outputs
-* dry using forward diff as input to network
