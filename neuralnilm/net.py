@@ -223,22 +223,32 @@ class Net(object):
         # write bests to disk
         FMT = "{:14.10f}"
         N = 500
-        txt = "BEST COSTS\n"
-        txt += ("best train cost =" + FMT + " at iteration{:6d}\n").format(
-            best_train_cost, self.training_costs.index(best_train_cost))
-        txt += ("best valid cost =" + FMT + " at iteration{:6d}\n").format(
-            best_valid_cost, 
-            self.validation_costs.index(best_valid_cost) * 
-            self.validation_interval)
-        txt += "\n"
-        txt += "AVERAGE COSTS FOR THE LAST {:d} ITERATIONS\n".format(N)
-        txt += (" avg train cost =" + FMT + "\n").format(
-            np.mean(self.training_costs[-N:]))
-        txt += (" avg valid cost =" + FMT + "\n").format(
-            np.mean(self.validation_costs[-N:]))
+        K = 25
+        txt = (
+            "BEST COSTS\n" + 
+            ("best train cost =" + FMT + " at iteration{:6d}\n").format(
+                best_train_cost, self.training_costs.index(best_train_cost)) + 
+            ("best valid cost =" + FMT + " at iteration{:6d}\n").format(
+                best_valid_cost, 
+                self.validation_costs.index(best_valid_cost) * 
+                self.validation_interval) + 
+            "\n" +
+            "AVERAGE FOR THE TOP {:d} ITERATIONS\n".format(K) +
+            (" avg train cost =" + FMT + "\n").format(
+                np.mean(np.sort(self.training_costs)[:K])) +
+            (" avg valid cost =" + FMT + "\n").format(
+                np.mean(np.sort(self.validation_costs)[:K])) + 
+            "\n" + 
+            "AVERAGE COSTS FOR THE LAST {:d} ITERATIONS\n".format(N) +
+            (" avg train cost =" + FMT + "\n").format(
+                np.mean(self.training_costs[-N:])) +
+            (" avg valid cost =" + FMT + "\n").format(
+                np.mean(self.validation_costs[-N:]))
+        )
         with open(self.best_costs_filename, mode='w') as fh:
             fh.write(txt)
 
+        # print bests to screen
         print("  {:>5} |  {}{:>10.6f}{}  |  {}{:>10.6f}{}  |"
               "  {:>11.6f}  |  {:>3.1f}s".format(
                   iteration,
