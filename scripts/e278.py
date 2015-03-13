@@ -18,6 +18,7 @@ from neuralnilm.net import TrainingError
 import __main__
 from copy import deepcopy
 from math import sqrt
+import numpy as np
 
 NAME = os.path.splitext(os.path.split(__main__.__file__)[1])[0]
 PATH = "/homes/dk3810/workspace/python/neuralnilm/figures"
