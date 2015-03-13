@@ -92,9 +92,9 @@ source_dict = dict(
     appliances=[
         ['fridge freezer', 'fridge', 'freezer'], 
         'hair straighteners', 
-        'television'
-        #'dish washer',
-        #['washer dryer', 'washing machine']
+        'television',
+        'dish washer',
+        ['washer dryer', 'washing machine']
     ],
     max_appliance_powers=[300, 500, 200, 2500, 2400],
     on_power_thresholds=[5] * 5,
@@ -107,7 +107,7 @@ source_dict = dict(
     boolean_targets=False,
     train_buildings=[1],
     validation_buildings=[1], 
-    # skip_probability=0.0,
+    skip_probability=0.7,
     n_seq_per_batch=10,
     subsample_target=5,
     include_diff=False,
@@ -135,61 +135,32 @@ net_dict = dict(
     loss_function=scaled_cost,
     updates=partial(nesterov_momentum, learning_rate=0.01),
     do_save_activations=True,
-    epoch_callbacks={501: change_learning_rate},
-    layers_config=[
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 25,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1.),
-            'nonlinearity': tanh
-        },
-        {
-            'type': FeaturePoolLayer,
-            'ds': 5, # number of feature maps to be pooled together
-            'axis': 1, # pool over the time axis
-            'pool_function': T.mean
-        },
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 5,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1/sqrt(25)),
-            'nonlinearity': tanh
-        },
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 25,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1/sqrt(5)),
-            'nonlinearity': tanh
-        }
-    ]
+    epoch_callbacks={501: change_learning_rate}
 )
 
+
 def exp_a(name):
-    global source
     source_dict_copy = deepcopy(source_dict)
-    source_dict_copy['appliances'] = [
-        ['fridge freezer', 'fridge', 'freezer'], 
-        'hair straighteners', 
-        'television',
-        'dish washer',
-        ['washer dryer', 'washing machine']
-    ]
-    source_dict_copy['skip_probability'] = 0.7
     source = RealApplianceSource(**source_dict_copy)
     net_dict_copy = deepcopy(net_dict)
     net_dict_copy.update(dict(
-        experiment_name=name, 
+        experiment_name=name,
         source=source
     ))
+    N = 50
     net_dict_copy['layers_config'] = [
         {
             'type': BidirectionalRecurrentLayer,
-            'num_units': 25,
+            'num_units': N,
             'gradient_steps': GRADIENT_STEPS,
             'W_in_to_hid': Normal(std=1.),
+            'nonlinearity': tanh
+        },
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
             'nonlinearity': tanh
         },
         {
@@ -200,23 +171,16 @@ def exp_a(name):
         },
         {
             'type': BidirectionalRecurrentLayer,
-            'num_units': 25,
+            'num_units': N,
             'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1/sqrt(25)),
-            'nonlinearity': tanh
-        },
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 25,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1/sqrt(25)),
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
             'nonlinearity': tanh
         },
         {
             'type': DenseLayer,
             'num_units': source.n_outputs,
             'nonlinearity': None,
-            'W': Normal(std=(1/sqrt(25)))
+            'W': Normal(std=(1/sqrt(N)))
         }
     ]
     net = Net(**net_dict_copy)
@@ -224,708 +188,86 @@ def exp_a(name):
 
 
 def exp_b(name):
-    global source
+    # 4 layers
     source_dict_copy = deepcopy(source_dict)
     source = RealApplianceSource(**source_dict_copy)
     net_dict_copy = deepcopy(net_dict)
-    net_dict_copy.update(dict(experiment_name=name, source=source))
-    net_dict_copy['layers_config'].append(
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source
+    ))
+    N = 50
+    net_dict_copy['layers_config'] = [
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1.),
+            'nonlinearity': tanh
+        },
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
+            'nonlinearity': tanh
+        },
+        {
+            'type': FeaturePoolLayer,
+            'ds': 5, # number of feature maps to be pooled together
+            'axis': 1, # pool over the time axis
+            'pool_function': T.mean
+        },
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
+            'nonlinearity': tanh
+        },
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
+            'nonlinearity': tanh
+        },
         {
             'type': DenseLayer,
             'num_units': source.n_outputs,
             'nonlinearity': None,
-            'W': Normal(std=(1/sqrt(25)))
+            'W': Normal(std=(1/sqrt(N)))
         }
-    )
+    ]
     net = Net(**net_dict_copy)
     return net
+
 
 
 def exp_c(name):
-    # Pretty good. Not perfect.
-    global source
-    source_dict_copy = deepcopy(source_dict)
-    source = RealApplianceSource(**source_dict_copy)
-    net_dict_copy = deepcopy(net_dict)
-    net_dict_copy.update(dict(experiment_name=name, source=source))
-    net_dict_copy['layers_config'] = [
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 25,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1.),
-            'nonlinearity': tanh
-        },
-        {
-            'type': FeaturePoolLayer,
-            'ds': 5, # number of feature maps to be pooled together
-            'axis': 1, # pool over the time axis
-            'pool_function': T.max
-        },
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 5,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1/sqrt(25)),
-            'nonlinearity': tanh
-        },
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 25,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1/sqrt(5)),
-            'nonlinearity': tanh
-        },
-        {
-            'type': DenseLayer,
-            'num_units': source.n_outputs,
-            'nonlinearity': None,
-            'W': Normal(std=(1/sqrt(25)))
-        }
-    ]
-    net = Net(**net_dict_copy)
-    return net
-
-
-
-def exp_d(name):
-    # Possibly the best yet?
-    global source
-    source_dict_copy = deepcopy(source_dict)
-    source = RealApplianceSource(**source_dict_copy)
-    net_dict_copy = deepcopy(net_dict)
-    net_dict_copy.update(dict(experiment_name=name, source=source))
-    net_dict_copy['layers_config'] = [
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 25,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1.),
-            'nonlinearity': tanh
-        },
-        {
-            'type': FeaturePoolLayer,
-            'ds': 5, # number of feature maps to be pooled together
-            'axis': 1, # pool over the time axis
-            'pool_function': T.mean
-        },
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 25,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1/sqrt(25)),
-            'nonlinearity': tanh
-        },
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 25,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1/sqrt(25)),
-            'nonlinearity': tanh
-        },
-        {
-            'type': DenseLayer,
-            'num_units': source.n_outputs,
-            'nonlinearity': None,
-            'W': Normal(std=(1/sqrt(25)))
-        }
-    ]
-    net = Net(**net_dict_copy)
-    return net
-
-
-
-def exp_e(name):
-    # Not great
-    global source
-    source_dict_copy = deepcopy(source_dict)
-    source = RealApplianceSource(**source_dict_copy)
-    net_dict_copy = deepcopy(net_dict)
-    net_dict_copy.update(dict(experiment_name=name, source=source))
-    net_dict_copy['layers_config'] = [
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 25,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1.),
-            'nonlinearity': tanh
-        },
-        {
-            'type': FeaturePoolLayer,
-            'ds': 5, # number of feature maps to be pooled together
-            'axis': 1, # pool over the time axis
-            'pool_function': T.mean
-        },
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 25,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1/sqrt(25)),
-            'nonlinearity': tanh
-        },
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 5,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1/sqrt(25)),
-            'nonlinearity': tanh
-        },
-        {
-            'type': DenseLayer,
-            'num_units': source.n_outputs,
-            'nonlinearity': None,
-            'W': Normal(std=(1/sqrt(5)))
-        }
-    ]
-    net = Net(**net_dict_copy)
-    return net
-
-
-
-
-def exp_f(name):
-    # Not great
-    global source
-    source_dict_copy = deepcopy(source_dict)
-    source = RealApplianceSource(**source_dict_copy)
-    net_dict_copy = deepcopy(net_dict)
-    net_dict_copy.update(dict(experiment_name=name, source=source))
-    net_dict_copy['layers_config'] = [
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 25,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1.),
-            'nonlinearity': tanh
-        },
-        {
-            'type': FeaturePoolLayer,
-            'ds': 5, # number of feature maps to be pooled together
-            'axis': 1, # pool over the time axis
-            'pool_function': T.mean
-        },
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 10,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1/sqrt(25)),
-            'nonlinearity': tanh
-        },
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 5,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1/sqrt(10)),
-            'nonlinearity': tanh
-        },
-        {
-            'type': DenseLayer,
-            'num_units': source.n_outputs,
-            'nonlinearity': None,
-            'W': Normal(std=(1/sqrt(5)))
-        }
-    ]
-    net = Net(**net_dict_copy)
-    return net
-
-
-
-def exp_g(name):
-    # Rubbish
-    global source
-    source_dict_copy = deepcopy(source_dict)
-    source = RealApplianceSource(**source_dict_copy)
-    net_dict_copy = deepcopy(net_dict)
-    net_dict_copy.update(dict(experiment_name=name, source=source))
-    net_dict_copy['layers_config'] = [
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 25,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1.),
-            'nonlinearity': tanh
-        },
-        {
-            'type': FeaturePoolLayer,
-            'ds': 5, # number of feature maps to be pooled together
-            'axis': 1, # pool over the time axis
-            'pool_function': T.mean
-        },
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 5,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1/sqrt(25)),
-            'nonlinearity': tanh
-        },
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 5,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1/sqrt(5)),
-            'nonlinearity': tanh
-        },
-        {
-            'type': DenseLayer,
-            'num_units': source.n_outputs,
-            'nonlinearity': None,
-            'W': Normal(std=(1/sqrt(5)))
-        }
-    ]
-    net = Net(**net_dict_copy)
-    return net
-
-
-
-def exp_h(name):
-    # Not bad, actually
-    global source
-    source_dict_copy = deepcopy(source_dict)
-    source = RealApplianceSource(**source_dict_copy)
-    net_dict_copy = deepcopy(net_dict)
-    net_dict_copy.update(dict(experiment_name=name, source=source))
-    net_dict_copy['layers_config'] = [
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 5,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1.),
-            'nonlinearity': tanh
-        },
-        {
-            'type': FeaturePoolLayer,
-            'ds': 5, # number of feature maps to be pooled together
-            'axis': 1, # pool over the time axis
-            'pool_function': T.mean
-        },
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 5,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1/sqrt(5)),
-            'nonlinearity': tanh
-        },
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 5,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1/sqrt(5)),
-            'nonlinearity': tanh
-        },
-        {
-            'type': DenseLayer,
-            'num_units': source.n_outputs,
-            'nonlinearity': None,
-            'W': Normal(std=(1/sqrt(5)))
-        }
-    ]
-    net = Net(**net_dict_copy)
-    return net
-
-
-def exp_i(name):
-    # Not great
-    global source
-    source_dict_copy = deepcopy(source_dict)
-    source = RealApplianceSource(**source_dict_copy)
-    net_dict_copy = deepcopy(net_dict)
-    net_dict_copy.update(dict(experiment_name=name, source=source))
-    net_dict_copy['layers_config'] = [
-        {
-            'type': BLSTMLayer,
-            'num_units': 25,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_cell': Normal(std=1.),
-            'peepholes': False
-        },
-        {
-            'type': FeaturePoolLayer,
-            'ds': 5, # number of feature maps to be pooled together
-            'axis': 1, # pool over the time axis
-            'pool_function': T.mean
-        },
-        {
-            'type': BLSTMLayer,
-            'num_units': 5,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_cell': Normal(std=1/sqrt(5)),
-            'peepholes': False
-        },
-        {
-            'type': BLSTMLayer,
-            'num_units': 25,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_cell': Normal(std=1/sqrt(25)),
-            'peepholes': False
-        },
-        {
-            'type': DenseLayer,
-            'num_units': source.n_outputs,
-            'nonlinearity': None,
-            'W': Normal(std=(1/sqrt(25)))
-        }
-    ]
-    net = Net(**net_dict_copy)
-    return net
-
-
-def exp_j(name):
-    # exp_d but Max instead of mean
-    global source
-    source_dict_copy = deepcopy(source_dict)
-    source = RealApplianceSource(**source_dict_copy)
-    net_dict_copy = deepcopy(net_dict)
-    net_dict_copy.update(dict(experiment_name=name, source=source))
-    net_dict_copy['layers_config'] = [
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 25,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1.),
-            'nonlinearity': tanh
-        },
-        {
-            'type': FeaturePoolLayer,
-            'ds': 5, # number of feature maps to be pooled together
-            'axis': 1, # pool over the time axis
-            'pool_function': T.max
-        },
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 25,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1/sqrt(25)),
-            'nonlinearity': tanh
-        },
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 25,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1/sqrt(25)),
-            'nonlinearity': tanh
-        },
-        {
-            'type': DenseLayer,
-            'num_units': source.n_outputs,
-            'nonlinearity': None,
-            'W': Normal(std=(1/sqrt(25)))
-        }
-    ]
-    net = Net(**net_dict_copy)
-    return net
-
-
-
-def exp_k(name):
-    # Pool over 2 x 2
-    # works pretty nicely. best valid = 0.1998
-    global source
-    source_dict_copy = deepcopy(source_dict)
-    source_dict_copy['subsample_target'] = 4
-    source = RealApplianceSource(**source_dict_copy)
-    net_dict_copy = deepcopy(net_dict)
-    net_dict_copy.update(dict(experiment_name=name, source=source))
-    net_dict_copy['layers_config'] = [
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 25,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1.),
-            'nonlinearity': tanh
-        },
-        {
-            'type': FeaturePoolLayer,
-            'ds': 2, # number of feature maps to be pooled together
-            'axis': 1, # pool over the time axis
-            'pool_function': T.mean
-        },
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 25,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1/sqrt(25)),
-            'nonlinearity': tanh
-        },
-        {
-            'type': FeaturePoolLayer,
-            'ds': 2, # number of feature maps to be pooled together
-            'axis': 1, # pool over the time axis
-            'pool_function': T.mean
-        },
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 25,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1/sqrt(25)),
-            'nonlinearity': tanh
-        },
-        {
-            'type': DenseLayer,
-            'num_units': source.n_outputs,
-            'nonlinearity': None,
-            'W': Normal(std=(1/sqrt(25)))
-        }
-    ]
-    net = Net(**net_dict_copy)
-    return net
-
-
-def exp_l(name):
-    # No pooling
-    # Works well
-    global source
-    source_dict_copy = deepcopy(source_dict)
-    source_dict_copy['subsample_target'] = 1
-    source = RealApplianceSource(**source_dict_copy)
-    net_dict_copy = deepcopy(net_dict)
-    net_dict_copy.update(dict(experiment_name=name, source=source))
-    net_dict_copy['layers_config'] = [
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 25,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1.),
-            'nonlinearity': tanh
-        },
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 25,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1/sqrt(25)),
-            'nonlinearity': tanh
-        },
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 25,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1/sqrt(25)),
-            'nonlinearity': tanh
-        },
-        {
-            'type': DenseLayer,
-            'num_units': source.n_outputs,
-            'nonlinearity': None,
-            'W': Normal(std=(1/sqrt(25)))
-        }
-    ]
-    net = Net(**net_dict_copy)
-    return net
-
-
-def exp_m(name):
-    # Pool after 2nd layer
-    global source
-    source_dict_copy = deepcopy(source_dict)
-    source_dict_copy['subsample_target'] = 5
-    source = RealApplianceSource(**source_dict_copy)
-    net_dict_copy = deepcopy(net_dict)
-    net_dict_copy.update(dict(experiment_name=name, source=source))
-    net_dict_copy['layers_config'] = [
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 25,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1.),
-            'nonlinearity': tanh
-        },
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 25,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1/sqrt(25)),
-            'nonlinearity': tanh
-        },
-        {
-            'type': FeaturePoolLayer,
-            'ds': 5, # number of feature maps to be pooled together
-            'axis': 1, # pool over the time axis
-            'pool_function': T.mean
-        },
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 25,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1/sqrt(25)),
-            'nonlinearity': tanh
-        },
-        {
-            'type': DenseLayer,
-            'num_units': source.n_outputs,
-            'nonlinearity': None,
-            'W': Normal(std=(1/sqrt(25)))
-        }
-    ]
-    net = Net(**net_dict_copy)
-    return net
-
-
-def exp_n(name):
-    # Pool after 3rd layer
-    global source
-    source_dict_copy = deepcopy(source_dict)
-    source_dict_copy['subsample_target'] = 5
-    source = RealApplianceSource(**source_dict_copy)
-    net_dict_copy = deepcopy(net_dict)
-    net_dict_copy.update(dict(experiment_name=name, source=source))
-    net_dict_copy['layers_config'] = [
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 25,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1.),
-            'nonlinearity': tanh
-        },
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 25,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1/sqrt(25)),
-            'nonlinearity': tanh
-        },
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 25,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1/sqrt(25)),
-            'nonlinearity': tanh
-        },
-        {
-            'type': FeaturePoolLayer,
-            'ds': 5, # number of feature maps to be pooled together
-            'axis': 1, # pool over the time axis
-            'pool_function': T.mean
-        },
-        {
-            'type': DenseLayer,
-            'num_units': source.n_outputs,
-            'nonlinearity': None,
-            'W': Normal(std=(1/sqrt(25)))
-        }
-    ]
-    net = Net(**net_dict_copy)
-    return net
-
-
-def exp_o(name):
-    # Larger net
-    # Best performance yet. Valid cost of 0.129 at 470 iterations!
-    global source
-    source_dict_copy = deepcopy(source_dict)
-    source_dict_copy['subsample_target'] = 5
-    source = RealApplianceSource(**source_dict_copy)
-    net_dict_copy = deepcopy(net_dict)
-    net_dict_copy.update(dict(experiment_name=name, source=source))
-    net_dict_copy['layers_config'] = [
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 50,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1.),
-            'nonlinearity': tanh
-        },
-        {
-            'type': FeaturePoolLayer,
-            'ds': 5, # number of feature maps to be pooled together
-            'axis': 1, # pool over the time axis
-            'pool_function': T.mean
-        },
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 50,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1/sqrt(50)),
-            'nonlinearity': tanh
-        },
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 50,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1/sqrt(50)),
-            'nonlinearity': tanh
-        },
-        {
-            'type': DenseLayer,
-            'num_units': source.n_outputs,
-            'nonlinearity': None,
-            'W': Normal(std=(1/sqrt(50)))
-        }
-    ]
-    net = Net(**net_dict_copy)
-    return net
-
-
-
-def exp_p(name):
-    # Pool at very start
-    # best valid cost =  0.2457104325 at iteration   410
-    global source
-    source_dict_copy = deepcopy(source_dict)
-    source_dict_copy['subsample_target'] = 5
-    source = RealApplianceSource(**source_dict_copy)
-    net_dict_copy = deepcopy(net_dict)
-    net_dict_copy.update(dict(experiment_name=name, source=source))
-    net_dict_copy['layers_config'] = [
-        {
-            'type': FeaturePoolLayer,
-            'ds': 5, # number of feature maps to be pooled together
-            'axis': 1, # pool over the time axis
-            'pool_function': T.mean
-        },
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 25,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1.),
-            'nonlinearity': tanh
-        },
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 25,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1/sqrt(25)),
-            'nonlinearity': tanh
-        },
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 25,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1/sqrt(25)),
-            'nonlinearity': tanh
-        },
-        {
-            'type': DenseLayer,
-            'num_units': source.n_outputs,
-            'nonlinearity': None,
-            'W': Normal(std=(1/sqrt(25)))
-        }
-    ]
-    net = Net(**net_dict_copy)
-    return net
-
-
-
-def exp_q(name):
-    # 3x pooling not 5x
-    # best valid cost =  0.3535898030 at iteration   450
-    global source
+    # 3 layers, 3x downsample
     source_dict_copy = deepcopy(source_dict)
     source_dict_copy['subsample_target'] = 3
     source = RealApplianceSource(**source_dict_copy)
     net_dict_copy = deepcopy(net_dict)
-    net_dict_copy.update(dict(experiment_name=name, source=source))
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source
+    ))
+    N = 50
     net_dict_copy['layers_config'] = [
         {
             'type': BidirectionalRecurrentLayer,
-            'num_units': 25,
+            'num_units': N,
             'gradient_steps': GRADIENT_STEPS,
             'W_in_to_hid': Normal(std=1.),
             'nonlinearity': tanh
         },
         {
             'type': BidirectionalRecurrentLayer,
-            'num_units': 25,
+            'num_units': N,
             'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1/sqrt(25)),
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
             'nonlinearity': tanh
         },
         {
@@ -936,46 +278,853 @@ def exp_q(name):
         },
         {
             'type': BidirectionalRecurrentLayer,
-            'num_units': 25,
+            'num_units': N,
             'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1/sqrt(25)),
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
             'nonlinearity': tanh
         },
         {
             'type': DenseLayer,
             'num_units': source.n_outputs,
             'nonlinearity': None,
-            'W': Normal(std=(1/sqrt(25)))
+            'W': Normal(std=(1/sqrt(N)))
         }
     ]
     net = Net(**net_dict_copy)
     return net
 
+
+
+def exp_d(name):
+    # 3 layers, 2x2x downsample
+    source_dict_copy = deepcopy(source_dict)
+    source_dict_copy['subsample_target'] = 4
+    source = RealApplianceSource(**source_dict_copy)
+    net_dict_copy = deepcopy(net_dict)
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source
+    ))
+    N = 50
+    net_dict_copy['layers_config'] = [
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1.),
+            'nonlinearity': tanh
+        },
+        {
+            'type': FeaturePoolLayer,
+            'ds': 2, # number of feature maps to be pooled together
+            'axis': 1, # pool over the time axis
+            'pool_function': T.mean
+        },
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
+            'nonlinearity': tanh
+        },
+        {
+            'type': FeaturePoolLayer,
+            'ds': 2, # number of feature maps to be pooled together
+            'axis': 1, # pool over the time axis
+            'pool_function': T.mean
+        },
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
+            'nonlinearity': tanh
+        },
+        {
+            'type': DenseLayer,
+            'num_units': source.n_outputs,
+            'nonlinearity': None,
+            'W': Normal(std=(1/sqrt(N)))
+        }
+    ]
+    net = Net(**net_dict_copy)
+    return net
+
+
+def exp_e(name):
+    # T.max
+    source_dict_copy = deepcopy(source_dict)
+    source_dict_copy['subsample_target'] = 5
+    source = RealApplianceSource(**source_dict_copy)
+    net_dict_copy = deepcopy(net_dict)
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source
+    ))
+    N = 50
+    net_dict_copy['layers_config'] = [
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1.),
+            'nonlinearity': tanh
+        },
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
+            'nonlinearity': tanh
+        },
+        {
+            'type': FeaturePoolLayer,
+            'ds': 5, # number of feature maps to be pooled together
+            'axis': 1, # pool over the time axis
+            'pool_function': T.max
+        },
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
+            'nonlinearity': tanh
+        },
+        {
+            'type': DenseLayer,
+            'num_units': source.n_outputs,
+            'nonlinearity': None,
+            'W': Normal(std=(1/sqrt(N)))
+        }
+    ]
+    net = Net(**net_dict_copy)
+    return net
+
+
+
+
+def exp_f(name):
+    # Conv instead of pool
+    source_dict_copy = deepcopy(source_dict)
+    source_dict_copy['subsample_target'] = 5
+    source = RealApplianceSource(**source_dict_copy)
+    net_dict_copy = deepcopy(net_dict)
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source
+    ))
+    N = 50
+    net_dict_copy['layers_config'] = [
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1.),
+            'nonlinearity': tanh
+        },
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
+            'nonlinearity': tanh
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # (batch, features, time)
+        },
+        {
+            'type': Conv1DLayer, # convolve over the time axis
+            'num_filters': 10,
+            'filter_length': 5,
+            'stride': 5,
+            'nonlinearity': tanh,
+            'W': Normal(std=1/sqrt(N))
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1) # back to (batch, time, features)
+        },
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
+            'nonlinearity': tanh
+        },
+        {
+            'type': DenseLayer,
+            'num_units': source.n_outputs,
+            'nonlinearity': None,
+            'W': Normal(std=(1/sqrt(N)))
+        }
+    ]
+    net = Net(**net_dict_copy)
+    return net
+
+
+def exp_g(name):
+    # Conv instead of pool, with 50 filters
+    source_dict_copy = deepcopy(source_dict)
+    source_dict_copy['subsample_target'] = 5
+    source = RealApplianceSource(**source_dict_copy)
+    net_dict_copy = deepcopy(net_dict)
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source
+    ))
+    N = 50
+    net_dict_copy['layers_config'] = [
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1.),
+            'nonlinearity': tanh
+        },
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
+            'nonlinearity': tanh
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # (batch, features, time)
+        },
+        {
+            'type': Conv1DLayer, # convolve over the time axis
+            'num_filters': 50,
+            'filter_length': 5,
+            'stride': 5,
+            'nonlinearity': tanh,
+            'W': Normal(std=1/sqrt(N))
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1) # back to (batch, time, features)
+        },
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
+            'nonlinearity': tanh
+        },
+        {
+            'type': DenseLayer,
+            'num_units': source.n_outputs,
+            'nonlinearity': None,
+            'W': Normal(std=(1/sqrt(N)))
+        }
+    ]
+    net = Net(**net_dict_copy)
+    return net
+
+
+
+def exp_h(name):
+    # Conv AND pool, with 10 filters
+    source_dict_copy = deepcopy(source_dict)
+    source_dict_copy.update(dict(
+        subsample_target=5,
+        input_padding=4
+    ))
+    source = RealApplianceSource(**source_dict_copy)
+    net_dict_copy = deepcopy(net_dict)
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source
+    ))
+    N = 50
+    net_dict_copy['layers_config'] = [
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1.),
+            'nonlinearity': tanh
+        },
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
+            'nonlinearity': tanh
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # (batch, features, time)
+        },
+        {
+            'type': Conv1DLayer, # convolve over the time axis
+            'num_filters': 10,
+            'filter_length': 5,
+            'stride': 1,
+            'nonlinearity': tanh,
+            'W': Normal(std=1/sqrt(N))
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1) # back to (batch, time, features)
+        },
+        {
+            'type': FeaturePoolLayer,
+            'ds': 5, # number of feature maps to be pooled together
+            'axis': 1, # pool over the time axis
+            'pool_function': T.max
+        },
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
+            'nonlinearity': tanh
+        },
+        {
+            'type': DenseLayer,
+            'num_units': source.n_outputs,
+            'nonlinearity': None,
+            'W': Normal(std=(1/sqrt(N)))
+        }
+    ]
+    net = Net(**net_dict_copy)
+    return net
+
+
+
+def exp_i(name):
+    # Conv AND pool, with 50 filters
+    source_dict_copy = deepcopy(source_dict)
+    source_dict_copy.update(dict(
+        subsample_target=5,
+        input_padding=4
+    ))
+    source = RealApplianceSource(**source_dict_copy)
+    net_dict_copy = deepcopy(net_dict)
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source
+    ))
+    N = 50
+    net_dict_copy['layers_config'] = [
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1.),
+            'nonlinearity': tanh
+        },
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
+            'nonlinearity': tanh
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # (batch, features, time)
+        },
+        {
+            'type': Conv1DLayer, # convolve over the time axis
+            'num_filters': 10,
+            'filter_length': 5,
+            'stride': 1,
+            'nonlinearity': tanh,
+            'W': Normal(std=1/sqrt(N))
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1) # back to (batch, time, features)
+        },
+        {
+            'type': FeaturePoolLayer,
+            'ds': 5, # number of feature maps to be pooled together
+            'axis': 1, # pool over the time axis
+            'pool_function': T.max
+        },
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
+            'nonlinearity': tanh
+        },
+        {
+            'type': DenseLayer,
+            'num_units': source.n_outputs,
+            'nonlinearity': None,
+            'W': Normal(std=(1/sqrt(N)))
+        }
+    ]
+    net = Net(**net_dict_copy)
+    return net
+
+
+
+def exp_j(name):
+    # 3 BLSTM layers
+    source_dict_copy = deepcopy(source_dict)
+    source_dict_copy['subsample_target'] = 5
+    source = RealApplianceSource(**source_dict_copy)
+    net_dict_copy = deepcopy(net_dict)
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source
+    ))
+    N = 50
+    net_dict_copy['layers_config'] = [
+        {
+            'type': BLSTMLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_cell': Normal(std=1.),
+            'peepholes': False
+        },
+        {
+            'type': BLSTMLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_cell': Normal(std=1.),
+            'peepholes': False
+        },
+        {
+            'type': FeaturePoolLayer,
+            'ds': 5, # number of feature maps to be pooled together
+            'axis': 1, # pool over the time axis
+            'pool_function': T.mean
+        },
+        {
+            'type': BLSTMLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_cell': Normal(std=1.),
+            'peepholes': False
+        },
+        {
+            'type': DenseLayer,
+            'num_units': source.n_outputs,
+            'nonlinearity': None,
+            'W': Normal(std=(1/sqrt(N)))
+        }
+    ]
+    net = Net(**net_dict_copy)
+    return net
+
+
+def exp_k(name):
+    # N = 25, 6 layers (!), 2x2x subsampling
+    source_dict_copy = deepcopy(source_dict)
+    source_dict_copy['subsample_target'] = 4
+    source = RealApplianceSource(**source_dict_copy)
+    net_dict_copy = deepcopy(net_dict)
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source
+    ))
+    N = 25
+    net_dict_copy['layers_config'] = [
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1.),
+            'nonlinearity': tanh
+        },
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
+            'nonlinearity': tanh
+        },
+        {
+            'type': FeaturePoolLayer,
+            'ds': 2, # number of feature maps to be pooled together
+            'axis': 1, # pool over the time axis
+            'pool_function': T.mean
+        },
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
+            'nonlinearity': tanh
+        },
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
+            'nonlinearity': tanh
+        },
+        {
+            'type': FeaturePoolLayer,
+            'ds': 2, # number of feature maps to be pooled together
+            'axis': 1, # pool over the time axis
+            'pool_function': T.mean
+        },
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
+            'nonlinearity': tanh
+        },
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
+            'nonlinearity': tanh
+        },
+        {
+            'type': DenseLayer,
+            'num_units': source.n_outputs,
+            'nonlinearity': None,
+            'W': Normal(std=(1/sqrt(N)))
+        }
+    ]
+    net = Net(**net_dict_copy)
+    return net
+
+
+def exp_l(name):
+    # 4 layers
+    source_dict_copy = deepcopy(source_dict)
+    source_dict_copy['subsample_target'] = 5
+    source = RealApplianceSource(**source_dict_copy)
+    net_dict_copy = deepcopy(net_dict)
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source
+    ))
+    N = 50
+    net_dict_copy['layers_config'] = [
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1.),
+            'nonlinearity': tanh
+        },
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
+            'nonlinearity': tanh
+        },
+        {
+            'type': FeaturePoolLayer,
+            'ds': 5, # number of feature maps to be pooled together
+            'axis': 1, # pool over the time axis
+            'pool_function': T.mean
+        },
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
+            'nonlinearity': tanh
+        },
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
+            'nonlinearity': tanh
+        },
+        {
+            'type': DenseLayer,
+            'num_units': source.n_outputs,
+            'nonlinearity': None,
+            'W': Normal(std=(1/sqrt(N)))
+        }
+    ]
+    net = Net(**net_dict_copy)
+    return net
+
+def exp_m(name):
+    # lag = 5
+    source_dict_copy = deepcopy(source_dict)
+    source_dict_copy['subsample_target'] = 5
+    source_dict_copy['lag'] = 5
+    source = RealApplianceSource(**source_dict_copy)
+    net_dict_copy = deepcopy(net_dict)
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source
+    ))
+    N = 50
+    net_dict_copy['layers_config'] = [
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1.),
+            'nonlinearity': tanh
+        },
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
+            'nonlinearity': tanh
+        },
+        {
+            'type': FeaturePoolLayer,
+            'ds': 5, # number of feature maps to be pooled together
+            'axis': 1, # pool over the time axis
+            'pool_function': T.mean
+        },
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
+            'nonlinearity': tanh
+        },
+        {
+            'type': DenseLayer,
+            'num_units': source.n_outputs,
+            'nonlinearity': None,
+            'W': Normal(std=(1/sqrt(N)))
+        }
+    ]
+    net = Net(**net_dict_copy)
+    return net
+
+
+def exp_n(name):
+    # lag = 25
+    source_dict_copy = deepcopy(source_dict)
+    source_dict_copy['subsample_target'] = 5
+    source_dict_copy['lag'] = 25
+    source = RealApplianceSource(**source_dict_copy)
+    net_dict_copy = deepcopy(net_dict)
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source
+    ))
+    N = 50
+    net_dict_copy['layers_config'] = [
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1.),
+            'nonlinearity': tanh
+        },
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
+            'nonlinearity': tanh
+        },
+        {
+            'type': FeaturePoolLayer,
+            'ds': 5, # number of feature maps to be pooled together
+            'axis': 1, # pool over the time axis
+            'pool_function': T.mean
+        },
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
+            'nonlinearity': tanh
+        },
+        {
+            'type': DenseLayer,
+            'num_units': source.n_outputs,
+            'nonlinearity': None,
+            'W': Normal(std=(1/sqrt(N)))
+        }
+    ]
+    net = Net(**net_dict_copy)
+    return net
+
+
+
+def exp_o(name):
+    # layerwise pre-training
+    source_dict_copy = deepcopy(source_dict)
+    source_dict_copy['subsample_target'] = 1
+    source = RealApplianceSource(**source_dict_copy)
+    net_dict_copy = deepcopy(net_dict)
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source
+    ))
+    N = 50
+    net_dict_copy['layers_config'] = [
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1.),
+            'nonlinearity': tanh
+        },
+        {
+            'type': DenseLayer,
+            'num_units': source.n_outputs,
+            'nonlinearity': None,
+            'W': Normal(std=(1/sqrt(N)))
+        }
+    ]
+    net_dict_copy['layer_changes'] = {
+        150: {
+            'remove_from': -3,
+            'new_layers': [
+                {
+                    'type': BidirectionalRecurrentLayer,
+                    'num_units': N,
+                    'gradient_steps': GRADIENT_STEPS,
+                    'W_in_to_hid': Normal(std=1/sqrt(N)),
+                    'nonlinearity': tanh
+                },
+                {
+                    'type': DenseLayer,
+                    'num_units': source.n_outputs,
+                    'nonlinearity': None,
+                    'W': Normal(std=(1/sqrt(N)))
+                }
+            ]
+        },
+        300: {
+            'remove_from': -3,
+            'callback': change_subsample,
+            'new_layers': [
+                {
+                    'type': FeaturePoolLayer,
+                    'ds': 5, # number of feature maps to be pooled together
+                    'axis': 1, # pool over the time axis
+                    'pool_function': T.mean
+                },
+                {
+                    'type': BidirectionalRecurrentLayer,
+                    'num_units': N,
+                    'gradient_steps': GRADIENT_STEPS,
+                    'W_in_to_hid': Normal(std=1/sqrt(N)),
+                    'nonlinearity': tanh
+                },
+                {
+                    'type': DenseLayer,
+                    'num_units': source.n_outputs,
+                    'nonlinearity': None,
+                    'W': Normal(std=(1/sqrt(N)))
+                }
+            ]
+        }
+    }
+    net = Net(**net_dict_copy)
+    return net
+
+
+def exp_p(name):
+    # layerwise pre-training (pre-train with pool)
+    source_dict_copy = deepcopy(source_dict)
+    source_dict_copy['subsample_target'] = 1
+    source = RealApplianceSource(**source_dict_copy)
+    net_dict_copy = deepcopy(net_dict)
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source
+    ))
+    N = 50
+    net_dict_copy['layers_config'] = [
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1.),
+            'nonlinearity': tanh
+        },
+        {
+            'type': DenseLayer,
+            'num_units': source.n_outputs,
+            'nonlinearity': None,
+            'W': Normal(std=(1/sqrt(N)))
+        }
+    ]
+    net_dict_copy['layer_changes'] = {
+        150: {
+            'remove_from': -3,
+            'callback': change_subsample,
+            'new_layers': [
+                {
+                    'type': BidirectionalRecurrentLayer,
+                    'num_units': N,
+                    'gradient_steps': GRADIENT_STEPS,
+                    'W_in_to_hid': Normal(std=1/sqrt(N)),
+                    'nonlinearity': tanh
+                },
+                {
+                    'type': DenseLayer,
+                    'num_units': source.n_outputs,
+                    'nonlinearity': None,
+                    'W': Normal(std=(1/sqrt(N)))
+                },
+                {
+                    'type': FeaturePoolLayer,
+                    'ds': 5, # number of feature maps to be pooled together
+                    'axis': 1, # pool over the time axis
+                    'pool_function': T.mean
+                }
+            ]
+        },
+        300: {
+            'remove_from': -3,
+            'new_layers': [
+                {
+                    'type': BidirectionalRecurrentLayer,
+                    'num_units': N,
+                    'gradient_steps': GRADIENT_STEPS,
+                    'W_in_to_hid': Normal(std=1/sqrt(N)),
+                    'nonlinearity': tanh
+                },
+                {
+                    'type': DenseLayer,
+                    'num_units': source.n_outputs,
+                    'nonlinearity': None,
+                    'W': Normal(std=(1/sqrt(N)))
+                }
+            ]
+        }
+    }
+    net = Net(**net_dict_copy)
+    return net
 
 
 def exp_r(name):
-    # 4 layers
-    # best valid cost =  0.2410877943 at iteration   480
-    # probably needs longer to train!
-    global source
+    # mse cost
     source_dict_copy = deepcopy(source_dict)
     source_dict_copy['subsample_target'] = 5
     source = RealApplianceSource(**source_dict_copy)
     net_dict_copy = deepcopy(net_dict)
-    net_dict_copy.update(dict(experiment_name=name, source=source))
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source,
+        loss_function=mse
+    ))
+    N = 50
     net_dict_copy['layers_config'] = [
         {
             'type': BidirectionalRecurrentLayer,
-            'num_units': 25,
+            'num_units': N,
             'gradient_steps': GRADIENT_STEPS,
             'W_in_to_hid': Normal(std=1.),
             'nonlinearity': tanh
         },
         {
             'type': BidirectionalRecurrentLayer,
-            'num_units': 25,
+            'num_units': N,
             'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1/sqrt(25)),
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
             'nonlinearity': tanh
         },
         {
@@ -986,58 +1135,45 @@ def exp_r(name):
         },
         {
             'type': BidirectionalRecurrentLayer,
-            'num_units': 25,
+            'num_units': N,
             'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1/sqrt(25)),
-            'nonlinearity': tanh
-        },
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 25,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1/sqrt(25)),
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
             'nonlinearity': tanh
         },
         {
             'type': DenseLayer,
             'num_units': source.n_outputs,
             'nonlinearity': None,
-            'W': Normal(std=(1/sqrt(25)))
+            'W': Normal(std=(1/sqrt(N)))
         }
     ]
     net = Net(**net_dict_copy)
     return net
-
-
 
 def exp_s(name):
-    # 5 layers
-    global source
+    # 75 neurons per layer
     source_dict_copy = deepcopy(source_dict)
     source_dict_copy['subsample_target'] = 5
     source = RealApplianceSource(**source_dict_copy)
     net_dict_copy = deepcopy(net_dict)
-    net_dict_copy.update(dict(experiment_name=name, source=source))
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source
+    ))
+    N = 75
     net_dict_copy['layers_config'] = [
         {
             'type': BidirectionalRecurrentLayer,
-            'num_units': 25,
+            'num_units': N,
             'gradient_steps': GRADIENT_STEPS,
             'W_in_to_hid': Normal(std=1.),
             'nonlinearity': tanh
         },
         {
             'type': BidirectionalRecurrentLayer,
-            'num_units': 25,
+            'num_units': N,
             'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1/sqrt(25)),
-            'nonlinearity': tanh
-        },
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 25,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1/sqrt(25)),
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
             'nonlinearity': tanh
         },
         {
@@ -1048,50 +1184,47 @@ def exp_s(name):
         },
         {
             'type': BidirectionalRecurrentLayer,
-            'num_units': 25,
+            'num_units': N,
             'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1/sqrt(25)),
-            'nonlinearity': tanh
-        },
-        {
-            'type': BidirectionalRecurrentLayer,
-            'num_units': 25,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_hid': Normal(std=1/sqrt(25)),
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
             'nonlinearity': tanh
         },
         {
             'type': DenseLayer,
             'num_units': source.n_outputs,
             'nonlinearity': None,
-            'W': Normal(std=(1/sqrt(25)))
+            'W': Normal(std=(1/sqrt(N)))
         }
     ]
     net = Net(**net_dict_copy)
     return net
-
 
 
 def exp_t(name):
-    global source
+    # 100 neurons per layer
     source_dict_copy = deepcopy(source_dict)
+    source_dict_copy['subsample_target'] = 5
     source = RealApplianceSource(**source_dict_copy)
     net_dict_copy = deepcopy(net_dict)
-    net_dict_copy.update(dict(experiment_name=name, source=source))
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source
+    ))
+    N = 100
     net_dict_copy['layers_config'] = [
         {
-            'type': BLSTMLayer,
-            'num_units': 25,
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
             'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_cell': Normal(std=1.),
-            'peepholes': False
+            'W_in_to_hid': Normal(std=1.),
+            'nonlinearity': tanh
         },
         {
-            'type': BLSTMLayer,
-            'num_units': 25,
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
             'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_cell': Normal(std=1/sqrt(5)),
-            'peepholes': False
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
+            'nonlinearity': tanh
         },
         {
             'type': FeaturePoolLayer,
@@ -1100,44 +1233,47 @@ def exp_t(name):
             'pool_function': T.mean
         },
         {
-            'type': BLSTMLayer,
-            'num_units': 25,
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
             'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_cell': Normal(std=1/sqrt(25)),
-            'peepholes': False
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
+            'nonlinearity': tanh
         },
         {
             'type': DenseLayer,
             'num_units': source.n_outputs,
             'nonlinearity': None,
-            'W': Normal(std=(1/sqrt(25)))
+            'W': Normal(std=(1/sqrt(N)))
         }
     ]
     net = Net(**net_dict_copy)
     return net
-
 
 def exp_u(name):
-    # 4 LSTM layers
-    global source
+    # 50, 10, 50
     source_dict_copy = deepcopy(source_dict)
+    source_dict_copy['subsample_target'] = 5
     source = RealApplianceSource(**source_dict_copy)
     net_dict_copy = deepcopy(net_dict)
-    net_dict_copy.update(dict(experiment_name=name, source=source))
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source
+    ))
+    N = 50
     net_dict_copy['layers_config'] = [
         {
-            'type': BLSTMLayer,
-            'num_units': 25,
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
             'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_cell': Normal(std=1.),
-            'peepholes': False
+            'W_in_to_hid': Normal(std=1.),
+            'nonlinearity': tanh
         },
         {
-            'type': BLSTMLayer,
-            'num_units': 25,
+            'type': BidirectionalRecurrentLayer,
+            'num_units': 10,
             'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_cell': Normal(std=1/sqrt(5)),
-            'peepholes': False
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
+            'nonlinearity': tanh
         },
         {
             'type': FeaturePoolLayer,
@@ -1146,28 +1282,22 @@ def exp_u(name):
             'pool_function': T.mean
         },
         {
-            'type': BLSTMLayer,
-            'num_units': 25,
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
             'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_cell': Normal(std=1/sqrt(25)),
-            'peepholes': False
-        },
-        {
-            'type': BLSTMLayer,
-            'num_units': 25,
-            'gradient_steps': GRADIENT_STEPS,
-            'W_in_to_cell': Normal(std=1/sqrt(25)),
-            'peepholes': False
+            'W_in_to_hid': Normal(std=1/sqrt(10)),
+            'nonlinearity': tanh
         },
         {
             'type': DenseLayer,
             'num_units': source.n_outputs,
             'nonlinearity': None,
-            'W': Normal(std=(1/sqrt(25)))
+            'W': Normal(std=(1/sqrt(N)))
         }
     ]
     net = Net(**net_dict_copy)
     return net
+
 
 
 """
@@ -1200,7 +1330,7 @@ def init_experiment(experiment):
 
 def main():
     global logger
-    EXPERIMENTS = list('qrstu')
+    EXPERIMENTS = list('abcdefghijklmnopqrstu')
     for experiment in EXPERIMENTS:
         full_exp_name = NAME + experiment
         path = os.path.join(PATH, full_exp_name)
