@@ -215,15 +215,21 @@ class Net(object):
         is_best_valid = validation_cost == best_valid_cost
 
         # write bests to disk
-        if is_best_train or is_best_valid:
-            FMT = "{:14.10f}"
-            txt = "BEST COSTS\n"
-            txt += ("best train cost = " + FMT + " at iteration {}.\n".format(
-                best_train_cost, self.training_costs.index(best_train_cost)))
-            txt += ("best valid cost = " + FMT + " at iteration {}.\n".format(
-                best_valid_cost, self.validation_costs.index(best_valid_cost)))
-            with open(self.best_costs_filename, mode='w') as fh:
-                fh.write(txt)
+        FMT = "{:14.10f}"
+        N = 500
+        txt = "BEST COSTS\n"
+        txt += ("best train cost = " + FMT + " at iteration {}.\n".format(
+            best_train_cost, self.training_costs.index(best_train_cost)))
+        txt += ("best valid cost = " + FMT + " at iteration {}.\n".format(
+            best_valid_cost, self.validation_costs.index(best_valid_cost)))
+        txt += "\n"
+        txt += "AVERAGE COSTS FOR THE LAST {} ITERATIONS\n".format(N)
+        txt += (" avg train cost = " + FMT + "\n").format(
+            np.mean(self.training_costs[-N:]))
+        txt += (" avg valid cost = " + FMT + "\n").format(
+            np.mean(self.validation_costs[-N:]))
+        with open(self.best_costs_filename, mode='w') as fh:
+            fh.write(txt)
 
         print("  {:>5} |  {}{:>10.6f}{}  |  {}{:>10.6f}{}  |"
               "  {:>11.6f}  |  {:>3.1f}s".format(
