@@ -1,5 +1,6 @@
 from __future__ import print_function, division
 import matplotlib
+import logging
 matplotlib.use('Agg') # Must be before importing matplotlib.pyplot or pylab!
 from neuralnilm import Net, RealApplianceSource, BLSTMLayer, DimshuffleLayer
 from neuralnilm.net import BidirectionalRecurrentLayer
@@ -1092,25 +1093,42 @@ Other experiments:
 def init_experiment(experiment):
     full_exp_name = NAME + experiment
     func_call = 'exp_{:s}(full_exp_name)'.format(experiment)
-    print("***********************************")
-    print("Preparing", full_exp_name, "...")
+
+    global logger
+    logger = logging.getLogger(full_exp_name)
+    logger.addHandler(logging.FileHandler(full_exp_name+'.log'))
+    logger.setLevel(logging.DEBUG)
+    
+    logger.info("***********************************")
+    logger.info("Preparing " + full_exp_name + "...")
     net = eval(func_call)
     return net
 
 
 def main():
+    global logger
     for experiment in list('jklmnopqrst'):
         full_exp_name = NAME + experiment
         path = os.path.join(PATH, full_exp_name)
         try:
+            os.mkdir(path)
+        except OSError as exception:
+            if exception.errno == 17:
+                print(path, "already exists.  Reusing directory.")
+            else:
+                raise
+        os.chdir(path)
+
+        try:
             net = init_experiment(experiment)
             run_experiment(net, path, epochs=2000)
         except KeyboardInterrupt:
+            logger.info("KeyboardInterrupt")
             break
         except TrainingError as exception:
-            print("EXCEPTION:", exception)
+            logger.exception()
         except Exception as exception:
-            print("EXCEPTION:", exception)
+            logger.exception()
 
 
 if __name__ == "__main__":

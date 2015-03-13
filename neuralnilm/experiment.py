@@ -5,14 +5,6 @@ import os
 def run_experiment(net, path, epochs=1500):
     net.print_net()
     net.compile()
-    try:
-        os.mkdir(path)
-    except OSError as exception:
-        if exception.errno == 17:
-            print(path, "already exists.  Reusing directory.")
-        else:
-            raise
-    os.chdir(path)
     fit(net, epochs)
 
 

@@ -6,6 +6,7 @@ import pandas as pd
 import csv
 import h5py
 from datetime import datetime, timedelta
+import logging
 from numpy.random import rand
 from time import time
 import theano
@@ -37,6 +38,10 @@ class TrainingError(Exception):
     pass
 
 
+def _init_logging(filename):
+    
+
+
 ######################## Neural network class ########################
 class Net(object):
     # Much of this code is adapted from craffel/nntools/examples/lstm.py
@@ -60,7 +65,9 @@ class Net(object):
             'type' : BLSTMLayer or a subclass of lasagne.layers.Layer
             'num_units' : int
         """
-        print("Initialising network...")
+        self.logger = logging.getLogger(experiment_name)
+        self.logger.info("Initialising network...")
+
         if seed is not None:
             np.random.seed(seed)
         self.source = source
@@ -88,7 +95,7 @@ class Net(object):
         #           number of features per example)
         self.layers.append(InputLayer(shape=self.input_shape))
         self.add_layers(layers_config)
-        print("Done initialising network for", self.experiment_name)
+        self.logger.info("Done initialising network for " + self.experiment_name)
 
     def generate_validation_data_and_set_shapes(self):
         # Generate a "validation" sequence whose cost we will compute
@@ -122,7 +129,7 @@ class Net(object):
                     self.layers.append(ReshapeLayer(self.layers[-1], shape))
 
             # Init new layer_config
-            print('Initialising layer_config :', layer_type)
+            self.logger.info('Initialising layer_config : {}'.format(layer_type))
             self.layers.append(layer_type(self.layers[-1], **layer_config))
 
         # Reshape output if necessary...
@@ -131,13 +138,14 @@ class Net(object):
 
     def print_net(self):
         for layer in self.layers:
-            print(layer)
+            self.logger.info(str(layer))
             try:
-                print(" Input shape: ", layer.input_shape)
+                input_shape = layer.input_shape
             except:
                 pass
-            print("Output shape: ", layer.get_output_shape())
-            print()
+            else:
+                self.logger.info(" Input shape: {}".format(input_shape))
+            self.logger.info("Output shape: {}".format(layer.get_output_shape()))
 
     def compile(self):
         input = T.tensor3('input')
@@ -147,7 +155,7 @@ class Net(object):
         input.tag.test_value = floatX(rand(*self.input_shape))
         target_output.tag.test_value = floatX(rand(*self.output_shape))
 
-        print("Compiling Theano functions...")
+        self.logger.info("Compiling Theano functions...")
         loss = self.loss_function(
             self.layers[-1].get_output(input), target_output)
 
@@ -169,7 +177,7 @@ class Net(object):
             [input, target_output], loss, on_unused_input='warn',
             allow_input_downcast=True)
 
-        print("Done compiling Theano functions.")
+        self.logger.info("Done compiling Theano functions.")
 
     def fit(self, n_iterations=None):
         # Training loop. Need to wrap this in a try-except loop so
@@ -185,15 +193,15 @@ class Net(object):
     def _change_layers(self, epoch):
         self.source.stop()
         self.source.empty_queue()
-        print("Changing layers...\nOld architecture:")
+        self.logger.info("Changing layers...\nOld architecture:")
         self.print_net()        
         layer_changes = self.layer_changes[epoch]
         for layer_to_remove in range(layer_changes['remove_from'], 0):
-            print("Removed", self.layers.pop(layer_to_remove))
+            self.logger.info("Removed {}".format(self.layers.pop(layer_to_remove)))
         if 'callback' in layer_changes:
             layer_changes['callback'](self, epoch)
         self.add_layers(layer_changes['new_layers'])
-        print("New architecture:")
+        self.logger.info("New architecture:")
         self.print_net()
         self.compile()
         self.source.start()
@@ -244,7 +252,9 @@ class Net(object):
                   duration
         ))
         if np.isnan(train_cost):
-            raise TrainingError("training cost is NaN!")
+            msg = "training cost is NaN at iteration {}!".format(iteration)
+            self.logger.error(msg)
+            raise TrainingError(msg)
 
     def _training_loop(self, n_iterations):
         # Adapted from dnouri/nolearn/nolearn/lasagne.py
@@ -373,7 +383,7 @@ class Net(object):
         try:
             epoch_group = f.create_group(epoch_name)
         except ValueError as exception:
-            print("Not saving params because", exception)
+            self.logger.exception("Cannot save params!")
             f.close()
             return
             
@@ -404,7 +414,7 @@ class Net(object):
         try:
             epoch_group = f.create_group(epoch_name)
         except ValueError as exception:
-            print("Not saving params because", exception)
+            self.logger.exception("Cannot save params!")
             f.close()
             return
 
