@@ -16,7 +16,9 @@ class Source(object):
                  X_processing_func=None, 
                  standardise_input=False,
                  standardise_targets=False,
-                 input_padding=0
+                 input_padding=0,
+                 input_stats=None,
+                 target_stats=None
     ):
         super(Source, self).__init__()
         self.seq_length = seq_length
@@ -29,6 +31,8 @@ class Source(object):
         self._thread = None
         self.X_processing_func = X_processing_func
 
+        self.input_stats = input_stats
+        self.target_stats = target_stats
         self.standardise_input = standardise_input
         self.standardise_targets = standardise_targets
         self._initialise_standardisation()
@@ -54,22 +58,24 @@ class Source(object):
         if not (self.standardise_input or self.standardise_targets):
             return
 
-        X, y = self._gen_data()
-        X = X.reshape(
-            self.n_seq_per_batch * (self.seq_length + self.input_padding), 
-            self.n_inputs)
-        self.input_stats = {'mean': X.mean(axis=0), 'std': X.std(axis=0)}
+        if self.input_stats is None:
+            X, y = self._gen_data()
+            X = X.reshape(
+                self.n_seq_per_batch * (self.seq_length + self.input_padding), 
+                self.n_inputs)
+            self.input_stats = {'mean': X.mean(axis=0), 'std': X.std(axis=0)}
 
-        # Get targets.  Temporarily turn off skip probability 
-        skip_prob = self.skip_probability
-        self.skip_probability = 0
-        X, y = self._gen_data()
-        self.skip_probability = skip_prob
+        if self.target_stats is None:
+            # Get targets.  Temporarily turn off skip probability 
+            skip_prob = self.skip_probability
+            self.skip_probability = 0
+            X, y = self._gen_data()
+            self.skip_probability = skip_prob
 
-        y = y.reshape(
-            int(self.n_seq_per_batch * (self.seq_length / self.subsample_target)),
-            self.n_outputs)
-        self.target_stats = {'mean': y.mean(axis=0), 'std': y.std(axis=0)}
+            y = y.reshape(
+                int(self.n_seq_per_batch * (self.seq_length / self.subsample_target)),
+                self.n_outputs)
+            self.target_stats = {'mean': y.mean(axis=0), 'std': y.std(axis=0)}
 
     def stop(self):
         self.empty_queue()

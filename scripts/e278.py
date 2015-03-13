@@ -74,7 +74,16 @@ source_dict = dict(
     standardise_input=True,
     standardise_targets=True,
     input_padding=0,
-    lag=0
+    lag=0,
+    input_stats={'mean': np.array([ 0.05526326], dtype=np.float32),
+                 'std': np.array([ 0.12636775], dtype=np.float32)},
+    target_stats={
+        'mean': np.array([ 0.04066789,  0.01881946,  
+                           0.24639061,  0.17608672,  0.10273963], 
+                         dtype=np.float32),
+        'std': np.array([ 0.11449792,  0.07338708,  
+                       0.26608968,  0.33463112,  0.21250485], 
+                     dtype=np.float32)}
 )
 
 
