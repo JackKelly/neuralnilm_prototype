@@ -3,6 +3,7 @@ from functools import partial
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import csv
 import h5py
 from datetime import datetime, timedelta
 from numpy.random import rand
@@ -72,6 +73,9 @@ class Net(object):
         self.layer_changes = {} if layer_changes is None else layer_changes
         self.epoch_callbacks = {} if epoch_callbacks is None else epoch_callbacks
         self.do_save_activations = do_save_activations
+
+        self.csv_filename = self.experiment_name + "_costs.csv"
+        self.best_costs_filename = self.experiment_name + "_best_costs.txt"
 
         self.generate_validation_data_and_set_shapes()
 
@@ -194,52 +198,81 @@ class Net(object):
         self.compile()
         self.source.start()
 
+    def _write_csv_row(self, row, mode='a'):
+        with open(self.csv_filename, mode=mode) as csvfile:
+            csv_writer = csv.writer(csvfile)
+            csv_writer.writerow(row)
+
+    def print_and_save_training_progress(self, duration):
+        iteration = self.n_iterations()
+        train_cost = self.training_costs[-1]
+        validation_cost = (self.validation_costs[-1] if self.validation_costs 
+                           else None)
+        self._write_csv_row([iteration, train_cost, validation_cost, duration])
+        best_train_cost = min(self.training_costs)
+        best_valid_cost = min(self.validation_costs)
+        is_best_train = train_cost == best_train_cost
+        is_best_valid = validation_cost == best_valid_cost
+
+        # write bests to disk
+        if is_best_train or is_best_valid:
+            FMT = "{:14.10f}"
+            txt = "BEST COSTS\n"
+            txt += ("best train cost = " + FMT + " at iteration {}.\n".format(
+                best_train_cost, self.training_costs.index(best_train_cost)))
+            txt += ("best valid cost = " + FMT + " at iteration {}.\n".format(
+                best_valid_cost, self.validation_costs.index(best_valid_cost)))
+            with open(self.best_costs_filename, mode='w') as fh:
+                fh.write(txt)
+
+        print("  {:>5} |  {}{:>10.6f}{}  |  {}{:>10.6f}{}  |"
+              "  {:>11.6f}  |  {:>3.1f}s".format(
+                  iteration,
+                  ansi.BLUE if is_best_train else "",
+                  train_cost,
+                  ansi.ENDC if is_best_train else "",
+                  ansi.GREEN if is_best_valid else "",
+                  validation_cost,
+                  ansi.ENDC if is_best_valid else "",
+                  train_cost / validation_cost,
+                  duration
+        ))
+        if np.isnan(train_cost):
+            raise TrainingError("training cost is NaN!")
+
     def _training_loop(self, n_iterations):
         # Adapted from dnouri/nolearn/nolearn/lasagne.py
         print("""
- Epoch  |  Train cost  |  Valid cost  |  Train / Val  | Sec per epoch
---------|--------------|--------------|---------------|---------------\
+ Update |  Train cost  |  Valid cost  |  Train / Val  | Secs per update
+--------|--------------|--------------|---------------|----------------\
 """)
-        validation_cost = (self.validation_costs[-1] if self.validation_costs 
-                           else None)
+        iteration = len(self.training_costs)
+        if iteration == 0:
+            # Header for CSV file
+            self._write_csv_row(
+                ['iteration', 'train_cost', 'validation_cost', 'duration'], 
+                mode='w')
 
-        epoch = len(self.training_costs)
-        while epoch != n_iterations:
-            epoch = len(self.training_costs)
-            if epoch in self.layer_changes:
-                self._change_layers(epoch)
-            if epoch in self.epoch_callbacks:
-                self.epoch_callbacks[epoch](self, epoch)
+        while iteration != n_iterations:
             t0 = time() # for calculating training duration
+            iteration = len(self.training_costs)
+            if iteration in self.layer_changes:
+                self._change_layers(iteration)
+            if iteration in self.epoch_callbacks:
+                self.epoch_callbacks[iteration](self, iteration)
             X, y = self.source.queue.get(timeout=30)
             train_cost = self.train(X, y).flatten()[0]
             self.training_costs.append(train_cost)
-            if not epoch % self.validation_interval:
+            if not iteration % self.validation_interval:
                 validation_cost = self.compute_cost(self.X_val, self.y_val).flatten()[0]
                 self.validation_costs.append(validation_cost)
-            if not epoch % self.save_plot_interval:
+            if not iteration % self.save_plot_interval:
                 self.plot_costs(save=True)
                 self.plot_estimates(save=True)
                 self.save_params()
                 self.save_activations()
-            # Print progress
             duration = time() - t0
-            is_best_train = train_cost == min(self.training_costs)
-            is_best_valid = validation_cost == min(self.validation_costs)
-            print("  {:>5} |  {}{:>10.6f}{}  |  {}{:>10.6f}{}  |"
-                  "  {:>11.6f}  |  {:>3.1f}s".format(
-                      epoch,
-                      ansi.BLUE if is_best_train else "",
-                      train_cost,
-                      ansi.ENDC if is_best_train else "",
-                      ansi.GREEN if is_best_valid else "",
-                      validation_cost,
-                      ansi.ENDC if is_best_valid else "",
-                      train_cost / validation_cost,
-                      duration
-            ))
-            if np.isnan(train_cost):
-                raise TrainingError("training cost is NaN!")
+            self.print_and_save_training_progress(duration)
 
     def plot_costs(self, save=False):
         fig, ax = plt.subplots(1)
@@ -308,11 +341,11 @@ class Net(object):
         return (
             self.experiment_name + ("_" if self.experiment_name else "") + 
             string +
-            ("_{:d}epochs".format(self.n_epochs()) if include_epochs else "") +
+            ("_{:d}epochs".format(self.n_iterations()) if include_epochs else "") +
             ("_" if end_string else "") + end_string +
             ".pdf")
 
-    def n_epochs(self):
+    def n_iterations(self):
         return max(len(self.training_costs) - 1, 0)
 
     def save_params(self, filename=None):
@@ -328,9 +361,9 @@ class Net(object):
         if filename is None:
             filename = self.experiment_name + ".hdf5"
 
-        mode = 'w' if self.n_epochs() == 0 else 'a'
+        mode = 'w' if self.n_iterations() == 0 else 'a'
         f = h5py.File(filename, mode=mode)
-        epoch_name = 'epoch{:06d}'.format(self.n_epochs())
+        epoch_name = 'epoch{:06d}'.format(self.n_iterations())
         try:
             epoch_group = f.create_group(epoch_name)
         except ValueError as exception:
@@ -359,9 +392,9 @@ class Net(object):
         if not self.do_save_activations:
             return
         filename = self.experiment_name + "_activations.hdf5"
-        mode = 'w' if self.n_epochs() == 0 else 'a'
+        mode = 'w' if self.n_iterations() == 0 else 'a'
         f = h5py.File(filename, mode=mode)
-        epoch_name = 'epoch{:06d}'.format(self.n_epochs())
+        epoch_name = 'epoch{:06d}'.format(self.n_iterations())
         try:
             epoch_group = f.create_group(epoch_name)
         except ValueError as exception:
@@ -390,7 +423,7 @@ class Net(object):
             epoch_group.create_dataset(layer_name, data=output, compression="gzip")
 
         # save validation data
-        if self.n_epochs() == 0:
+        if self.n_iterations() == 0:
             f.create_dataset('validation_data', data=self.X_val, compression="gzip")
 
         f.close()
