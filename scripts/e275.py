@@ -1113,6 +1113,9 @@ def exp_t(name):
 Other experiments:
 * All 5 meters
 * Layer-wise training
+* Larger, deeper
+* More BLSTM experiments
+* 2x RNNs at full temporal res, then drop down by 2x, the 2x RNNs at half res, then drop down, then 2 more RNNs at 1/4 res.
 """
 
 
