@@ -26,22 +26,7 @@ GRADIENT_STEPS = 100
 
 
 """
-Good things:
-T.max
-a single 3x pool
-
-Bad things:
-2x2x pool
-Conv
-10 filters in conv.  Much better to have 50
-
-To do again:
-conv AND pool with 50 filters
-
-New experiments
-T.max and single 3x pool.  And try this with conv and pool with 50 filters.
-BLSTM with above
-2 RNNs, then 3x pool, then BLSTM (try 1 and 2 layers)
+277 but with downsample=3x
 """
 
 from theano.ifelse import ifelse
