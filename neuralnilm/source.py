@@ -45,6 +45,7 @@ class Source(object):
         while not self._stop.is_set():
             X, y = self._gen_data()
             X, y = self._process_data(X, y)
+            self._check_data(X, y)
             self.queue.put((X, y))
         self.empty_queue()
         self._thread = None
@@ -54,8 +55,12 @@ class Source(object):
             return
 
         X, y = self._gen_data()
-        X = X.reshape(self.n_seq_per_batch * (self.seq_length + self.input_padding), self.n_inputs)
-        y = y.reshape(self.n_seq_per_batch * (self.seq_length / self.subsample_target), self.n_outputs)
+        X = X.reshape(
+            self.n_seq_per_batch * (self.seq_length + self.input_padding), 
+            self.n_inputs)
+        y = y.reshape(
+            int(self.n_seq_per_batch * (self.seq_length / self.subsample_target)),
+            self.n_outputs)
         self.input_stats = {'mean': X.mean(axis=0), 'std': X.std(axis=0)}
         self.target_stats = {'mean': y.mean(axis=0), 'std': y.std(axis=0)}
 
@@ -281,8 +286,6 @@ class RealApplianceSource(Source):
             input_padding=input_padding,
             **kwargs
         )
-
-
         print("\nDone loading activations.")
 
     def get_labels(self):
@@ -606,7 +609,10 @@ def standardise(X, how='range=2', mean=None, std=None, midrange=None, ptp=None):
             mean = X.mean()
         if std is None:
             std = X.std()
-        return (X - mean) / std
+        if std == 0:
+            return X - mean
+        else:
+            return (X - mean) / std
     elif how == 'range=2':
         if midrange is None:
             midrange = (X.max() + X.min()) / 2

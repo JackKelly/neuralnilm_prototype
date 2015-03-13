@@ -36,11 +36,7 @@ class ansi:
 
 class TrainingError(Exception):
     pass
-
-
-def _init_logging(filename):
     
-
 
 ######################## Neural network class ########################
 class Net(object):
@@ -56,7 +52,8 @@ class Net(object):
                  layer_changes=None,
                  seed=42,
                  epoch_callbacks=None,
-                 do_save_activations=True
+                 do_save_activations=True,
+                 n_seq_to_plot=10
     ):
         """
         Parameters
@@ -80,6 +77,7 @@ class Net(object):
         self.layer_changes = {} if layer_changes is None else layer_changes
         self.epoch_callbacks = {} if epoch_callbacks is None else epoch_callbacks
         self.do_save_activations = do_save_activations
+        self.n_seq_to_plot = n_seq_to_plot
 
         self.csv_filename = self.experiment_name + "_costs.csv"
         self.best_costs_filename = self.experiment_name + "_best_costs.txt"
@@ -226,15 +224,17 @@ class Net(object):
         FMT = "{:14.10f}"
         N = 500
         txt = "BEST COSTS\n"
-        txt += ("best train cost = " + FMT + " at iteration {}.\n".format(
-            best_train_cost, self.training_costs.index(best_train_cost)))
-        txt += ("best valid cost = " + FMT + " at iteration {}.\n".format(
-            best_valid_cost, self.validation_costs.index(best_valid_cost)))
+        txt += ("best train cost =" + FMT + " at iteration{:6d}\n").format(
+            best_train_cost, self.training_costs.index(best_train_cost))
+        txt += ("best valid cost =" + FMT + " at iteration{:6d}\n").format(
+            best_valid_cost, 
+            self.validation_costs.index(best_valid_cost) * 
+            self.validation_interval)
         txt += "\n"
-        txt += "AVERAGE COSTS FOR THE LAST {} ITERATIONS\n".format(N)
-        txt += (" avg train cost = " + FMT + "\n").format(
+        txt += "AVERAGE COSTS FOR THE LAST {:d} ITERATIONS\n".format(N)
+        txt += (" avg train cost =" + FMT + "\n").format(
             np.mean(self.training_costs[-N:]))
-        txt += (" avg valid cost = " + FMT + "\n").format(
+        txt += (" avg valid cost =" + FMT + "\n").format(
             np.mean(self.validation_costs[-N:]))
         with open(self.best_costs_filename, mode='w') as fh:
             fh.write(txt)
@@ -258,6 +258,8 @@ class Net(object):
 
     def _training_loop(self, n_iterations):
         # Adapted from dnouri/nolearn/nolearn/lasagne.py
+        self.logger.info("Starting training for {:d} iterations."
+                         .format(n_iterations))
         print("""
  Update |  Train cost  |  Valid cost  |  Train / Val  | Secs per update
 --------|--------------|--------------|---------------|----------------\
@@ -289,6 +291,7 @@ class Net(object):
                 self.save_activations()
             duration = time() - t0
             self.print_and_save_training_progress(duration)
+        self.logger.info("Finished training")
 
     def plot_costs(self, save=False):
         fig, ax = plt.subplots(1)
@@ -313,7 +316,7 @@ class Net(object):
 
     def plot_estimates(self, sequences=None, **kwargs):
         if sequences is None:
-            sequences = range(min(self.n_seq_per_batch, 5))
+            sequences = range(min(self.n_seq_per_batch, self.n_seq_to_plot))
         for seq_i in sequences:
             self._plot_estimates(seq_i=seq_i, **kwargs)
 

@@ -1,6 +1,7 @@
 from __future__ import print_function, division
 import matplotlib
 import logging
+from sys import stdout
 matplotlib.use('Agg') # Must be before importing matplotlib.pyplot or pylab!
 from neuralnilm import Net, RealApplianceSource, BLSTMLayer, DimshuffleLayer
 from neuralnilm.net import BidirectionalRecurrentLayer
@@ -134,7 +135,7 @@ net_dict = dict(
     loss_function=scaled_cost,
     updates=partial(nesterov_momentum, learning_rate=0.01),
     do_save_activations=True,
-    epoch_callbacks={500: change_learning_rate},
+    epoch_callbacks={501: change_learning_rate},
     layers_config=[
         {
             'type': BidirectionalRecurrentLayer,
@@ -172,26 +173,52 @@ def exp_a(name):
     source_dict_copy['appliances'] = [
         ['fridge freezer', 'fridge', 'freezer'], 
         'hair straighteners', 
-        'television'
+        'television',
         'dish washer',
         ['washer dryer', 'washing machine']
     ]
+    source_dict_copy['skip_probability'] = 0.7
     source = RealApplianceSource(**source_dict_copy)
     net_dict_copy = deepcopy(net_dict)
     net_dict_copy.update(dict(
         experiment_name=name, 
-        source=source,
-        updates=partial(nesterov_momentum, learning_rate=0.001),
-        epoch_callbacks={}
+        source=source
     ))
-    net_dict_copy['layers_config'].append(
+    net_dict_copy['layers_config'] = [
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': 25,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1.),
+            'nonlinearity': tanh
+        },
+        {
+            'type': FeaturePoolLayer,
+            'ds': 5, # number of feature maps to be pooled together
+            'axis': 1, # pool over the time axis
+            'pool_function': T.mean
+        },
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': 25,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1/sqrt(25)),
+            'nonlinearity': tanh
+        },
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': 25,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1/sqrt(25)),
+            'nonlinearity': tanh
+        },
         {
             'type': DenseLayer,
             'num_units': source.n_outputs,
             'nonlinearity': None,
             'W': Normal(std=(1/sqrt(25)))
         }
-    )
+    ]
     net = Net(**net_dict_copy)
     return net
 
@@ -1097,6 +1124,7 @@ def init_experiment(experiment):
     global logger
     logger = logging.getLogger(full_exp_name)
     logger.addHandler(logging.FileHandler(full_exp_name+'.log'))
+    logger.addHandler(logging.StreamHandler(stream=stdout))
     logger.setLevel(logging.DEBUG)
     
     logger.info("***********************************")
@@ -1107,7 +1135,8 @@ def init_experiment(experiment):
 
 def main():
     global logger
-    for experiment in list('jklmnopqrst'):
+    EXPERIMENTS = list('almnopqrst')
+    for experiment in EXPERIMENTS:
         full_exp_name = NAME + experiment
         path = os.path.join(PATH, full_exp_name)
         try:
