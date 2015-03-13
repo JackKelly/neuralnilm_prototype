@@ -82,7 +82,7 @@ source_dict = dict(
     validation_buildings=[1], 
     skip_probability=0.7,
     n_seq_per_batch=10,
-    subsample_target=3,
+    subsample_target=5,
     include_diff=False,
     clip_appliance_power=True,
     target_is_prediction=False,
@@ -138,7 +138,7 @@ def exp_a(name):
         },
         {
             'type': FeaturePoolLayer,
-            'ds': 3, # number of feature maps to be pooled together
+            'ds': 5, # number of feature maps to be pooled together
             'axis': 1, # pool over the time axis
             'pool_function': T.max
         },
@@ -188,7 +188,7 @@ def exp_b(name):
         },
         {
             'type': FeaturePoolLayer,
-            'ds': 3, # number of feature maps to be pooled together
+            'ds': 5, # number of feature maps to be pooled together
             'axis': 1, # pool over the time axis
             'pool_function': T.max
         },
@@ -221,7 +221,6 @@ def exp_b(name):
 def exp_c(name):
     # BLSTM as last layer
     source_dict_copy = deepcopy(source_dict)
-    source_dict_copy['subsample_target'] = 3
     source = RealApplianceSource(**source_dict_copy)
     net_dict_copy = deepcopy(net_dict)
     net_dict_copy.update(dict(
@@ -246,7 +245,7 @@ def exp_c(name):
         },
         {
             'type': FeaturePoolLayer,
-            'ds': 3, # number of feature maps to be pooled together
+            'ds': 5, # number of feature maps to be pooled together
             'axis': 1, # pool over the time axis
             'pool_function': T.max
         },
@@ -381,7 +380,6 @@ def exp_e(name):
 def exp_f(name):
     # 2xBLSTM as last layer
     source_dict_copy = deepcopy(source_dict)
-    source_dict_copy['subsample_target'] = 3
     source = RealApplianceSource(**source_dict_copy)
     net_dict_copy = deepcopy(net_dict)
     net_dict_copy.update(dict(
@@ -406,7 +404,7 @@ def exp_f(name):
         },
         {
             'type': FeaturePoolLayer,
-            'ds': 3, # number of feature maps to be pooled together
+            'ds': 5, # number of feature maps to be pooled together
             'axis': 1, # pool over the time axis
             'pool_function': T.max
         },
@@ -470,7 +468,7 @@ def exp_g(name):
         },
         {
             'type': FeaturePoolLayer,
-            'ds': 3, # number of feature maps to be pooled together
+            'ds': 5, # number of feature maps to be pooled together
             'axis': 1, # pool over the time axis
             'pool_function': T.max
         },
@@ -497,8 +495,8 @@ def exp_h(name):
     # Conv AND pool, with 50 filters
     source_dict_copy = deepcopy(source_dict)
     source_dict_copy.update(dict(
-        subsample_target=3,
-        input_padding=2
+        subsample_target=5,
+        input_padding=4
     ))
     source = RealApplianceSource(**source_dict_copy)
     net_dict_copy = deepcopy(net_dict)
@@ -529,7 +527,7 @@ def exp_h(name):
         {
             'type': Conv1DLayer, # convolve over the time axis
             'num_filters': 50,
-            'filter_length': 3,
+            'filter_length': 5,
             'stride': 1,
             'nonlinearity': tanh,
             'W': Normal(std=1/sqrt(N))
@@ -540,7 +538,7 @@ def exp_h(name):
         },
         {
             'type': FeaturePoolLayer,
-            'ds': 3, # number of feature maps to be pooled together
+            'ds': 5, # number of feature maps to be pooled together
             'axis': 1, # pool over the time axis
             'pool_function': T.max
         },
@@ -567,8 +565,8 @@ def exp_i(name):
     # Conv AND pool, with 50 filters and BLSTM
     source_dict_copy = deepcopy(source_dict)
     source_dict_copy.update(dict(
-        subsample_target=3,
-        input_padding=2
+        subsample_target=5,
+        input_padding=4
     ))
     source = RealApplianceSource(**source_dict_copy)
     net_dict_copy = deepcopy(net_dict)
@@ -599,7 +597,7 @@ def exp_i(name):
         {
             'type': Conv1DLayer, # convolve over the time axis
             'num_filters': 50,
-            'filter_length': 3,
+            'filter_length': 5,
             'stride': 1,
             'nonlinearity': tanh,
             'W': Normal(std=1/sqrt(N))
@@ -610,7 +608,7 @@ def exp_i(name):
         },
         {
             'type': FeaturePoolLayer,
-            'ds': 3, # number of feature maps to be pooled together
+            'ds': 5, # number of feature maps to be pooled together
             'axis': 1, # pool over the time axis
             'pool_function': T.max
         },
@@ -636,7 +634,6 @@ def exp_i(name):
 def exp_j(name):
     # 3 BLSTM layers
     source_dict_copy = deepcopy(source_dict)
-    source_dict_copy['subsample_target'] = 3
     source = RealApplianceSource(**source_dict_copy)
     net_dict_copy = deepcopy(net_dict)
     net_dict_copy.update(dict(
@@ -661,7 +658,7 @@ def exp_j(name):
         },
         {
             'type': FeaturePoolLayer,
-            'ds': 3, # number of feature maps to be pooled together
+            'ds': 5, # number of feature maps to be pooled together
             'axis': 1, # pool over the time axis
             'pool_function': T.max
         },
@@ -754,7 +751,7 @@ def exp_l(name):
         },
         {
             'type': FeaturePoolLayer,
-            'ds': 3, # number of feature maps to be pooled together
+            'ds': 5, # number of feature maps to be pooled together
             'axis': 1, # pool over the time axis
             'pool_function': T.max
         },
@@ -810,7 +807,7 @@ def exp_m(name):
         },
         {
             'type': FeaturePoolLayer,
-            'ds': 3, # number of feature maps to be pooled together
+            'ds': 5, # number of feature maps to be pooled together
             'axis': 1, # pool over the time axis
             'pool_function': T.max
         },
@@ -860,7 +857,7 @@ def exp_n(name):
         },
         {
             'type': FeaturePoolLayer,
-            'ds': 3, # number of feature maps to be pooled together
+            'ds': 5, # number of feature maps to be pooled together
             'axis': 1, # pool over the time axis
             'pool_function': T.max
         },
@@ -934,7 +931,7 @@ def exp_o(name):
             'new_layers': [
                 {
                     'type': FeaturePoolLayer,
-                    'ds': 3, # number of feature maps to be pooled together
+                    'ds': 5, # number of feature maps to be pooled together
                     'axis': 1, # pool over the time axis
                     'pool_function': T.max
                 },
@@ -1004,7 +1001,7 @@ def exp_p(name):
                 },
                 {
                     'type': FeaturePoolLayer,
-                    'ds': 3, # number of feature maps to be pooled together
+                    'ds': 5, # number of feature maps to be pooled together
                     'axis': 1, # pool over the time axis
                     'pool_function': T.max
                 }
@@ -1061,7 +1058,7 @@ def exp_r(name):
         },
         {
             'type': FeaturePoolLayer,
-            'ds': 3, # number of feature maps to be pooled together
+            'ds': 5, # number of feature maps to be pooled together
             'axis': 1, # pool over the time axis
             'pool_function': T.max
         },
@@ -1109,7 +1106,7 @@ def exp_s(name):
         },
         {
             'type': FeaturePoolLayer,
-            'ds': 3, # number of feature maps to be pooled together
+            'ds': 5, # number of feature maps to be pooled together
             'axis': 1, # pool over the time axis
             'pool_function': T.max
         },
@@ -1158,7 +1155,7 @@ def exp_t(name):
         },
         {
             'type': FeaturePoolLayer,
-            'ds': 3, # number of feature maps to be pooled together
+            'ds': 5, # number of feature maps to be pooled together
             'axis': 1, # pool over the time axis
             'pool_function': T.max
         },
@@ -1206,7 +1203,7 @@ def exp_u(name):
         },
         {
             'type': FeaturePoolLayer,
-            'ds': 3, # number of feature maps to be pooled together
+            'ds': 5, # number of feature maps to be pooled together
             'axis': 1, # pool over the time axis
             'pool_function': T.max
         },

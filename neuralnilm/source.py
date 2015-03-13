@@ -58,10 +58,17 @@ class Source(object):
         X = X.reshape(
             self.n_seq_per_batch * (self.seq_length + self.input_padding), 
             self.n_inputs)
+        self.input_stats = {'mean': X.mean(axis=0), 'std': X.std(axis=0)}
+
+        # Get targets.  Temporarily turn off skip probability 
+        skip_prob = self.skip_probability
+        self.skip_probability = 0
+        X, y = self._gen_data()
+        self.skip_probability = skip_prob
+
         y = y.reshape(
             int(self.n_seq_per_batch * (self.seq_length / self.subsample_target)),
             self.n_outputs)
-        self.input_stats = {'mean': X.mean(axis=0), 'std': X.std(axis=0)}
         self.target_stats = {'mean': y.mean(axis=0), 'std': y.std(axis=0)}
 
     def stop(self):
