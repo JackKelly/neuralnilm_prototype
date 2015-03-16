@@ -172,7 +172,6 @@ def exp_a(name):
 
 def exp_b(name):
     # 4 layers
-    # avg valid cost =  1.6067613363
     source_dict_copy = deepcopy(source_dict)
     source = RealApplianceSource(**source_dict_copy)
     net_dict_copy = deepcopy(net_dict)
@@ -281,7 +280,6 @@ def exp_c(name):
 
 def exp_d(name):
     # 3 layers, 2x2x downsample
-    # avg valid cost =  1.8310753107
     source_dict_copy = deepcopy(source_dict)
     source_dict_copy['subsample_target'] = 4
     source = RealApplianceSource(**source_dict_copy)
