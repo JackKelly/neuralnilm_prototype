@@ -1453,12 +1453,18 @@ def exp_y(name):
 
 """
 Other experiments:
-* All 5 meters
-* Layer-wise training
-* Larger, deeper
+* 2 dense layers on top
+* single target appliance
+* Try ReLU
+* Try sigmoid
+* pre-train on prediction
+* 4 layers with 2x step down at each level
 * More BLSTM experiments
-* 2x RNNs at full temporal res, then drop down by 2x, the 2x RNNs at half res, then drop down, then 2 more RNNs at 1/4 res.  Could do training per pair of layers.
-* lag
+* lag (without Bidirectional layers)... need to do a normal unidirectional system first to get benchmark
+* 5 layers (50 neurons each layer)
+* 5 layers, only single downsample (at different points)
+* 5 layers, with pre-training
+* 5 layers with RNN, RNN, 2xpool, RNN, 2xpool, RNN
 """
 
 
