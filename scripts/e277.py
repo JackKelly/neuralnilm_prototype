@@ -1525,6 +1525,8 @@ def exp_z(name):
 Other experiments:
 * 2 dense layers on top
 * single target appliance
+* more conv (and optinally pooling) experiments. Try large conv filter and smaller pool.
+* 3x subsampling then 2x subsampling
 * Try ReLU
 * Try sigmoid
 * pre-train on prediction
