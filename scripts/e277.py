@@ -1451,6 +1451,76 @@ def exp_y(name):
     return net
 
 
+def exp_z(name):
+    # N = 50, 5 layers (!), 2x2x subsampling
+    source_dict_copy = deepcopy(source_dict)
+    source_dict_copy['subsample_target'] = 4
+    source = RealApplianceSource(**source_dict_copy)
+    net_dict_copy = deepcopy(net_dict)
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source
+    ))
+    N = 50
+    net_dict_copy['layers_config'] = [
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1.),
+            'nonlinearity': tanh
+        },
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
+            'nonlinearity': tanh
+        },
+        {
+            'type': FeaturePoolLayer,
+            'ds': 2, # number of feature maps to be pooled together
+            'axis': 1, # pool over the time axis
+            'pool_function': T.max
+        },
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
+            'nonlinearity': tanh
+        },
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
+            'nonlinearity': tanh
+        },
+        {
+            'type': FeaturePoolLayer,
+            'ds': 2, # number of feature maps to be pooled together
+            'axis': 1, # pool over the time axis
+            'pool_function': T.max
+        },
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
+            'nonlinearity': tanh
+        },
+        {
+            'type': DenseLayer,
+            'num_units': source.n_outputs,
+            'nonlinearity': None,
+            'W': Normal(std=(1/sqrt(N)))
+        }
+    ]
+    net = Net(**net_dict_copy)
+    return net
+
+
 """
 Other experiments:
 * 2 dense layers on top
@@ -1487,7 +1557,8 @@ def init_experiment(experiment):
 
 def main():
     global logger
-    EXPERIMENTS = list('abcdefghijklmnopqrstuvwxy')
+    # EXPERIMENTS = list('abcdefghijklmnopqrstuvwxyz')
+    EXPERIMENTS = list('wxyz')
     for experiment in EXPERIMENTS:
         full_exp_name = NAME + experiment
         path = os.path.join(PATH, full_exp_name)
