@@ -2,7 +2,6 @@ from __future__ import print_function, division
 from Queue import Queue, Empty
 import threading
 import numpy as np
-from numpy.random import randint
 import pandas as pd
 from nilmtk import DataSet, TimeFrame
 from datetime import timedelta
@@ -18,7 +17,8 @@ class Source(object):
                  standardise_targets=False,
                  input_padding=0,
                  input_stats=None,
-                 target_stats=None
+                 target_stats=None,
+                 rng=np.random.RandomState(seed=42)
     ):
         super(Source, self).__init__()
         self.seq_length = seq_length
@@ -30,6 +30,7 @@ class Source(object):
         self._stop = threading.Event()
         self._thread = None
         self.X_processing_func = X_processing_func
+        self.rng = rng
 
         self.input_stats = input_stats
         self.target_stats = target_stats
@@ -164,7 +165,7 @@ class ToySource(Source):
         appliance_power = np.zeros(length)
         i = 0
         while i < length:
-            if np.random.binomial(n=1, p=p):
+            if self.rng.binomial(n=1, p=p):
                 end = min(i + on_duration, length)
                 appliance_power[i:end] = power
                 i += on_duration + min_off_duration
@@ -360,7 +361,7 @@ class RealApplianceSource(Source):
         random_appliances = []
         while not random_appliances:
             for appliance_i, appliance in enumerate(activations.keys()):
-                if not np.random.binomial(n=1, p=self.skip_probability):
+                if not self.rng.binomial(n=1, p=self.skip_probability):
                     random_appliances.append((appliance_i, appliance))
 
         appliances.extend(random_appliances)
@@ -370,11 +371,11 @@ class RealApplianceSource(Source):
             n_activations = len(activations[appliance])
             if n_activations == 0:
                 continue
-            activation_i = randint(0, n_activations)
+            activation_i = self.rng.randint(0, n_activations)
             activation = activations[appliance][activation_i]
             latest_start_i = (self.seq_length - len(activation)) - (BORDER + self.lag) 
             latest_start_i = max(latest_start_i, BORDER)
-            start_i = randint(0, latest_start_i)
+            start_i = self.rng.randint(0, latest_start_i)
             end_i = start_i + len(activation)
             end_i = min(end_i, self.seq_length-(1+self.lag))
             target = activation.values[:end_i-start_i]
@@ -547,9 +548,9 @@ class NILMTKSource(Source):
         seq_i = 0
         while seq_i < self.n_seq_per_batch:
             if validation:
-                days = np.random.randint(low=N_DAYS, high=N_DAYS + self.n_seq_per_batch)
+                days = self.rng.randint(low=N_DAYS, high=N_DAYS + self.n_seq_per_batch)
             else:
-                days = np.random.randint(low=0, high=N_DAYS)
+                days = self.rng.randint(low=0, high=N_DAYS)
             start = FIRST_DAY + timedelta(days=days)
             X_one_seq, y_one_seq = self._get_data_for_single_day(start)
 
