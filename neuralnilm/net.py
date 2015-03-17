@@ -80,8 +80,11 @@ class Net(object):
         self.n_seq_to_plot = n_seq_to_plot
         self.n_iterations_loaded = 0
 
-        self.csv_filename = self.experiment_name + "_costs.csv"
-        self.best_costs_filename = self.experiment_name + "_best_costs.txt"
+        self.csv_filenames = {
+            'training_costs': self.experiment_name + "_training_costs.csv",
+            'validation_costs': self.experiment_name + "_validation_costs.csv",
+            'best_costs': self.experiment_name + "_best_costs.txt"
+        }
 
         self.generate_validation_data_and_set_shapes()
 
@@ -205,17 +208,13 @@ class Net(object):
         self.compile()
         self.source.start()
 
-    def _write_csv_row(self, row, mode='a'):
-        with open(self.csv_filename, mode=mode) as csvfile:
-            csv_writer = csv.writer(csvfile)
-            csv_writer.writerow(row)
-
     def print_and_save_training_progress(self, duration):
         iteration = self.n_iterations()
         train_cost = self.training_costs[-1]
         validation_cost = (self.validation_costs[-1] if self.validation_costs 
                            else None)
-        self._write_csv_row([iteration, train_cost, validation_cost, duration])
+        _write_csv_row(self.csv_filenames['training_costs'],
+                       [iteration, train_cost, duration])
         best_train_cost = min(self.training_costs)
         best_valid_cost = min(self.validation_costs)
         is_best_train = train_cost == best_train_cost
@@ -247,7 +246,7 @@ class Net(object):
             (" avg valid cost =" + FMT + "\n").format(
                 np.mean(self.validation_costs[-N:]))
         )
-        with open(self.best_costs_filename, mode='w') as fh:
+        with open(self.csv_filenames['best_costs'], mode='w') as fh:
             fh.write(txt)
 
         # print bests to screen
@@ -279,8 +278,13 @@ class Net(object):
         iteration = self.n_iterations()
         if iteration == 0:
             # Header for CSV file
-            self._write_csv_row(
-                ['iteration', 'train_cost', 'validation_cost', 'duration'], 
+            _write_csv_row(
+                self.csv_filenames['training_costs'],
+                row=['iteration', 'train_cost', 'duration'], 
+                mode='w')
+            _write_csv_row(
+                self.csv_filenames['validation_costs'],
+                row=['iteration', 'validation_cost'], 
                 mode='w')
 
         while iteration != n_iterations:
@@ -296,6 +300,9 @@ class Net(object):
             if not iteration % self.validation_interval:
                 validation_cost = self.compute_cost(self.X_val, self.y_val).flatten()[0]
                 self.validation_costs.append(validation_cost)
+                _write_csv_row(
+                    self.csv_filenames['validation_costs'],
+                    row=[iteration, validation_cost])
             if not iteration % self.save_plot_interval:
                 self.plot_costs(save=True)
                 self.plot_estimates(save=True)
@@ -539,3 +546,9 @@ class DimshuffleLayer(Layer):
 
     def get_output_for(self, input, *args, **kwargs):
         return input.dimshuffle(self.pattern)
+
+
+def _write_csv_row(self, filename, row, mode='a'):
+    with open(filename, mode=mode) as csvfile:
+        csv_writer = csv.writer(csvfile)
+        csv_writer.writerow(row)
