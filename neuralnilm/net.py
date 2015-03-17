@@ -497,7 +497,7 @@ class Net(object):
         f.close()
 
 
-def _write_csv_row(self, filename, row, mode='a'):
+def _write_csv_row(filename, row, mode='a'):
     with open(filename, mode=mode) as csvfile:
         csv_writer = csv.writer(csvfile)
         csv_writer.writerow(row)
