@@ -1440,7 +1440,9 @@ def exp_z(name):
     net_dict_copy.update(dict(
         experiment_name=name,
         source=source,
-        updates=partial(nesterov_momentum, learning_rate=0.001)
+        updates=partial(nesterov_momentum, learning_rate=0.001),
+        epoch_callbacks={},
+        do_save_activations=False
     ))
     N = 50
     net_dict_copy['layers_config'] = [
@@ -1499,7 +1501,7 @@ def exp_z(name):
         }
     ]
     net = Net(**net_dict_copy)
-    net.load_params('e277z.hdf5', 500)
+    net.load_params('e277z.hdf5', 1500)
     return net
 
 
@@ -1537,7 +1539,7 @@ def main():
 
         try:
             net = init_experiment(experiment)
-            run_experiment(net, path, epochs=4000)
+            run_experiment(net, path, epochs=None)
         except KeyboardInterrupt:
             logger.info("KeyboardInterrupt")
             break
