@@ -13,7 +13,7 @@ from lasagne.updates import nesterov_momentum
 from functools import partial
 import os
 from neuralnilm.source import standardise, discretize, fdiff, power_and_fdiff
-from neuralnilm.experiment import run_experiment
+from neuralnilm.experiment import run_experiment, init_experiment
 from neuralnilm.net import TrainingError
 import __main__
 from copy import deepcopy
@@ -1504,47 +1504,19 @@ def exp_z(name):
     net.load_params('e277z.hdf5', 1500)
     return net
 
-
-def init_experiment(experiment):
-    full_exp_name = NAME + experiment
-    func_call = 'exp_{:s}(full_exp_name)'.format(experiment)
-
-    global logger
-    logger = logging.getLogger(full_exp_name)
-    logger.addHandler(logging.FileHandler(full_exp_name+'.log'))
-    logger.addHandler(logging.StreamHandler(stream=stdout))
-    logger.setLevel(logging.DEBUG)
-    
-    logger.info("***********************************")
-    logger.info("Preparing " + full_exp_name + "...")
-    net = eval(func_call)
-    return net
-
-
 def main():
-    global logger
     # EXPERIMENTS = list('abcdefghijklmnopqrstuvwxyz')
     EXPERIMENTS = list('z')
     for experiment in EXPERIMENTS:
         full_exp_name = NAME + experiment
-        path = os.path.join(PATH, full_exp_name)
+        func_call = init_experiment(PATH, experiment, full_exp_name)
+        logger = logging.getLogger(full_exp_name)
         try:
-            os.mkdir(path)
-        except OSError as exception:
-            if exception.errno == 17:
-                print(path, "already exists.  Reusing directory.")
-            else:
-                raise
-        os.chdir(path)
-
-        try:
-            net = init_experiment(experiment)
-            run_experiment(net, path, epochs=None)
+            net = eval(func_call)
+            run_experiment(net, epochs=None)
         except KeyboardInterrupt:
             logger.info("KeyboardInterrupt")
             break
-        except TrainingError as exception:
-            logger.exception("TrainingError")
         except Exception as exception:
             logger.exception("Exception")
 
