@@ -20,6 +20,7 @@ from lasagne.nonlinearities import sigmoid, rectify
 from lasagne.utils import floatX
 from lasagne.updates import nesterov_momentum
 from .source import quantize
+from .layers import BLSTMLayer, DimshuffleLayer
 theano.config.compute_test_value = 'raise'
 
 """

@@ -10,6 +10,8 @@ from collections import OrderedDict
 from lasagne.utils import floatX
 from warnings import warn
 
+SECS_PER_DAY = 60 * 60 * 24
+
 class Source(object):
     def __init__(self, seq_length, n_seq_per_batch, n_inputs, n_outputs,
                  X_processing_func=None, 
@@ -18,7 +20,7 @@ class Source(object):
                  input_padding=0,
                  input_stats=None,
                  target_stats=None,
-                 seed=None
+                 seed=42
     ):
         super(Source, self).__init__()
         self.seq_length = seq_length
@@ -521,32 +523,34 @@ class NILMTKSource(Source):
                      else self.train_buildings)
         building_i = self.rng.choice(buildings)
         elec = self.dataset.buildings[building_i].elec
-        SUCCESS_RATE_THRESHOLD = 0.7
-        MAX_RETRIES = 20
-        for retry_i in range(MAX_RETRIES):
-            start_datetime_int = self.rng.randint(
-                timestamp_to_int(self.window[0]),
-                timestamp_to_int(self.window[1])
-            )
-            end_datetime_int = (start_datetime_int + 
-                                (self.sample_period * self.seq_length))
-            start_datetime, end_datetime = [
-                pd.Timestamp(datetime_int, unit='s', tz=self.tz) 
-                for datetime_int in [start_datetime_int, end_datetime_int]]
-            sections = [TimeFrame(start_datetime, end_datetime)]
-            mains_power = elec.mains().power_series(sections=sections).next()
-            success_rate = len(mains_power) / self.seq_length
-            if success_rate < SUCCESS_RATE_THRESHOLD:
-                continue
+        section = self.rng.choice(self.good_sections[building_i])
+        section_duration = section.timedelta.total_seconds()
+        max_duration = self.sample_period * self.seq_length
+        latest_start = section_duration - max_duration
+        relative_start = self.rng.randint(0, latest_start)
+        start = section.start + timedelta(seconds=relative_start)
+        end = start + timedelta(seconds=max_duration)
+        sections = [TimeFrame(start, end)]
+        mains_power = elec.mains().power_series(
+            sample_period=self.sample_period, sections=sections).next()
+        appliances_power = self.metergroups[building_i].dataframe_of_meters(
+            sample_period=self.sample_period, sections=sections)
+        def truncate(data):
+            n = len(data)
+            assert n >= self.seq_length
+            if n > self.seq_length:
+                data = data[:self.seq_length]
+            return data
+        mains_power = truncate(mains_power)
+        appliances_power = truncate(appliances_power)
+        appliances_power.columns = elec.get_labels(appliances_power.columns)
+        
+        # time of day
+        index = mains_power.index.tz_localize(None)
+        secs_into_day = (index.astype(int) / 1E9) % SECS_PER_DAY
+        time_of_day = ((secs_into_day / SECS_PER_DAY) * 2.) - 1.
 
-            # load appliance data
-            appliances_power = self.metergroups[building_i].dataframe_of_meters(
-                sample_period=self.sample_period, sections=sections)
-
-            mains_power = mains_power.resample(
-                rule='{}S'.format(self.sample_period), how='ffill')
-            
-            return appliances_power, mains_power
+        return appliances_power, mains_power, time_of_day
 
         
 def timestamp_to_int(ts):

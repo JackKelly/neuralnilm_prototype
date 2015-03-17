@@ -22,11 +22,23 @@ import __main__
 from copy import deepcopy
 from math import sqrt
 import numpy as np
+import theano.tensor as T
 
 NAME = os.path.splitext(os.path.split(__main__.__file__)[1])[0]
 PATH = "/homes/dk3810/workspace/python/neuralnilm/figures"
 SAVE_PLOT_INTERVAL = 500
 GRADIENT_STEPS = 100
+
+"""
+conclusions
+
+BLSTM sucks
+
+WORKS WELL
+2x2x downsample with 3 layers (exp_d)
+Conv AND pool, with 50 filters (h)
+
+"""
 
 source_dict = dict(
     filename='/data/dk3810/ukdale.h5',
@@ -90,6 +102,7 @@ net_dict = dict(
 
 
 def exp_a(name):
+    # avg valid cost =  0.4980839193
     source_dict_copy = deepcopy(source_dict)
     source = RealApplianceSource(**source_dict_copy)
     net_dict_copy = deepcopy(net_dict)
@@ -139,6 +152,7 @@ def exp_a(name):
 
 def exp_b(name):
     # 4 layers
+    # avg valid cost =  0.5094475150
     source_dict_copy = deepcopy(source_dict)
     source = RealApplianceSource(**source_dict_copy)
     net_dict_copy = deepcopy(net_dict)
@@ -196,6 +210,7 @@ def exp_b(name):
 
 def exp_c(name):
     # BLSTM as last layer
+    # avg valid cost =  0.5339006186
     source_dict_copy = deepcopy(source_dict)
     source_dict_copy['subsample_target'] = 3
     source = RealApplianceSource(**source_dict_copy)
@@ -247,6 +262,7 @@ def exp_c(name):
 
 def exp_d(name):
     # 3 layers, 2x2x downsample
+    # avg valid cost =  0.4827488661
     source_dict_copy = deepcopy(source_dict)
     source_dict_copy['subsample_target'] = 4
     source = RealApplianceSource(**source_dict_copy)
@@ -303,6 +319,7 @@ def exp_d(name):
 
 def exp_e(name):
     # single 2x downsample
+    # avg valid cost =  0.5703055859
     source_dict_copy = deepcopy(source_dict)
     source_dict_copy['subsample_target'] = 2
     source = RealApplianceSource(**source_dict_copy)
@@ -355,6 +372,7 @@ def exp_e(name):
 
 def exp_f(name):
     # 2xBLSTM as last layer
+    # avg valid cost =  0.5449647903
     source_dict_copy = deepcopy(source_dict)
     source_dict_copy['subsample_target'] = 3
     source = RealApplianceSource(**source_dict_copy)
@@ -412,6 +430,7 @@ def exp_f(name):
 
 def exp_g(name):
     # 2xBLSTM (either side of the pool) as last layer
+    # avg valid cost =  0.6694810390
     source_dict_copy = deepcopy(source_dict)
     source_dict_copy['subsample_target'] = 3
     source = RealApplianceSource(**source_dict_copy)
@@ -470,6 +489,7 @@ def exp_g(name):
 
 def exp_h(name):
     # Conv AND pool, with 50 filters
+    # avg valid cost =  0.4842122793
     source_dict_copy = deepcopy(source_dict)
     source_dict_copy.update(dict(
         subsample_target=3,
@@ -540,6 +560,7 @@ def exp_h(name):
 
 def exp_i(name):
     # Conv AND pool, with 50 filters and BLSTM
+    # avg valid cost =  0.8673090339
     source_dict_copy = deepcopy(source_dict)
     source_dict_copy.update(dict(
         subsample_target=3,
@@ -610,6 +631,7 @@ def exp_i(name):
 
 def exp_j(name):
     # 3 BLSTM layers
+    # avg valid cost =  0.7796924710
     source_dict_copy = deepcopy(source_dict)
     source_dict_copy['subsample_target'] = 3
     source = RealApplianceSource(**source_dict_copy)
@@ -660,6 +682,7 @@ def exp_j(name):
 
 def exp_k(name):
     # no downsampling
+    # avg valid cost =  0.6215093136
     source_dict_copy = deepcopy(source_dict)
     source_dict_copy['subsample_target'] = 1
     source = RealApplianceSource(**source_dict_copy)
@@ -704,6 +727,7 @@ def exp_k(name):
 
 def exp_l(name):
     # 4 layers
+    # avg valid cost =  0.5094475150
     source_dict_copy = deepcopy(source_dict)
     source = RealApplianceSource(**source_dict_copy)
     net_dict_copy = deepcopy(net_dict)
@@ -759,6 +783,7 @@ def exp_l(name):
 
 def exp_m(name):
     # lag = 5
+    # avg valid cost =  0.5140688419
     source_dict_copy = deepcopy(source_dict)
     source_dict_copy['lag'] = 5
     source = RealApplianceSource(**source_dict_copy)
@@ -809,6 +834,7 @@ def exp_m(name):
 
 def exp_n(name):
     # lag = 25
+    # avg valid cost =  0.7634134889
     source_dict_copy = deepcopy(source_dict)
     source_dict_copy['lag'] = 25
     source = RealApplianceSource(**source_dict_copy)
@@ -860,6 +886,7 @@ def exp_n(name):
 
 def exp_o(name):
     # layerwise pre-training
+    # avg valid cost =  0.7179737687 but different vaildation set!
     source_dict_copy = deepcopy(source_dict)
     source_dict_copy['subsample_target'] = 1
     source = RealApplianceSource(**source_dict_copy)
@@ -935,6 +962,7 @@ def exp_o(name):
 
 def exp_p(name):
     # layerwise pre-training (pre-train with pool)
+    # avg valid cost =  0.7383348942 but different validation set
     source_dict_copy = deepcopy(source_dict)
     source_dict_copy['subsample_target'] = 1
     source = RealApplianceSource(**source_dict_copy)
@@ -1010,6 +1038,8 @@ def exp_p(name):
 
 def exp_r(name):
     # mse cost
+    # avg valid cost =  0.3652453125 BUT THIS ISn'T same cost function!
+    # eye-balling data suggests it isn't great
     source_dict_copy = deepcopy(source_dict)
     source = RealApplianceSource(**source_dict_copy)
     net_dict_copy = deepcopy(net_dict)
@@ -1059,6 +1089,7 @@ def exp_r(name):
 
 def exp_s(name):
     # 75 neurons per layer
+    # avg valid cost =  0.5027189851
     source_dict_copy = deepcopy(source_dict)
     source = RealApplianceSource(**source_dict_copy)
     net_dict_copy = deepcopy(net_dict)
@@ -1108,6 +1139,7 @@ def exp_s(name):
 
 def exp_t(name):
     # 100 neurons per layer
+    # avg valid cost =  0.4975247979
     source_dict_copy = deepcopy(source_dict)
     source = RealApplianceSource(**source_dict_copy)
     net_dict_copy = deepcopy(net_dict)
@@ -1156,6 +1188,7 @@ def exp_t(name):
 
 def exp_u(name):
     # 50, 10, 50
+    # avg valid cost =  0.6093164682
     source_dict_copy = deepcopy(source_dict)
     source = RealApplianceSource(**source_dict_copy)
     net_dict_copy = deepcopy(net_dict)
@@ -1204,6 +1237,7 @@ def exp_u(name):
 
 def exp_v(name):
     # N = 25, 5 layers (!), 2x2x subsampling
+    # avg valid cost =  0.5793741345
     source_dict_copy = deepcopy(source_dict)
     source_dict_copy['subsample_target'] = 4
     source = RealApplianceSource(**source_dict_copy)
@@ -1273,6 +1307,7 @@ def exp_v(name):
 
 def exp_w(name):
     # mean
+    # avg valid cost =  0.5748419166
     source_dict_copy = deepcopy(source_dict)
     source = RealApplianceSource(**source_dict_copy)
     net_dict_copy = deepcopy(net_dict)
@@ -1321,6 +1356,7 @@ def exp_w(name):
 
 def exp_x(name):
     # 5x
+    # avg valid cost =  0.4960295558
     source_dict_copy = deepcopy(source_dict)
     source_dict_copy['subsample_target'] = 5
     source = RealApplianceSource(**source_dict_copy)
@@ -1370,6 +1406,7 @@ def exp_x(name):
 
 def exp_y(name):
     # 5x and mean
+    #  avg valid cost =  0.4887993336
     source_dict_copy = deepcopy(source_dict)
     source_dict_copy['subsample_target'] = 5
     source = RealApplianceSource(**source_dict_copy)
@@ -1420,6 +1457,7 @@ def exp_y(name):
 
 def exp_z(name):
     # N = 50, 5 layers (!), 2x2x subsampling
+    #  avg valid cost =  0.4871760607
     source_dict_copy = deepcopy(source_dict)
     source_dict_copy['subsample_target'] = 4
     source = RealApplianceSource(**source_dict_copy)
