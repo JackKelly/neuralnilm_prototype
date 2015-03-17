@@ -25,26 +25,6 @@ PATH = "/homes/dk3810/workspace/python/neuralnilm/figures"
 SAVE_PLOT_INTERVAL = 500
 GRADIENT_STEPS = 100
 
-
-"""
-Good things:
-T.max
-a single 3x pool
-
-Bad things:
-2x2x pool
-Conv
-10 filters in conv.  Much better to have 50
-
-To do again:
-conv AND pool with 50 filters
-
-New experiments
-T.max and single 3x pool.  And try this with conv and pool with 50 filters.
-BLSTM with above
-2 RNNs, then 3x pool, then BLSTM (try 1 and 2 layers)
-"""
-
 from theano.ifelse import ifelse
 import theano.tensor as T
 
@@ -1459,7 +1439,8 @@ def exp_z(name):
     net_dict_copy = deepcopy(net_dict)
     net_dict_copy.update(dict(
         experiment_name=name,
-        source=source
+        source=source,
+        updates=partial(nesterov_momentum, learning_rate=0.001)
     ))
     N = 50
     net_dict_copy['layers_config'] = [
@@ -1518,27 +1499,8 @@ def exp_z(name):
         }
     ]
     net = Net(**net_dict_copy)
+    net.load_params('e277z.hdf5', 500)
     return net
-
-
-"""
-Other experiments:
-* 2 dense layers on top
-* single target appliance
-* more conv (and optinally pooling) experiments. Try large conv filter and smaller pool.
-* 3x subsampling then 2x subsampling
-* Try ReLU
-* Try sigmoid
-* pre-train on prediction
-* 4 layers with 2x step down at each level
-* More BLSTM experiments
-* lag (without Bidirectional layers)... need to do a normal unidirectional system first to get benchmark
-* 5 layers (50 neurons each layer)
-* 5 layers, only single downsample (at different points)
-* 5 layers, with pre-training
-* 5 layers with RNN, RNN, 2xpool, RNN, 2xpool, RNN
-"""
-
 
 
 def init_experiment(experiment):
@@ -1560,7 +1522,7 @@ def init_experiment(experiment):
 def main():
     global logger
     # EXPERIMENTS = list('abcdefghijklmnopqrstuvwxyz')
-    EXPERIMENTS = list('wxyz')
+    EXPERIMENTS = list('z')
     for experiment in EXPERIMENTS:
         full_exp_name = NAME + experiment
         path = os.path.join(PATH, full_exp_name)

@@ -381,10 +381,6 @@ class Net(object):
         """
         Save it to HDF in the following format:
             /epoch<N>/L<I>_<type>/P<I>_<name>
-
-        Parameters
-        ----------
-        layers : list of ints
         """
         # Process function parameters
         if filename is None:
@@ -416,6 +412,37 @@ class Net(object):
                 layer_group.create_dataset(param_name, data=data, compression="gzip")
             
         f.close()
+
+    def load_params(self, filename=None, iteration=None):
+        """
+        Load params from HDF in the following format:
+            /epoch<N>/L<I>_<type>/P<I>_<name>
+        """
+        # Process function parameters
+        if filename is None:
+            filename = self.experiment_name + ".hdf5"
+        self.logger.info('Loading params from ' + filename + '...')
+
+        f = h5py.File(filename, mode='r')
+        epoch_name = 'epoch{:06d}'.format(iteration)
+        epoch_group = f[epoch_name]
+            
+        layers = get_all_layers(self.layers[-1])
+        layers.reverse()
+        for layer_i, layer in enumerate(layers):
+            params = layer.get_params()
+            if not params:
+                continue
+            layer_name = 'L{:02d}_{}'.format(layer_i, layer.__class__.__name__)
+            layer_group = epoch_group[layer_name]
+            for param_i, param in enumerate(params):
+                param_name = 'P{:02d}'.format(param_i)
+                if param.name:
+                    param_name += "_" + param.name
+                data = layer_group[param_name]
+                param.set_value(data.value)
+        f.close()
+        self.logger.info('Done loading params from ' + filename + '.')
 
     def save_activations(self):
         if not self.do_save_activations:
