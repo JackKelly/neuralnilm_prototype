@@ -78,7 +78,6 @@ class Net(object):
         self.epoch_callbacks = {} if epoch_callbacks is None else epoch_callbacks
         self.do_save_activations = do_save_activations
         self.n_seq_to_plot = n_seq_to_plot
-        self.n_iterations_loaded = 0
 
         self.csv_filenames = {
             'training_costs': self.experiment_name + "_training_costs.csv",
@@ -227,12 +226,11 @@ class Net(object):
         txt = (
             "BEST COSTS\n" + 
             ("best train cost =" + FMT + " at iteration{:6d}\n").format(
-                best_train_cost, 
-                self.training_costs.index(best_train_cost) + self.n_iterations_loaded) + 
+                best_train_cost, self.training_costs.index(best_train_cost)) + 
             ("best valid cost =" + FMT + " at iteration{:6d}\n").format(
                 best_valid_cost, 
-                (self.validation_costs.index(best_valid_cost) * 
-                 self.validation_interval) + self.n_iterations_loaded) + 
+                self.validation_costs.index(best_valid_cost) * 
+                self.validation_interval) + 
             "\n" +
             "AVERAGE FOR THE TOP {:d} ITERATIONS\n".format(K) +
             (" avg train cost =" + FMT + "\n").format(
@@ -314,11 +312,8 @@ class Net(object):
 
     def plot_costs(self, save=False):
         fig, ax = plt.subplots(1)
-        training_x = np.arange(0, len(self.training_costs))
-        training_x += self.n_iterations_loaded
-        ax.plot(training_x, self.training_costs, label='Training')
+        ax.plot(self.training_costs, label='Training')
         validation_x = np.arange(0, len(self.training_costs), self.validation_interval)
-        validation_x += self.n_iterations_loaded
         n_validations = min(len(validation_x), len(self.validation_costs))
         ax.plot(validation_x[:n_validations], 
                 self.validation_costs[:n_validations],
@@ -387,16 +382,13 @@ class Net(object):
             ".pdf")
 
     def n_iterations(self):
-        return max(len(self.training_costs) - 1, 0) + self.n_iterations_loaded
+        return max(len(self.training_costs) - 1, 0)
 
     def save_params(self, filename=None):
         """
         Save it to HDF in the following format:
             /epoch<N>/L<I>_<type>/P<I>_<name>
         """
-        if self.n_iterations() == self.n_iterations_loaded:
-            return
-
         if filename is None:
             filename = self.experiment_name + ".hdf5"
 
@@ -457,12 +449,14 @@ class Net(object):
                 param.set_value(data.value)
         f.close()
         self.logger.info('Done loading params from ' + filename + '.')
-        self.n_iterations_loaded = iteration + 1
+        def load_csv(key):
+            filename = self.csv_filenames[key]
+            return list(np.genfromtxt(filename, delimiter=',')[:,1])
+        self.training_costs = load_csv('training_costs')
+        self.validation_costs = load_csv('validation_costs')
 
     def save_activations(self):
         if not self.do_save_activations:
-            return
-        if self.n_iterations() == self.n_iterations_loaded:
             return
         filename = self.experiment_name + "_activations.hdf5"
         mode = 'w' if self.n_iterations() == 0 else 'a'
