@@ -495,54 +495,9 @@ class Net(object):
 
         f.close()
 
-            
-def BLSTMLayer(*args, **kwargs):
-    # setup forward and backwards LSTM layers.  Note that
-    # LSTMLayer takes a backwards flag. The backwards flag tells
-    # scan to go backwards before it returns the output from
-    # backwards layers.  It is reversed again such that the output
-    # from the layer is always from x_1 to x_n.
-
-    # If learn_init=True then you can't have multiple
-    # layers of LSTM cells.
-    return BidirectionalLayer(LSTMLayer, *args, **kwargs)
-
-
-
-            
-def BidirectionalRecurrentLayer(*args, **kwargs):
-    # setup forward and backwards LSTM layers.  Note that
-    # LSTMLayer takes a backwards flag. The backwards flag tells
-    # scan to go backwards before it returns the output from
-    # backwards layers.  It is reversed again such that the output
-    # from the layer is always from x_1 to x_n.
-
-    # If learn_init=True then you can't have multiple
-    # layers of LSTM cells.
-    return BidirectionalLayer(RecurrentLayer, *args, **kwargs)
-
-
-
-def BidirectionalLayer(layer_class, *args, **kwargs):
-    kwargs.pop('backwards', None)
-    l_fwd = layer_class(*args, backwards=False, **kwargs)
-    l_bck = layer_class(*args, backwards=True, **kwargs)
-    return ElemwiseSumLayer([l_fwd, l_bck])
-
-
-class DimshuffleLayer(Layer):
-    def __init__(self, input_layer, pattern):
-        super(DimshuffleLayer, self).__init__(input_layer)
-        self.pattern = pattern
-
-    def get_output_shape_for(self, input_shape):
-        return tuple([input_shape[i] for i in self.pattern])
-
-    def get_output_for(self, input, *args, **kwargs):
-        return input.dimshuffle(self.pattern)
-
 
 def _write_csv_row(self, filename, row, mode='a'):
     with open(filename, mode=mode) as csvfile:
         csv_writer = csv.writer(csvfile)
         csv_writer.writerow(row)
+

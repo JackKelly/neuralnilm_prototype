@@ -3,7 +3,7 @@ from Queue import Queue, Empty
 import threading
 import numpy as np
 import pandas as pd
-from nilmtk import DataSet, TimeFrame
+from nilmtk import DataSet, TimeFrame, MeterGroup
 from datetime import timedelta
 from sys import stdout
 from collections import OrderedDict
@@ -18,7 +18,7 @@ class Source(object):
                  input_padding=0,
                  input_stats=None,
                  target_stats=None,
-                 rng=np.random.RandomState(seed=42)
+                 seed=None
     ):
         super(Source, self).__init__()
         self.seq_length = seq_length
@@ -30,7 +30,7 @@ class Source(object):
         self._stop = threading.Event()
         self._thread = None
         self.X_processing_func = X_processing_func
-        self.rng = rng
+        self.rng = np.random.RandomState(seed)
 
         self.input_stats = input_stats
         self.target_stats = target_stats
@@ -230,7 +230,6 @@ class RealApplianceSource(Source):
         appliances : list of strings
             The first one is the target appliance, if output_one_appliance is True.
             Use a list of lists for alternative names (e.g. ['fridge', 'fridge freezer'])
-        building : int
         subsample_target : int
             If > 1 then subsample the targets.
         skip_probability : float, [0, 1]
@@ -308,30 +307,21 @@ class RealApplianceSource(Source):
     def _load_activations(self, buildings, min_on_durations, min_off_durations, on_power_thresholds):
         activations = OrderedDict()
         for building_i in buildings:
-            metergroup = self.dataset.buildings[building_i].elec
-            for appliance_i, appliances in enumerate(self.appliances):
-                if not isinstance(appliances, list):
-                    appliances = [appliances]
-                for appliance in appliances:
-                    try:
-                        meter = metergroup[appliance]
-                    except KeyError:
-                        pass
-                    else:
-                        break
-                else:
-                    print("  No appliance matching", appliances, "in building", building_i)
-                    continue
-
-                print("  Loading activations for", appliance, 
+            elec = self.dataset.buildings[building_i].elec
+            meters = get_meters_for_appliances(elec, self.appliances)
+            for appliance_i, meter in enumerate(meters):
+                appliance = self.appliances[appliance_i]
+                if isinstance(appliance, list):
+                    appliance = appliance[0]
+                print("  Loading activations for", appliance,
                       "from building", building_i, end="... ")
                 stdout.flush()
                 activation_series = meter.activation_series(
                     on_power_threshold=on_power_thresholds[appliance_i],
                     min_on_duration=min_on_durations[appliance_i], 
                     min_off_duration=min_off_durations[appliance_i])
-                activations[appliances[0]] = self._preprocess_activations(
-                    activation_series, self.max_appliance_powers[appliances[0]])
+                activations[appliance] = self._preprocess_activations(
+                    activation_series, self.max_appliance_powers[appliance])
                 print("Loaded", len(activation_series), "activations.")
         return activations
 
@@ -479,7 +469,92 @@ class RealApplianceSource(Source):
         self._check_data(X, y)
         return X, y
 
+
 class NILMTKSource(Source):
+    def __init__(self, filename, appliances, 
+                 train_buildings, validation_buildings,
+                 window=(None, None),
+                 sample_period=6,
+                 **kwargs):
+        super(NILMTKSource, self).__init__(
+            n_outputs=len(appliances),
+            n_inputs=1,
+            **kwargs)
+        self.window = window
+        self.dataset = DataSet(filename)
+        self.dataset.set_window(*window)
+        self.tz = self.dataset.metadata['timezone']
+        self.window = [pd.Timestamp(ts, tz=self.tz) for ts in self.window]
+        self.appliances = appliances
+        self.train_buildings = train_buildings
+        self.validation_buildings = validation_buildings
+        self.sample_period = sample_period
+        self._init_meter_groups()
+        self._init_good_sections()
+        
+    def _init_meter_groups(self):
+        self.metergroups = {}
+        for building_i in self._all_buildings():
+            elec = self.dataset.buildings[building_i].elec
+            meters = get_meters_for_appliances(elec, self.appliances)
+            self.metergroups[building_i] = MeterGroup(meters)
+
+    def _all_buildings(self):
+        buildings = self.train_buildings + self.validation_buildings
+        buildings = list(set(buildings))
+        return buildings
+
+    def _init_good_sections(self):
+        self.good_sections = {}
+        min_duration_secs = self.sample_period * self.seq_length
+        min_duration = timedelta(seconds=min_duration_secs)
+        for building_i in self._all_buildings():
+            print("init good sections for building", building_i)
+            mains = self.dataset.buildings[building_i].elec.mains()
+            self.good_sections[building_i] = [
+                section for section in mains.good_sections()
+                if section.timedelta > min_duration
+            ]
+
+    def _gen_single_example(self, validation=False):
+        buildings = (self.validation_buildings if validation 
+                     else self.train_buildings)
+        building_i = self.rng.choice(buildings)
+        elec = self.dataset.buildings[building_i].elec
+        SUCCESS_RATE_THRESHOLD = 0.7
+        MAX_RETRIES = 20
+        for retry_i in range(MAX_RETRIES):
+            start_datetime_int = self.rng.randint(
+                timestamp_to_int(self.window[0]),
+                timestamp_to_int(self.window[1])
+            )
+            end_datetime_int = (start_datetime_int + 
+                                (self.sample_period * self.seq_length))
+            start_datetime, end_datetime = [
+                pd.Timestamp(datetime_int, unit='s', tz=self.tz) 
+                for datetime_int in [start_datetime_int, end_datetime_int]]
+            sections = [TimeFrame(start_datetime, end_datetime)]
+            mains_power = elec.mains().power_series(sections=sections).next()
+            success_rate = len(mains_power) / self.seq_length
+            if success_rate < SUCCESS_RATE_THRESHOLD:
+                continue
+
+            # load appliance data
+            appliances_power = self.metergroups[building_i].dataframe_of_meters(
+                sample_period=self.sample_period, sections=sections)
+
+            mains_power = mains_power.resample(
+                rule='{}S'.format(self.sample_period), how='ffill')
+            
+            return appliances_power, mains_power
+
+        
+def timestamp_to_int(ts):
+    ts = pd.Timestamp(ts)
+    return ts.asm8.astype('datetime64[s]').astype(int)
+
+
+class NILMTKSourceOld(Source):
     def __init__(self, filename, appliances, building=1):
         """
         Parameters
@@ -673,3 +748,23 @@ def power_and_fdiff(X):
         output[i,:-1,1] = np.diff(X[i,:,0])
     return output
     
+
+
+def get_meters_for_appliances(elec, appliances):
+    meters = []
+    for appliance_i, apps in enumerate(appliances):
+        if not isinstance(apps, list):
+            apps = [apps]
+        for appliance in apps:
+            try:
+                meter = elec[appliance]
+            except KeyError:
+                pass
+            else:
+                meters.append(meter)
+                break
+        else:
+            print("  No appliance matching", apps, "in building", 
+                  elec.building())
+            continue
+    return meters

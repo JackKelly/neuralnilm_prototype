@@ -3,8 +3,14 @@ import matplotlib
 import logging
 from sys import stdout
 matplotlib.use('Agg') # Must be before importing matplotlib.pyplot or pylab!
-from neuralnilm import Net, RealApplianceSource, BLSTMLayer, DimshuffleLayer
-from neuralnilm.net import BidirectionalRecurrentLayer
+from neuralnilm import (Net, RealApplianceSource, 
+                        BLSTMLayer, DimshuffleLayer, 
+                        BidirectionalRecurrentLayer)
+from neuralnilm.source import standardise, discretize, fdiff, power_and_fdiff
+from neuralnilm.experiment import run_experiment, init_experiment
+from neuralnilm.net import TrainingError
+from neuralnilm.objectives import scaled_cost
+
 from lasagne.nonlinearities import sigmoid, rectify, tanh
 from lasagne.objectives import crossentropy, mse
 from lasagne.init import Uniform, Normal
@@ -12,9 +18,6 @@ from lasagne.layers import LSTMLayer, DenseLayer, Conv1DLayer, ReshapeLayer, Fea
 from lasagne.updates import nesterov_momentum
 from functools import partial
 import os
-from neuralnilm.source import standardise, discretize, fdiff, power_and_fdiff
-from neuralnilm.experiment import run_experiment, init_experiment
-from neuralnilm.net import TrainingError
 import __main__
 from copy import deepcopy
 from math import sqrt
@@ -24,22 +27,6 @@ NAME = os.path.splitext(os.path.split(__main__.__file__)[1])[0]
 PATH = "/homes/dk3810/workspace/python/neuralnilm/figures"
 SAVE_PLOT_INTERVAL = 500
 GRADIENT_STEPS = 100
-
-from theano.ifelse import ifelse
-import theano.tensor as T
-
-THRESHOLD = 0
-def scaled_cost(x, t):
-    sq_error = (x - t) ** 2
-    def mask_and_mean_sq_error(mask):
-        masked_sq_error = sq_error[mask.nonzero()]
-        mean = masked_sq_error.mean()
-        mean = ifelse(T.isnan(mean), 0.0, mean)
-        return mean
-    above_thresh_mean = mask_and_mean_sq_error(t > THRESHOLD)
-    below_thresh_mean = mask_and_mean_sq_error(t <= THRESHOLD)
-    return (above_thresh_mean + below_thresh_mean) / 2.0
-
 
 source_dict = dict(
     filename='/data/dk3810/ukdale.h5',
@@ -1503,6 +1490,7 @@ def exp_z(name):
     net = Net(**net_dict_copy)
     net.load_params('e277z.hdf5', 1500)
     return net
+
 
 def main():
     # EXPERIMENTS = list('abcdefghijklmnopqrstuvwxyz')
