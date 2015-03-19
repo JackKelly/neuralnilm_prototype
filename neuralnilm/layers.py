@@ -6,6 +6,8 @@ import numpy as np
 
 from lasagne.layers import Layer, LSTMLayer, RecurrentLayer, ElemwiseSumLayer
 from lasagne import nonlinearities
+from lasagne import init
+from lasagne.utils import floatX
             
 def BLSTMLayer(*args, **kwargs):
     # setup forward and backwards LSTM layers.  Note that
@@ -57,13 +59,25 @@ class MixtureDensityLayer(Layer):
     * github.com/aalmah/ift6266amjad/blob/master/experiments/mdn.py
     """
 
-    def __init__(self, incomming, n_output_features=1, n_components=2,
-                 nonlinearity=None):
+    def __init__(self, incomming, num_units, 
+                 num_components=2,
+                 nonlinearity=None, 
+                 W_mu=None, 
+                 W_sigma=None, 
+                 W_mixing=None):
         """
         - nonlinearity : callable or None
             The nonlinearity that is applied to the layer's mu activations.
             If None is provided, the layer will be linear.
+
+        - num_units : int
+            Number of features in the target
+
+        - num_components : int
+            Number of Gaussian components per output feature.
         """
+        # TODO sanity check parameters
+        # TODO: add biases
         super(MixtureDensityLayer, self).__init__(incomming)
         if nonlinearity is None:
             self.nonlinearity = nonlinearities.identity
@@ -71,33 +85,32 @@ class MixtureDensityLayer(Layer):
             self.nonlinearity = nonlinearity
 
         n_input_features = incomming.get_output_shape()[-1]
-        self.n_output_features = n_output_features
-        self.n_components = n_components
+        self.num_units = num_units
+        self.num_components = num_components
 
-        # TODO sanity check parameters
+        def init_params(shape):
+            return floatX(
+                np.random.uniform(
+                    low=-np.sqrt(6. / (n_input_features + num_units)),
+                    high=np.sqrt(6. / (n_input_features + num_units)),
+                    size=shape))
 
-        W_mu_values = np.asarray(
-            np.random.uniform(
-                low=-np.sqrt(6. / (n_input_features + n_output_features)),
-                high=np.sqrt(6. / (n_input_features + n_output_features)),
-                size=(n_input_features, n_output_features, n_components)),
-            dtype=theano.config.floatX)
-
-        W_values = np.asarray(
-            np.random.uniform(
-                low=-np.sqrt(6. / (n_input_features + n_output_features)),
-                high=np.sqrt(6. / (n_input_features + n_output_features)),
-                size=(n_input_features, n_components)),
-            dtype=theano.config.floatX)
+        init_range = np.sqrt(6. / (n_input_features + num_units))
+        if W_mu is None:
+            W_mu = init_params((n_input_features, num_units, num_components))
+        if W_sigma is None:
+            W_sigma = init_params((n_input_features, num_components))
+        if W_mixing is None:
+            # Initialising with the same values as W_sigma appears 
+            # to help learning.
+            W_mixing = W_sigma
     
-        # TODO: use Lasagne's create_params API
-        # TODO: add biases
-        self.W_mu = theano.shared(
-            value=W_mu_values, name='W_mu', borrow=True)
-        self.W_sigma = theano.shared(
-            value=W_values, name='W_sigma', borrow=True)
-        self.W_mixing = theano.shared(
-            value=W_values.copy(), name='W_mixing', borrow=True)
+        self.W_mu = self.create_param(
+            W_mu, (n_input_features, num_units, num_components), name='W_mu')
+        self.W_sigma = self.create_param(
+            W_sigma, (n_input_features, num_components), name='W_sigma')
+        self.W_mixing = self.create_param(
+            W_mixing, (n_input_features, num_components), name='W_mixing')
     
     def get_output_for(self, input, *args, **kwargs):
         mu_activation = T.tensordot(input, self.W_mu, axes=[[1],[0]])
@@ -111,4 +124,4 @@ class MixtureDensityLayer(Layer):
 
     def get_output_shape_for(self, input_shape):
         return (input_shape[0], input_shape[1], 
-                self.n_output_features * self.n_components * 3)
+                self.num_units * self.num_components * 3)

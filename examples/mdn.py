@@ -8,8 +8,6 @@ import lasagne
 from lasagne.utils import floatX
 from lasagne.layers import InputLayer, DenseLayer
 from lasagne.nonlinearities import tanh
-from lasagne.objectives import mse
-from lasagne.init import Uniform
 
 from neuralnilm.layers import MixtureDensityLayer
 from neuralnilm.objectives import mdn_nll
@@ -19,13 +17,13 @@ N_HIDDEN_LAYERS = 2
 N_UNITS_PER_LAYER = 5
 N_COMPONENTS = 3
 # Number of training sequences in each batch
-SHAPE = (100, 1)
+SHAPE = (128, 1)
 # SGD learning rate
 LEARNING_RATE = 0.001
 # Number of iterations to train the net
-N_ITERATIONS = 10000
+N_ITERATIONS = 5000
 
-RNG = np.random.RandomState(42)
+np.random.seed(42)
 
 def gen_data():
     '''
@@ -37,8 +35,8 @@ def gen_data():
         - t : np.ndarray, shape=(n_batch, 1)
             Target sequence
     '''
-    t = RNG.uniform(low=0.1, high=0.9, size=SHAPE)
-    noise = RNG.uniform(low=-0.1, high=0.1, size=SHAPE)
+    t = np.random.uniform(low=0.1, high=0.9, size=SHAPE)
+    noise = np.random.uniform(low=-0.1, high=0.1, size=SHAPE)
     X = t + (0.3 * np.sin(2 * np.pi * t)) + noise
     return floatX(X), floatX(t)
 
@@ -48,11 +46,10 @@ X_val, t_val = gen_data()
 # Configure layers
 layers = [InputLayer(shape=SHAPE)]
 for i in range(N_HIDDEN_LAYERS):
-    layer = DenseLayer(
-        layers[-1], N_UNITS_PER_LAYER, nonlinearity=tanh, W=Uniform(0.1))
+    layer = DenseLayer(layers[-1], N_UNITS_PER_LAYER, nonlinearity=tanh)
     layers.append(layer)
 layers.append(MixtureDensityLayer(
-    layers[-1], n_output_features=1, n_components=N_COMPONENTS))
+    layers[-1], num_units=t_val.shape[-1], num_components=N_COMPONENTS))
 
 print("Total parameters: {}".format(
     sum([p.get_value().size 
@@ -93,7 +90,7 @@ for n in range(N_ITERATIONS):
 ax = plt.gca()
 y = y_pred(X_val)
 for i in range(N_COMPONENTS):
-    ax.plot(X_val[:,0], y[0][:,0,i], 'x')
-ax.plot(X_val[:,0], t_val[:,0], 'x')
+    ax.scatter(X_val[:,0], y[0][:,0,i], s=y[2][:,i].mean() * 50)
+ax.scatter(X_val[:,0], t_val[:,0], color='g')
 plt.show()
 
