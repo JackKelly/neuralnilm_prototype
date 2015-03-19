@@ -5,7 +5,7 @@ import theano.tensor as T
 import numpy as np
 
 from lasagne.layers import Layer, LSTMLayer, RecurrentLayer, ElemwiseSumLayer
-
+from lasagne import nonlinearities
             
 def BLSTMLayer(*args, **kwargs):
     # setup forward and backwards LSTM layers.  Note that
@@ -53,13 +53,24 @@ class DimshuffleLayer(Layer):
 class MixtureDensityLayer(Layer):
     """
     Based on:
-      amjadmahayri.wordpress.com/2014/04/30/mixture-density-networks
-      github.com/aalmah/ift6266amjad/blob/master/experiments/mdn.py
+    * amjadmahayri.wordpress.com/2014/04/30/mixture-density-networks
+    * github.com/aalmah/ift6266amjad/blob/master/experiments/mdn.py
     """
 
-    def __init__(self, input_layer, n_output_features, n_components=2):
-        super(MixtureDensityLayer, self).__init__(input_layer)
-        n_input_features = input_layer.get_output_shape()[-1]
+    def __init__(self, incomming, n_output_features=1, n_components=2,
+                 nonlinearity=None):
+        """
+        - nonlinearity : callable or None
+            The nonlinearity that is applied to the layer's mu activations.
+            If None is provided, the layer will be linear.
+        """
+        super(MixtureDensityLayer, self).__init__(incomming)
+        if nonlinearity is None:
+            self.nonlinearity = nonlinearities.identity
+        else:
+            self.nonlinearity = nonlinearity
+
+        n_input_features = incomming.get_output_shape()[-1]
         self.n_output_features = n_output_features
         self.n_components = n_components
 
@@ -89,10 +100,11 @@ class MixtureDensityLayer(Layer):
             value=W_values.copy(), name='W_mixing', borrow=True)
     
     def get_output_for(self, input, *args, **kwargs):
-        self.mu = T.tensordot(input, self.W_mu, axes = [[1],[0]])
-        self.sigma = T.nnet.softplus(T.dot(input, self.W_sigma))
-        self.mixing = T.nnet.softmax(T.dot(input, self.W_mixing))
-        return [self.mu, self.sigma, self.mixing]
+        mu_activation = T.tensordot(input, self.W_mu, axes=[[1],[0]])
+        mu = self.nonlinearity(mu_activation)
+        sigma = T.nnet.softplus(T.dot(input, self.W_sigma))
+        mixing = T.nnet.softmax(T.dot(input, self.W_mixing))
+        return [mu, sigma, mixing]
 
     def get_params(self):
         return [self.W_mu, self.W_sigma, self.W_mixing]
