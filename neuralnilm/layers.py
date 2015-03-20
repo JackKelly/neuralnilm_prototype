@@ -101,16 +101,13 @@ class MixtureDensityLayer(Layer):
         self.num_units = num_units
         self.num_components = num_components
 
-        def init_params(shape):
-            value = np.sqrt(6. / (n_input_features + num_units))
-            return floatX(np.random.uniform(low=-value, high=value, size=shape))
-
+        init_value = np.sqrt(6. / (n_input_features + num_units))
         if W_mu is None:
-            W_mu = init_params((n_input_features, num_units, num_components))
+            W_mu = init.Uniform(init_value)
         if W_sigma is None:
-            W_sigma = init_params((n_input_features, num_components))
+            W_sigma = init.Uniform(init_value)
         if W_mixing is None:
-            W_mixing = init_params((n_input_features, num_components))
+            W_mixing = init.Uniform(init_value)
     
         # weights
         self.W_mu = self.create_param(
