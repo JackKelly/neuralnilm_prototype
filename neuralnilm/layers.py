@@ -53,18 +53,19 @@ class DimshuffleLayer(Layer):
 
 
 class MixtureDensityLayer(Layer):
-    """Mixture density network output layer (Bishop 1994). 
+    """Mixture density network output layer [#bishop1994]. 
 
     MDNs are trained to minimise the negative log likelihood of its parameters
     given the data.  This can be done using, for example, SGD.
 
-    :references:
-    Bishop, C. Mixture density networks. Neural Computing Research Group, 
-    Aston University, Tech. Rep. NCRG/94/004. (1994)
-
     Based on work by Amjad Almahairi:
     * amjadmahayri.wordpress.com/2014/04/30/mixture-density-networks
     * github.com/aalmah/ift6266amjad/blob/master/experiments/mdn.py
+
+    :references:
+        .. [#bishop1994] Christopher Bishop. "Mixture density networks". 
+           Neural Computing Research Group, Aston University. 
+           Tech. Rep. NCRG/94/004. (1994)
     """
 
     def __init__(self, incomming, num_units, 
@@ -79,15 +80,19 @@ class MixtureDensityLayer(Layer):
                  **kwargs
              ):
         """
-        - nonlinearity : callable or None
-            The nonlinearity that is applied to the layer's mu activations.
-            If None is provided, the layer will be linear.
+        :parameters:
+            - num_units : int
+                Number of output features.
 
-        - num_units : int
-            Number of output features.
+            - num_components : int
+                Number of Gaussian components per output feature.
 
-        - num_components : int
-            Number of Gaussian components per output feature.
+            - nonlinearity : callable or None
+                The nonlinearity that is applied to the layer's mu activations.
+                If None is provided, the layer will be linear.
+
+            - W_mu, W_sigma, W_mixing, b_mu, b_sigma, b_mixing : 
+                Theano shared variable, numpy array or callable
         """
         # TODO sanity check parameters
         # TODO: add biases
@@ -127,6 +132,12 @@ class MixtureDensityLayer(Layer):
 
     
     def get_output_for(self, input, *args, **kwargs):
+        """
+        :returns:
+            mu : (batch_size, num_units, num_components)
+            sigma : (batch_size, num_components)
+            mixing : (batch_size, num_components)
+        """
         # mu
         mu_activation = T.tensordot(input, self.W_mu, axes=[[1],[0]])
         mu_activation += self.b_mu.dimshuffle('x', 0, 1)
@@ -141,7 +152,8 @@ class MixtureDensityLayer(Layer):
         mixing_activation = T.dot(input, self.W_mixing)
         mixing_activation += self.b_mixing.dimshuffle('x', 0)
         mixing = T.nnet.softmax(mixing_activation)
-        return [mu, sigma, mixing]
+
+        return mu, sigma, mixing
 
     def get_params(self):
         return [self.W_mu, self.W_sigma, self.W_mixing] + self.get_bias_params()

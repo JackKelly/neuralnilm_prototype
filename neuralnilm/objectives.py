@@ -33,7 +33,7 @@ def mdn_nll(x, t):
     # Adapted from NLL() in
     # github.com/aalmah/ift6266amjad/blob/master/experiments/mdn.py
 
-    mu, sigma, mixing = x
+    mu, sigma, mixing = x[0], x[1], x[2]
 
     # multivariate Gaussian
     exponent = -0.5 * T.inv(sigma) * T.sum((t.dimshuffle(0,1,'x') - mu)**2, axis=1)
