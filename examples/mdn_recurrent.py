@@ -17,7 +17,7 @@ N_HIDDEN_LAYERS = 2
 N_UNITS_PER_LAYER = 5
 N_COMPONENTS = 3
 # Number of training sequences in each batch
-N_SEQ_PER_BATCH = 128
+N_SEQ_PER_BATCH = 1
 SEQ_LENGTH = 200
 SHAPE = (N_SEQ_PER_BATCH, SEQ_LENGTH, 1)
 # SGD learning rate
@@ -33,9 +33,9 @@ def gen_data():
     Generate toy data.
 
     :returns:
-        - X : np.ndarray, shape=(n_batch, 1)
+        - X : np.ndarray, shape=SHAPE
             Input sequence
-        - t : np.ndarray, shape=(n_batch, 1)
+        - t : np.ndarray, shape=SHAPE
             Target sequence
     '''
 
@@ -63,18 +63,18 @@ for i in range(N_HIDDEN_LAYERS):
 layers.append(ReshapeLayer(layers[-1], (N_SEQ_PER_BATCH * SEQ_LENGTH, N_UNITS_PER_LAYER)))
 layers.append(MixtureDensityLayer(
     layers[-1], num_units=t_val.shape[-1], num_components=N_COMPONENTS))
-layers.append(ReshapeLayer(layers[-1], SHAPE))
+# layers.append(ReshapeLayer(layers[-1], SHAPE))
 
 print("Total parameters: {}".format(
     sum([p.get_value().size 
          for p in lasagne.layers.get_all_params(layers[-1])])))
 
 X = T.tensor3('X')
-t = T.tensor3('t')
+t = T.matrix('t')
 
 # add test values
 X.tag.test_value = floatX(np.random.rand(*SHAPE))
-t.tag.test_value = floatX(np.random.rand(*SHAPE))
+t.tag.test_value = floatX(np.random.rand(N_SEQ_PER_BATCH * SEQ_LENGTH, 1))
 
 loss_func = mdn_nll
 y = layers[-1].get_output(X)
@@ -93,8 +93,10 @@ print("Done compiling Theano functions.")
 # Train the net
 print("Starting training...")
 costs = np.zeros(N_ITERATIONS)
+t_val = t_val.reshape((N_SEQ_PER_BATCH * SEQ_LENGTH, 1))
 for n in range(N_ITERATIONS):
     X, t = gen_data()
+    t = t.reshape((N_SEQ_PER_BATCH * SEQ_LENGTH, 1))
     costs[n] = train(X, t)
     if not n % 100:
         cost_val = compute_loss(X_val, t_val)
