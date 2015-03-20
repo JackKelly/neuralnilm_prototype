@@ -53,8 +53,16 @@ class DimshuffleLayer(Layer):
 
 
 class MixtureDensityLayer(Layer):
-    """
-    Based on:
+    """Mixture density network output layer (Bishop 1994). 
+
+    MDNs are trained to minimise the negative log likelihood of its parameters
+    given the data.  This can be done using, for example, SGD.
+
+    :references:
+    Bishop, C. Mixture density networks. Neural Computing Research Group, 
+    Aston University, Tech. Rep. NCRG/94/004. (1994)
+
+    Based on work by Amjad Almahairi:
     * amjadmahayri.wordpress.com/2014/04/30/mixture-density-networks
     * github.com/aalmah/ift6266amjad/blob/master/experiments/mdn.py
     """
@@ -64,21 +72,26 @@ class MixtureDensityLayer(Layer):
                  nonlinearity=None, 
                  W_mu=None, 
                  W_sigma=None, 
-                 W_mixing=None):
+                 W_mixing=None,
+                 b_mu=init.Constant(0.),
+                 b_sigma=init.Constant(0.),
+                 b_mixing=init.Constant(0.),
+                 **kwargs
+             ):
         """
         - nonlinearity : callable or None
             The nonlinearity that is applied to the layer's mu activations.
             If None is provided, the layer will be linear.
 
         - num_units : int
-            Number of features in the target
+            Number of output features.
 
         - num_components : int
             Number of Gaussian components per output feature.
         """
         # TODO sanity check parameters
         # TODO: add biases
-        super(MixtureDensityLayer, self).__init__(incomming)
+        super(MixtureDensityLayer, self).__init__(incomming, **kwargs)
         if nonlinearity is None:
             self.nonlinearity = nonlinearities.identity
         else:
@@ -89,38 +102,55 @@ class MixtureDensityLayer(Layer):
         self.num_components = num_components
 
         def init_params(shape):
-            return floatX(
-                np.random.uniform(
-                    low=-np.sqrt(6. / (n_input_features + num_units)),
-                    high=np.sqrt(6. / (n_input_features + num_units)),
-                    size=shape))
+            value = np.sqrt(6. / (n_input_features + num_units))
+            return floatX(np.random.uniform(low=-value, high=value, size=shape))
 
-        init_range = np.sqrt(6. / (n_input_features + num_units))
         if W_mu is None:
             W_mu = init_params((n_input_features, num_units, num_components))
         if W_sigma is None:
             W_sigma = init_params((n_input_features, num_components))
         if W_mixing is None:
-            # Initialising with the same values as W_sigma appears 
-            # to help learning.
-            W_mixing = W_sigma
+            W_mixing = init_params((n_input_features, num_components))
     
+        # weights
         self.W_mu = self.create_param(
             W_mu, (n_input_features, num_units, num_components), name='W_mu')
         self.W_sigma = self.create_param(
             W_sigma, (n_input_features, num_components), name='W_sigma')
         self.W_mixing = self.create_param(
             W_mixing, (n_input_features, num_components), name='W_mixing')
+
+        # biases
+        self.b_mu = self.create_param(
+            b_mu, (num_units, num_components), name='b_mu')
+        self.b_sigma = self.create_param(
+            b_sigma, (num_components, ), name='b_sigma')
+        self.b_mixing = self.create_param(
+            b_mixing, (num_components, ), name='b_mixing')
+
     
     def get_output_for(self, input, *args, **kwargs):
+        # mu
         mu_activation = T.tensordot(input, self.W_mu, axes=[[1],[0]])
+        mu_activation += self.b_mu.dimshuffle('x', 0, 1)
         mu = self.nonlinearity(mu_activation)
-        sigma = T.nnet.softplus(T.dot(input, self.W_sigma))
-        mixing = T.nnet.softmax(T.dot(input, self.W_mixing))
+
+        # sigma
+        sigma_activation = T.dot(input, self.W_sigma)
+        sigma_activation += self.b_sigma.dimshuffle('x', 0)
+        sigma = T.nnet.softplus(sigma_activation)
+
+        # mixing
+        mixing_activation = T.dot(input, self.W_mixing)
+        mixing_activation += self.b_mixing.dimshuffle('x', 0)
+        mixing = T.nnet.softmax(mixing_activation)
         return [mu, sigma, mixing]
 
     def get_params(self):
-        return [self.W_mu, self.W_sigma, self.W_mixing]
+        return [self.W_mu, self.W_sigma, self.W_mixing] + self.get_bias_params()
+
+    def get_bias_params(self):
+        return [self.b_mu, self.b_sigma, self.b_mixing]
 
     def get_output_shape_for(self, input_shape):
         return (input_shape[0], input_shape[1], 
