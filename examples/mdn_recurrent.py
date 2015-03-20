@@ -8,20 +8,21 @@ import lasagne
 from lasagne.utils import floatX
 from lasagne.layers import InputLayer, RecurrentLayer, ReshapeLayer
 from lasagne.nonlinearities import tanh
+from lasagne.init import Normal
 
 from neuralnilm.layers import MixtureDensityLayer
 from neuralnilm.objectives import mdn_nll
 
 # Number of units in the hidden (recurrent) layer
 N_HIDDEN_LAYERS = 2
-N_UNITS_PER_LAYER = 5
-N_COMPONENTS = 3
+N_UNITS_PER_LAYER = 25
+N_COMPONENTS = 2
 # Number of training sequences in each batch
 N_SEQ_PER_BATCH = 1
 SEQ_LENGTH = 200
 SHAPE = (N_SEQ_PER_BATCH, SEQ_LENGTH, 1)
 # SGD learning rate
-LEARNING_RATE = 0.001
+LEARNING_RATE = 0.00005
 # Number of iterations to train the net
 N_ITERATIONS = 5000
 
@@ -46,10 +47,12 @@ def gen_data():
     X[:,100:150,:] = 0.9
     for batch_i in range(N_SEQ_PER_BATCH):
         if np.random.binomial(n=1, p=0.5):
-            X[batch_i,50:100,0] = np.linspace(-0.9, 0.9, 50)
+#            X[batch_i,50:100,0] = np.linspace(-0.9, 0.9, 50)
+            X[:,50:100,:] = 0.3
             t[batch_i,:,0] = X[batch_i,:,0].copy()
+        # else:
+        #     X[:,100:150,:] = 0.3
     X += noise()
-    t += noise()
     return X, t
 
 
@@ -58,7 +61,10 @@ X_val, t_val = gen_data()
 # Configure layers
 layers = [InputLayer(shape=SHAPE)]
 for i in range(N_HIDDEN_LAYERS):
-    layer = RecurrentLayer(layers[-1], N_UNITS_PER_LAYER, nonlinearity=tanh)
+    layer = RecurrentLayer(
+        layers[-1], N_UNITS_PER_LAYER, nonlinearity=tanh, 
+        W_in_to_hid=Normal(std=1.0/np.sqrt(layers[-1].get_output_shape()[-1])),
+        gradient_steps=100)
     layers.append(layer)
 layers.append(ReshapeLayer(layers[-1], (N_SEQ_PER_BATCH * SEQ_LENGTH, N_UNITS_PER_LAYER)))
 layers.append(MixtureDensityLayer(
@@ -103,10 +109,11 @@ for n in range(N_ITERATIONS):
         print("Iteration {} validation cost = {}".format(n, cost_val))
 
 # Plot means
-# ax = plt.gca()
-# y = y_pred(X_val)
-# for i in range(N_COMPONENTS):
-#     ax.scatter(X_val[:,0], y[0][:,0,i], s=y[2][:,i].mean() * 50)
-# ax.scatter(X_val[:,0], t_val[:,0], color='g')
-# plt.show()
+ax = plt.gca()
+y = y_pred(X_val)
+ax.plot(t_val[:SEQ_LENGTH,0])
+x = range(SEQ_LENGTH)
+for i in range(N_COMPONENTS):
+    ax.scatter(x, y[0][:SEQ_LENGTH,0,i], s=y[2][:,i] * 5)
+plt.show()
 
