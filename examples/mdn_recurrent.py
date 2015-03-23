@@ -18,8 +18,8 @@ N_HIDDEN_LAYERS = 2
 N_UNITS_PER_LAYER = 25
 N_COMPONENTS = 2
 # Number of training sequences in each batch
-N_SEQ_PER_BATCH = 1
-SEQ_LENGTH = 200
+N_SEQ_PER_BATCH = 2
+SEQ_LENGTH = 256
 SHAPE = (N_SEQ_PER_BATCH, SEQ_LENGTH, 1)
 # SGD learning rate
 LEARNING_RATE = 0.00005
@@ -39,16 +39,20 @@ def gen_data():
         - t : np.ndarray, shape=SHAPE
             Target sequence
     '''
-
+    NOISE_MAGNITUDE = 0.1
     def noise():
-        return floatX(np.random.uniform(low=-0.1, high=0.1, size=SHAPE))
-    t = np.zeros(shape=SHAPE, dtype=np.float32) - 0.9
-    X = np.zeros(shape=SHAPE, dtype=np.float32) - 0.9
-    X[:,100:150,:] = 0.9
+        return floatX(np.random.uniform(
+            low=-NOISE_MAGNITUDE, high=NOISE_MAGNITUDE, size=SHAPE))
+
+    t = np.zeros(shape=SHAPE, dtype=np.float32) - 1.0 + NOISE_MAGNITUDE
+    X = np.zeros(shape=SHAPE, dtype=np.float32) - 1.0 + NOISE_MAGNITUDE
+
+    X[:,100:150,:] = 1.0 - NOISE_MAGNITUDE
+
     for batch_i in range(N_SEQ_PER_BATCH):
         if np.random.binomial(n=1, p=0.5):
 #            X[batch_i,50:100,0] = np.linspace(-0.9, 0.9, 50)
-            X[:,50:100,:] = 0.3
+            X[batch_i,50:100,0] = 0.3
             t[batch_i,:,0] = X[batch_i,:,0].copy()
         # else:
         #     X[:,100:150,:] = 0.3
@@ -109,11 +113,15 @@ for n in range(N_ITERATIONS):
         print("Iteration {} validation cost = {}".format(n, cost_val))
 
 # Plot means
-ax = plt.gca()
 y = y_pred(X_val)
-ax.plot(t_val[:SEQ_LENGTH,0])
+batch_i = 1
+ax = plt.gca()
+ax.plot(X_val[batch_i,:,0], linewidth=1)
+ax.plot(t_val[batch_i*SEQ_LENGTH:(batch_i+1)*SEQ_LENGTH,0], linewidth=1)
 x = range(SEQ_LENGTH)
 for i in range(N_COMPONENTS):
-    ax.scatter(x, y[0][:SEQ_LENGTH,0,i], s=y[2][:,i] * 5)
+    ax.scatter(x, y[0][batch_i*SEQ_LENGTH:(batch_i+1)*SEQ_LENGTH,0,i], s=y[2][:,i] * 5)
 plt.show()
 
+def gmm_pdf(mu, sigma, mixing):
+    pass
