@@ -36,12 +36,13 @@ def mdn_nll(x, t):
     mu, sigma, mixing = x[0], x[1], x[2]
 
     # multivariate Gaussian
-    exponent = -0.5 * T.inv(sigma) * T.sum((t.dimshuffle(0,1,'x') - mu)**2, axis=1)
+    exponent = -0.5 * T.inv(sigma) * T.sum((t.dimshuffle(0, 1, 'x') - mu)**2, 
+                                           axis=1)
     normalizer = (2 * np.pi * sigma)
-    exponent = exponent + T.log(mixing) - (t.shape[1]*.5)*T.log(normalizer)
-    max_exponent = T.max(exponent ,axis=1, keepdims=True)
+    exponent += T.log(mixing) - (t.shape[1] * .5) * T.log(normalizer)
+    max_exponent = T.max(exponent, axis=1, keepdims=True)
     mod_exponent = exponent - max_exponent
-    gauss_mix = T.sum(T.exp(mod_exponent),axis=1)
+    gauss_mix = T.sum(T.exp(mod_exponent), axis=1)
     log_gauss = max_exponent + T.log(gauss_mix)
     res = -T.mean(log_gauss)
     return res
