@@ -22,9 +22,7 @@ def mdn_nll(x, t):
 
     :parameters:
         - x : a list of mu, sigma, mixing:
-            - mu : shape = (minibatch_size, output_size, n_components)
-            - sigma : shape = (minibatch_size, n_components)
-            - mixing : shape = (minibatch_size, n_components)
+            all have shape = (minibatch_size, output_size, n_components)
         - t : T.matrix('t') (minibatch_size, output_size)
 
     :returns:
@@ -34,6 +32,16 @@ def mdn_nll(x, t):
     # github.com/aalmah/ift6266amjad/blob/master/experiments/mdn.py
 
     mu, sigma, mixing = x[0], x[1], x[2]
+
+    n = t.shape[0]
+
+    log_likelihood = (
+        mixing
+        - 0.5 * n * T.log(2 * np.pi)
+        - 0.5 * n * T.log(sigma)
+        - 0.5 * T.inv(sigma) * T.sum((t.dimshuffle(0, 1, 'x') - mu)**2, axis=1)
+    )
+
 
     # multivariate Gaussian
     exponent = -0.5 * T.inv(sigma) * T.sum((t.dimshuffle(0, 1, 'x') - mu)**2, 

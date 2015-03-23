@@ -115,32 +115,28 @@ class MixtureDensityLayer(Layer):
             W_mixing = init.Uniform(init_value)
     
         # weights
-        self.W_mu = self.create_param(
-            W_mu, (n_input_features, num_units, num_components), name='W_mu')
-        self.W_sigma = self.create_param(
-            W_sigma, (n_input_features, num_components), name='W_sigma')
-        self.W_mixing = self.create_param(
-            W_mixing, (n_input_features, num_components), name='W_mixing')
+        weight_shape = (n_input_features, num_units, num_components)
+        self.W_mu = self.create_param(W_mu, weight_shape, name='W_mu')
+        self.W_sigma = self.create_param(W_sigma, weight_shape, name='W_sigma')
+        self.W_mixing = self.create_param(W_mixing, weight_shape, name='W_mixing')
 
         # biases
-        self.b_mu = self.create_param(
-            b_mu, (num_units, num_components), name='b_mu')
-        self.b_sigma = self.create_param(
-            b_sigma, (num_components, ), name='b_sigma')
-        self.b_mixing = self.create_param(
-            b_mixing, (num_components, ), name='b_mixing')
+        bias_shape = (num_units, num_components)
+        self.b_mu = self.create_param(b_mu, bias_shape, name='b_mu')
+        self.b_sigma = self.create_param(b_sigma, bias_shape, name='b_sigma')
+        self.b_mixing = self.create_param(b_mixing, bias_shape, name='b_mixing')
 
     
     def get_output_for(self, input, *args, **kwargs):
         """
         :returns:
             mu : (batch_size, num_units, num_components)
-            sigma : (batch_size, num_components)
-            mixing : (batch_size, num_components)
+            sigma : (batch_size, num_units, num_components)
+            mixing : (batch_size, num_units, num_components)
         """
         # mu
-        mu_activation = T.tensordot(input, self.W_mu, axes=[[1],[0]])
-        mu_activation += self.b_mu.dimshuffle('x', 0, 1)
+        mu_activation = T.dot(input, self.W_mu)
+        mu_activation += self.b_mu.dimshuffle('x', 0)
         mu = self.nonlinearity(mu_activation)
 
         # sigma
