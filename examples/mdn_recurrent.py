@@ -18,7 +18,7 @@ from neuralnilm.objectives import mdn_nll
 # Number of units in the hidden (recurrent) layer
 N_HIDDEN_LAYERS = 2
 N_UNITS_PER_LAYER = 25
-N_COMPONENTS = 1
+N_COMPONENTS = 2
 # Number of training sequences in each batch
 N_SEQ_PER_BATCH = 16
 SEQ_LENGTH = 256
@@ -144,9 +144,9 @@ def gmm_heatmap(thetas, ax):
     ----------
     thetas : tuple of (array of mus, array of sigmas, array of mixing)
     """
-    N_X = 100
-    UPPER_LIMIT = 2
-    LOWER_LIMIT = -2
+    N_X = 600
+    UPPER_LIMIT = 1.5
+    LOWER_LIMIT = -1.5
     n_y = len(thetas[0])
     x = np.linspace(UPPER_LIMIT, LOWER_LIMIT, N_X)
     img = np.zeros(shape=(N_X, n_y))
@@ -162,7 +162,7 @@ def gmm_heatmap(thetas, ax):
 y = y_pred(X_val)
 mu, sigma, mixing = y
 
-batch_i = 0
+batch_i = 1
 fig, axes = plt.subplots(3, sharex=True)
 rng = slice(batch_i*SEQ_LENGTH, (batch_i+1)*SEQ_LENGTH)
 gmm_heatmap((mu[rng], sigma[rng], mixing[rng]), axes[0])
