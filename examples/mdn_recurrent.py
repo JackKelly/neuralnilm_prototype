@@ -158,6 +158,7 @@ def gmm_heatmap(thetas, ax):
     i = 0
     for i, (mu, sigma, mixing) in enumerate(zip(*thetas)):
         img[:, i] = gmm_pdf((mu, sigma, mixing), x)
+        img[:, i] /= np.max(img[:, i])
     EXTENT = (0, n_y, LOWER_LIMIT, UPPER_LIMIT) # left, right, bottom, top
     ax.imshow(img, interpolation='none', extent=EXTENT, aspect='auto')
     return ax    
@@ -169,7 +170,7 @@ mu     = y[:,:,:,0]
 sigma  = y[:,:,:,1]
 mixing = y[:,:,:,2]
 
-batch_i = 5
+batch_i = 6
 fig, axes = plt.subplots(3, sharex=True)
 rng = slice(batch_i*SEQ_LENGTH, (batch_i+1)*SEQ_LENGTH)
 gmm_heatmap((mu[rng,0,:], sigma[rng,0,:], mixing[rng,0,:]), axes[0])
