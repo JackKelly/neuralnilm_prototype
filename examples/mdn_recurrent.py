@@ -18,7 +18,7 @@ from neuralnilm.objectives import mdn_nll
 # Number of units in the hidden (recurrent) layer
 N_HIDDEN_LAYERS = 2
 N_UNITS_PER_LAYER = 25
-N_COMPONENTS = 2
+N_COMPONENTS = 1
 # Number of training sequences in each batch
 N_SEQ_PER_BATCH = 16
 SEQ_LENGTH = 256
@@ -95,7 +95,7 @@ t = T.matrix('t')
 X.tag.test_value = floatX(np.random.rand(*SHAPE))
 t.tag.test_value = floatX(np.random.rand(N_SEQ_PER_BATCH * SEQ_LENGTH, 1))
 
-objective = Objective(layers[-1], loss_function=mdn_nll)
+objective = Objective(layers[-1], loss_function=mdn_nll, aggregation='sum')
 loss = objective.get_loss(X, t)
 
 all_params = lasagne.layers.get_all_params(layers[-1])

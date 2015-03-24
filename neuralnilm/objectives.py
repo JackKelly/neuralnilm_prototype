@@ -1,6 +1,8 @@
+from __future__ import print_function, division
 from theano.ifelse import ifelse
 import theano.tensor as T
 import numpy as np
+from lasagne.utils import floatX
 
 
 def scaled_cost(x, t, loss_func=lambda x, t: (x - t) ** 2):
@@ -16,41 +18,46 @@ def scaled_cost(x, t, loss_func=lambda x, t: (x - t) ** 2):
     return (above_thresh_mean + below_thresh_mean) / 2.0
 
 
-def mdn_nll(x, t):
-    """Computes the mean of negative log likelihood for P(t|x) for
+def mdn_nll(theta, t):
+    """Computes the mean of negative log likelihood for P(t|theta) for
     Mixture Density Network output layers.
 
     :parameters:
-        - x : a list of mu, sigma, mixing:
-            all have shape = (minibatch_size, output_size, n_components)
+        - theta : mu, sigma, mixing
         - t : T.matrix('t') (minibatch_size, output_size)
 
     :returns:
-        - res : the mean NLL across all dimensions
+        - res : NLL per output
     """
     # Adapted from NLL() in
     # github.com/aalmah/ift6266amjad/blob/master/experiments/mdn.py
 
-    mu, sigma, mixing = x[0], x[1], x[2]
+    # mu, sigma, mixing have shapes (batch_size, num_units, num_components)
+    mu     = theta[:,:,:,0]
+    sigma  = theta[:,:,:,1]
+    mixing = theta[:,:,:,2]
+    mu.name     = 'mu'
+    sigma.name  = 'sigma'
+    mixing.name = 'mixing'
+    pdf = gmm_pdf(t.dimshuffle(0, 1, 'x'), mu, sigma, mixing)
+    pdf = pdf.reshape(shape=t.shape)
+    log_pdf = T.log(pdf)
+    return -log_pdf
 
-    n = t.shape[0]
 
-    log_likelihood = (
-        mixing
-        - 0.5 * n * T.log(2 * np.pi)
-        - 0.5 * n * T.log(sigma)
-        - 0.5 * T.inv(sigma) * T.sum((t.dimshuffle(0, 1, 'x') - mu)**2, axis=1)
-    )
+SQRT_OF_2PI = floatX(np.sqrt(2 * np.pi))
+def normal_pdf(x, mu, sigma):
+    exponent = -((x - mu)**2) / (2 * sigma**2)
+    normaliser = sigma * SQRT_OF_2PI
+    return T.exp(exponent) / normaliser
 
 
-    # multivariate Gaussian
-    exponent = -0.5 * T.inv(sigma) * T.sum((t.dimshuffle(0, 1, 'x') - mu)**2, 
-                                           axis=1)
-    normalizer = (2 * np.pi * sigma)
-    exponent += T.log(mixing) - (t.shape[1] * .5) * T.log(normalizer)
-    max_exponent = T.max(exponent, axis=1, keepdims=True)
-    mod_exponent = exponent - max_exponent
-    gauss_mix = T.sum(T.exp(mod_exponent), axis=1)
-    log_gauss = max_exponent + T.log(gauss_mix)
-    res = -T.mean(log_gauss)
-    return res
+def gmm_pdf(x, mu, sigma, mixing):
+    normal_pdfs = normal_pdf(x, mu, sigma)
+    return T.batched_tensordot(normal_pdfs, mixing, axes=1)
+
+
+def LogSumExp(x, axis=None):
+    # from https://github.com/Theano/Theano/issues/1563
+    x_max = T.max(x, axis=axis, keepdims=True)
+    return T.log(T.sum(T.exp(x - x_max), axis=axis, keepdims=True)) + x_max

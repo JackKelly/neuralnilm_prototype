@@ -94,19 +94,17 @@ class MixtureDensityLayer(Layer):
             - W_mu, W_sigma, W_mixing, b_mu, b_sigma, b_mixing : 
                 Theano shared variable, numpy array or callable
         """
-        # TODO sanity check parameters
-        # TODO: add biases
         super(MixtureDensityLayer, self).__init__(incomming, **kwargs)
         if nonlinearity is None:
             self.nonlinearity = nonlinearities.identity
         else:
             self.nonlinearity = nonlinearity
 
-        n_input_features = incomming.get_output_shape()[-1]
+        num_inputs = int(np.prod(self.input_shape[1:]))
         self.num_units = num_units
         self.num_components = num_components
 
-        init_value = np.sqrt(6. / (n_input_features + num_units))
+        init_value = np.sqrt(6. / (num_inputs + num_units))
         if W_mu is None:
             W_mu = init.Uniform(init_value)
         if W_sigma is None:
@@ -115,41 +113,45 @@ class MixtureDensityLayer(Layer):
             W_mixing = init.Uniform(init_value)
     
         # weights
-        weight_shape = (n_input_features, num_units, num_components)
+        weight_shape = (num_inputs, num_units * num_components)
         self.W_mu = self.create_param(W_mu, weight_shape, name='W_mu')
         self.W_sigma = self.create_param(W_sigma, weight_shape, name='W_sigma')
         self.W_mixing = self.create_param(W_mixing, weight_shape, name='W_mixing')
 
         # biases
-        bias_shape = (num_units, num_components)
+        bias_shape = (num_units * num_components, )
         self.b_mu = self.create_param(b_mu, bias_shape, name='b_mu')
         self.b_sigma = self.create_param(b_sigma, bias_shape, name='b_sigma')
         self.b_mixing = self.create_param(b_mixing, bias_shape, name='b_mixing')
 
-    
     def get_output_for(self, input, *args, **kwargs):
         """
         :returns:
-            mu : (batch_size, num_units, num_components)
-            sigma : (batch_size, num_units, num_components)
-            mixing : (batch_size, num_units, num_components)
+            A 3D tensor.  The first two dimensions are batch_size and num_units.
+            The third dimension is the number of components.
+            The last dimension always has exactly 3 elements: mu, sigma, mixing.
         """
-        # mu
-        mu_activation = T.dot(input, self.W_mu)
-        mu_activation += self.b_mu.dimshuffle('x', 0)
-        mu = self.nonlinearity(mu_activation)
+        if input.ndim > 2:
+            # if the input has more than two dimensions, flatten it into a
+            # batch of feature vectors.
+            input = input.flatten(2)
 
-        # sigma
-        sigma_activation = T.dot(input, self.W_sigma)
-        sigma_activation += self.b_sigma.dimshuffle('x', 0)
-        sigma = T.nnet.softplus(sigma_activation)
+        param_output_shape = (
+            self.input_shape[0], self.num_units, self.num_components)
 
-        # mixing
-        mixing_activation = T.dot(input, self.W_mixing)
-        mixing_activation += self.b_mixing.dimshuffle('x', 0)
-        mixing = T.nnet.softmax(mixing_activation)
+        def forward_pass(param, nonlinearity):
+            W = getattr(self, 'W_' + param)
+            b = getattr(self, 'b_' + param)
+            activation = T.dot(input, W)
+            activation += b.dimshuffle('x', 0)
+            output = nonlinearity(activation)
+            output = output.reshape(shape=param_output_shape)
+            return T.shape_padright(output)
 
-        return mu, sigma, mixing
+        mu = forward_pass('mu', self.nonlinearity)
+        sigma = forward_pass('sigma', T.nnet.softplus)
+        mixing = forward_pass('mixing', T.nnet.softmax)
+        return T.concatenate((mu, sigma, mixing), axis=3)
 
     def get_params(self):
         return [self.W_mu, self.W_sigma, self.W_mixing] + self.get_bias_params()
@@ -158,5 +160,4 @@ class MixtureDensityLayer(Layer):
         return [self.b_mu, self.b_sigma, self.b_mixing]
 
     def get_output_shape_for(self, input_shape):
-        return (input_shape[0], input_shape[1], 
-                self.num_units * self.num_components * 3)
+        return (input_shape[0], self.num_units, self.num_components, 3)
