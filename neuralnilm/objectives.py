@@ -44,7 +44,8 @@ def mdn_nll(theta, t):
     # TODO:
     # 1. see if my previous version is faster.
     # 2. calculate the 1D GMM in log space + log(mixing)
-    #    and then do the log_sum_exp trick.
+    #    and then do the log_sum_exp trick.  Make sure I'm
+    #    summing over the correct axes.
     # http://en.wikipedia.org/wiki/Normal_distribution#Estimation_of_parameters
 
     num_outputs = t.shape[1]
