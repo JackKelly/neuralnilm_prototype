@@ -146,7 +146,9 @@ class MixtureDensityLayer(Layer):
             activation += b.dimshuffle('x', 0)
             output = nonlinearity(activation)
             output = output.reshape(shape=param_output_shape)
-            return T.shape_padright(output)
+            output = T.shape_padright(output)
+            output.name = param
+            return output
 
         mu = forward_pass('mu', self.nonlinearity)
         sigma = forward_pass('sigma', T.nnet.softplus)

@@ -4,6 +4,7 @@ import theano
 import theano.tensor as T
 import matplotlib.pyplot as plt
 from scipy.stats import norm
+import time
 
 import lasagne
 from lasagne.utils import floatX
@@ -95,8 +96,9 @@ t = T.matrix('t')
 X.tag.test_value = floatX(np.random.rand(*SHAPE))
 t.tag.test_value = floatX(np.random.rand(N_SEQ_PER_BATCH * SEQ_LENGTH, 1))
 
-objective = Objective(layers[-1], loss_function=mdn_nll, aggregation='sum')
-loss = objective.get_loss(X, t)
+# objective = Objective(layers[-1], loss_function=mdn_nll, aggregation='sum')
+# loss = objective.get_loss(X, t)
+loss = mdn_nll(layers[-1].get_output(X), t)
 
 all_params = lasagne.layers.get_all_params(layers[-1])
 updates = lasagne.updates.momentum(loss, all_params, LEARNING_RATE)
@@ -112,6 +114,7 @@ print("Done compiling Theano functions.")
 print("Starting training...")
 costs = np.zeros(N_ITERATIONS)
 t_val = t_val.reshape((N_SEQ_PER_BATCH * SEQ_LENGTH, 1))
+t0 = time.time()
 for n in range(N_ITERATIONS):
     X, t = gen_data()
     t = t.reshape((N_SEQ_PER_BATCH * SEQ_LENGTH, 1))
@@ -119,6 +122,7 @@ for n in range(N_ITERATIONS):
     if not n % 100:
         cost_val = compute_loss(X_val, t_val)
         print("Iteration {} validation cost = {}".format(n, cost_val))
+        print("Time elapsed = {:.1f}s".format(time.time() - t0))
 
 
 def gmm_pdf(theta, x):

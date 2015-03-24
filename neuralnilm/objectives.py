@@ -40,13 +40,17 @@ def mdn_nll(theta, t):
     mu     = theta[:,:,:,0]
     sigma  = theta[:,:,:,1]
     mixing = theta[:,:,:,2]
-    mu.name     = 'mu'
-    sigma.name  = 'sigma'
-    mixing.name = 'mixing'
-    num_outputs = t.shape[1]
 
+    # TODO:
+    # 1. see if my previous version is faster.
+    # 2. calculate the 1D GMM in log space + log(mixing)
+    #    and then do the log_sum_exp trick.
+    # http://en.wikipedia.org/wiki/Normal_distribution#Estimation_of_parameters
+
+    num_outputs = t.shape[1]
     sq_error = (t.dimshuffle(0, 1, 'x') - mu) ** 2
-    exponent = -0.5 * T.inv(sigma) * T.sum(sq_error, axis=1)
+    sum_sq_error = T.sum(sq_error, axis=1)
+    exponent = -0.5 * T.inv(sigma) * sum_sq_error
     normalizer = TWO_PI * sigma
     exponent = exponent + T.log(mixing) - (num_outputs * .5) * T.log(normalizer)
     log_gauss = log_sum_exp(exponent, axis=1)
@@ -54,31 +58,12 @@ def mdn_nll(theta, t):
 
 
 def log_sum_exp(x, axis=None):
-    # from https://github.com/Theano/Theano/issues/1563
+    """Numerically stable version of log(sum(exp(x)))."""
+    # adapted from https://github.com/Theano/Theano/issues/1563
     x_max = T.max(x, axis=axis, keepdims=True)
     x_mod = x - x_max
     summed = T.sum(T.exp(x_mod), axis=axis, keepdims=True)
     return T.log(summed) + x_max
-
-
-def old():
-    pdf = gmm_pdf(t.dimshuffle(0, 1, 'x'), mu, sigma, mixing)
-    pdf = pdf.reshape(shape=t.shape)
-    log_pdf = T.log(pdf)
-    return -log_pdf
-
-
-SQRT_OF_2PI = floatX(np.sqrt(2 * np.pi))
-def normal_pdf(x, mu, sigma):
-    exponent = -((x - mu)**2) / (2 * sigma**2)
-    normaliser = sigma * SQRT_OF_2PI
-    return T.exp(exponent) / normaliser
-
-
-def gmm_pdf(x, mu, sigma, mixing):
-    normal_pdfs = normal_pdf(x, mu, sigma)
-    return T.batched_tensordot(normal_pdfs, mixing, axes=1)
-
 
 
 def NLL(mu, sigma, mixing, y):
@@ -101,3 +86,23 @@ def NLL(mu, sigma, mixing, y):
     log_gauss = max_exponent + T.log(gauss_mix) 
     res = -T.mean(log_gauss)
     return res
+
+
+
+def old():
+    pdf = gmm_pdf(t.dimshuffle(0, 1, 'x'), mu, sigma, mixing)
+    pdf = pdf.reshape(shape=t.shape)
+    log_pdf = T.log(pdf)
+    return -log_pdf
+
+
+SQRT_OF_2PI = floatX(np.sqrt(2 * np.pi))
+def normal_pdf(x, mu, sigma):
+    exponent = -((x - mu)**2) / (2 * sigma**2)
+    normaliser = sigma * SQRT_OF_2PI
+    return T.exp(exponent) / normaliser
+
+
+def gmm_pdf(x, mu, sigma, mixing):
+    normal_pdfs = normal_pdf(x, mu, sigma)
+    return T.batched_tensordot(normal_pdfs, mixing, axes=1)
