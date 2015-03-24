@@ -19,7 +19,7 @@ from neuralnilm.objectives import mdn_nll
 # Number of units in the hidden (recurrent) layer
 N_HIDDEN_LAYERS = 2
 N_UNITS_PER_LAYER = 25
-N_COMPONENTS = 1
+N_COMPONENTS = 2
 # Number of training sequences in each batch
 N_SEQ_PER_BATCH = 16
 SEQ_LENGTH = 256
@@ -96,9 +96,8 @@ t = T.matrix('t')
 X.tag.test_value = floatX(np.random.rand(*SHAPE))
 t.tag.test_value = floatX(np.random.rand(N_SEQ_PER_BATCH * SEQ_LENGTH, 1))
 
-# objective = Objective(layers[-1], loss_function=mdn_nll, aggregation='sum')
-# loss = objective.get_loss(X, t)
-loss = mdn_nll(layers[-1].get_output(X), t)
+objective = Objective(layers[-1], loss_function=mdn_nll)
+loss = objective.get_loss(X, t)
 
 all_params = lasagne.layers.get_all_params(layers[-1])
 updates = lasagne.updates.momentum(loss, all_params, LEARNING_RATE)
@@ -114,7 +113,7 @@ print("Done compiling Theano functions.")
 print("Starting training...")
 costs = np.zeros(N_ITERATIONS)
 t_val = t_val.reshape((N_SEQ_PER_BATCH * SEQ_LENGTH, 1))
-t0 = time.time()
+time_0 = time_validation = time.time()
 for n in range(N_ITERATIONS):
     X, t = gen_data()
     t = t.reshape((N_SEQ_PER_BATCH * SEQ_LENGTH, 1))
@@ -122,7 +121,9 @@ for n in range(N_ITERATIONS):
     if not n % 100:
         cost_val = compute_loss(X_val, t_val)
         print("Iteration {} validation cost = {}".format(n, cost_val))
-        print("Time elapsed = {:.1f}s".format(time.time() - t0))
+        print("Time since last validation = {:.1f}s; total time = {:.1f}s"
+              .format(time.time() - time_validation, time.time() - time_0))
+        time_validation = time.time()
 
 
 def gmm_pdf(theta, x):
@@ -148,15 +149,15 @@ def gmm_heatmap(thetas, ax):
     ----------
     thetas : tuple of (array of mus, array of sigmas, array of mixing)
     """
-    N_X = 600
-    UPPER_LIMIT = 1.5
-    LOWER_LIMIT = -1.5
+    N_X = 300
+    UPPER_LIMIT = 2
+    LOWER_LIMIT = -1
     n_y = len(thetas[0])
     x = np.linspace(UPPER_LIMIT, LOWER_LIMIT, N_X)
     img = np.zeros(shape=(N_X, n_y))
     i = 0
     for i, (mu, sigma, mixing) in enumerate(zip(*thetas)):
-        img[:, i] = gmm_pdf((mu[0], sigma, mixing), x)
+        img[:, i] = gmm_pdf((mu, sigma, mixing), x)
     EXTENT = (0, n_y, LOWER_LIMIT, UPPER_LIMIT) # left, right, bottom, top
     ax.imshow(img, interpolation='none', extent=EXTENT, aspect='auto')
     return ax    
@@ -164,17 +165,19 @@ def gmm_heatmap(thetas, ax):
 
 # Plot means
 y = y_pred(X_val)
-mu, sigma, mixing = y
+mu     = y[:,:,:,0]
+sigma  = y[:,:,:,1]
+mixing = y[:,:,:,2]
 
-batch_i = 1
+batch_i = 5
 fig, axes = plt.subplots(3, sharex=True)
 rng = slice(batch_i*SEQ_LENGTH, (batch_i+1)*SEQ_LENGTH)
-gmm_heatmap((mu[rng], sigma[rng], mixing[rng]), axes[0])
+gmm_heatmap((mu[rng,0,:], sigma[rng,0,:], mixing[rng,0,:]), axes[0])
 axes[1].plot(X_val[batch_i, :, 0])
 axes[1].plot(t_val[rng, 0])
 x = range(SEQ_LENGTH)
 #ax.plot(y[rng, 0])
 for i in range(N_COMPONENTS):
-    axes[2].scatter(x, y[0][rng, 0, i], s=y[2][:, i] * 5)
+    axes[2].scatter(x, mu[rng, 0, i], s=mixing[rng, 0, i] * 5)
 
 plt.show()
