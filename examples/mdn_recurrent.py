@@ -207,7 +207,7 @@ mu     = y[:,:,:,0]
 sigma  = y[:,:,:,1]
 mixing = y[:,:,:,2]
 
-batch_i = 6
+batch_i = 7
 fig, axes = plt.subplots(3, sharex=True)
 rng = slice(batch_i*SEQ_LENGTH, (batch_i+1)*SEQ_LENGTH)
 gmm_heatmap((mu[rng,0,:], sigma[rng,0,:], mixing[rng,0,:]), axes[0])
