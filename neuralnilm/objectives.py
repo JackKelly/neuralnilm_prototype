@@ -51,12 +51,12 @@ def mdn_nll(theta, t):
     return -summed_over_components.reshape(shape=t.shape)
 
 
-def log_sum_exp(x, axis=None):
+def log_sum_exp(x, axis=None, keepdims=True):
     """Numerically stable version of log(sum(exp(x)))."""
     # adapted from https://github.com/Theano/Theano/issues/1563
-    x_max = T.max(x, axis=axis, keepdims=True)
+    x_max = T.max(x, axis=axis, keepdims=keepdims)
     x_mod = x - x_max
-    summed = T.sum(T.exp(x_mod), axis=axis, keepdims=True)
+    summed = T.sum(T.exp(x_mod), axis=axis, keepdims=keepdims)
     return T.log(summed) + x_max
 
 

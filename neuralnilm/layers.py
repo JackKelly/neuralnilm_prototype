@@ -118,11 +118,17 @@ class MixtureDensityLayer(Layer):
         self.W_sigma = self.create_param(W_sigma, weight_shape, name='W_sigma')
         self.W_mixing = self.create_param(W_mixing, weight_shape, name='W_mixing')
 
+        def create_param(param, *args, **kwargs):
+            if param is None:
+                return None
+            else:
+                return self.create_param(param, *args, **kwargs)
+
         # biases
         bias_shape = (num_units * num_components, )
-        self.b_mu = self.create_param(b_mu, bias_shape, name='b_mu')
-        self.b_sigma = self.create_param(b_sigma, bias_shape, name='b_sigma')
-        self.b_mixing = self.create_param(b_mixing, bias_shape, name='b_mixing')
+        self.b_mu = create_param(b_mu, bias_shape, name='b_mu')
+        self.b_sigma = create_param(b_sigma, bias_shape, name='b_sigma')
+        self.b_mixing = create_param(b_mixing, bias_shape, name='b_mixing')
 
     def get_output_for(self, input, *args, **kwargs):
         """
@@ -143,7 +149,8 @@ class MixtureDensityLayer(Layer):
             W = getattr(self, 'W_' + param)
             b = getattr(self, 'b_' + param)
             activation = T.dot(input, W)
-            activation += b.dimshuffle('x', 0)
+            if b is not None:
+                activation += b.dimshuffle('x', 0)
             output = nonlinearity(activation)
             output = output.reshape(shape=param_output_shape)
             output = T.shape_padright(output)
@@ -159,7 +166,8 @@ class MixtureDensityLayer(Layer):
         return [self.W_mu, self.W_sigma, self.W_mixing] + self.get_bias_params()
 
     def get_bias_params(self):
-        return [self.b_mu, self.b_sigma, self.b_mixing]
+        return [b for b in [self.b_mu, self.b_sigma, self.b_mixing]
+                if b is not None]
 
     def get_output_shape_for(self, input_shape):
         return (input_shape[0], self.num_units, self.num_components, 3)

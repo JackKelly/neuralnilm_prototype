@@ -28,7 +28,7 @@ SHAPE = (N_SEQ_PER_BATCH, SEQ_LENGTH, 1)
 LEARNING_RATE = 0.00005
 #LEARNING_RATE = 0.001
 # Number of iterations to train the net
-N_ITERATIONS = 7000
+N_ITERATIONS = 5000
 
 np.random.seed(42)
 
@@ -78,12 +78,14 @@ for i in range(N_HIDDEN_LAYERS):
         gradient_steps=100)
     layers.append(layer)
 layers.append(ReshapeLayer(layers[-1], (N_SEQ_PER_BATCH * SEQ_LENGTH, N_UNITS_PER_LAYER)))
-layers.append(MixtureDensityLayer(
-    layers[-1], num_units=t_val.shape[-1], num_components=N_COMPONENTS))
-# layers.append(DenseLayer(
-#     layers[-1], num_units=1, nonlinearity=None, 
-#     W=Normal(std=1.0/np.sqrt(N_UNITS_PER_LAYER))))
-# layers.append(ReshapeLayer(layers[-1], SHAPE))
+layers.append(
+    MixtureDensityLayer(
+        layers[-1], 
+        num_units=t_val.shape[-1], 
+        num_components=N_COMPONENTS,
+        b_mu=None, b_sigma=None, b_mixing=None
+    )
+)
 
 print("Total parameters: {}".format(
     sum([p.get_value().size 
@@ -170,7 +172,7 @@ mu     = y[:,:,:,0]
 sigma  = y[:,:,:,1]
 mixing = y[:,:,:,2]
 
-batch_i = 6
+batch_i = 7
 fig, axes = plt.subplots(3, sharex=True)
 rng = slice(batch_i*SEQ_LENGTH, (batch_i+1)*SEQ_LENGTH)
 gmm_heatmap((mu[rng,0,:], sigma[rng,0,:], mixing[rng,0,:]), axes[0])
@@ -182,3 +184,7 @@ for i in range(N_COMPONENTS):
     axes[2].scatter(x, mu[rng, 0, i], s=mixing[rng, 0, i] * 5)
 
 plt.show()
+
+"""
+Gets down to -1.42 with all biases activated
+"""
