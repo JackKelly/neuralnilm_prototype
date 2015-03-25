@@ -73,13 +73,16 @@ class MixtureDensityLayer(Layer):
 
     def __init__(self, incomming, num_units, 
                  num_components=2,
-                 nonlinearity=None, 
                  W_mu=None, 
                  W_sigma=None, 
                  W_mixing=None,
                  b_mu=init.Constant(0.),
                  b_sigma=init.Constant(0.),
                  b_mixing=init.Constant(0.),
+                 min_sigma=1E-6,
+                 nonlinearity_mu=nonlinearities.identity,
+                 nonlinearity_sigma=T.nnet.softplus,
+                 nonlinearity_mixing=T.nnet.softmax,
                  **kwargs
              ):
         """
@@ -98,14 +101,17 @@ class MixtureDensityLayer(Layer):
                 Theano shared variable, numpy array or callable
         """
         super(MixtureDensityLayer, self).__init__(incomming, **kwargs)
-        if nonlinearity is None:
-            self.nonlinearity = nonlinearities.identity
-        else:
-            self.nonlinearity = nonlinearity
+
+        self.nonlinearity_mu = nonlinearity_mu
+        self.nonlinearity_sigma = nonlinearity_sigma
+        self.nonlinearity_mixing = nonlinearity_mixing
 
         num_inputs = int(np.prod(self.input_shape[1:]))
         self.num_units = num_units
         self.num_components = num_components
+        self.min_sigma = min_sigma
+        self.param_output_shape = (
+            self.input_shape[0], self.num_units, self.num_components, 1)
 
         init_value = np.sqrt(6. / (num_inputs + num_units))
         if W_mu is None:
@@ -115,6 +121,9 @@ class MixtureDensityLayer(Layer):
         if num_components == 1:
             W_mixing = None
             b_mixing = None
+            self.mixing_all_ones = T.constant(
+                np.ones(shape=self.param_output_shape, 
+                        dtype=theano.config.floatX))
         elif W_mixing is None:
             W_mixing = init.Uniform(init_value)
 
@@ -148,28 +157,32 @@ class MixtureDensityLayer(Layer):
             # batch of feature vectors.
             input = input.flatten(2)
 
-        param_output_shape = (
-            self.input_shape[0], self.num_units, self.num_components)
-
-        def forward_pass(param, nonlinearity):
+        def forward_pass(param):
             W = getattr(self, 'W_' + param)
             b = getattr(self, 'b_' + param)
+            nonlinearity = getattr(self, 'nonlinearity_' + param)
             activation = T.dot(input, W)
             if b is not None:
                 activation += b.dimshuffle('x', 0)
             output = nonlinearity(activation)
-            output = output.reshape(shape=param_output_shape)
-            output = T.shape_padright(output)
+            output = output.reshape(shape=self.param_output_shape)
             output.name = param
             return output
 
-        mu = forward_pass('mu', self.nonlinearity)
-        sigma = forward_pass('sigma', T.nnet.softplus)
+        # mu
+        mu = forward_pass('mu')
+
+        # sigma
+        sigma = forward_pass('sigma')
+        if self.min_sigma:
+            sigma += self.min_sigma
+
+        # mixing
         if self.num_components == 1:
-            mixing = np.ones(shape=param_output_shape + (1,), 
-                             dtype=theano.config.floatX)
+            mixing = self.mixing_all_ones
         else:
-            mixing = forward_pass('mixing', T.nnet.softmax)
+            mixing = forward_pass('mixing')
+
         return T.concatenate((mu, sigma, mixing), axis=3)
 
     def get_params(self):

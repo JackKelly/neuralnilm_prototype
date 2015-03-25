@@ -7,6 +7,8 @@ import theano.tensor as T
 
 from lasagne.utils import floatX
 
+from neuralnilm.utils import sfloatX
+
 
 def scaled_cost(x, t, loss_func=lambda x, t: (x - t) ** 2):
     THRESHOLD = 0
@@ -21,11 +23,7 @@ def scaled_cost(x, t, loss_func=lambda x, t: (x - t) ** 2):
     return (above_thresh_mean + below_thresh_mean) / 2.0
 
 
-def floatx(data):
-    return getattr(np, theano.config.floatX)(data)
-
-
-TWO_PI = floatx(2 * np.pi)
+TWO_PI = sfloatX(2 * np.pi)
 def mdn_nll(theta, t):
     """Computes the mean of negative log likelihood for P(t|theta) for
     Mixture Density Network output layers.
@@ -60,7 +58,7 @@ def log_sum_exp(x, axis=None, keepdims=True):
     return T.log(summed) + x_max
 
 
-MINUS_HALF_LOG_2PI = floatx(- 0.5 * np.log(2 * np.pi))
+MINUS_HALF_LOG_2PI = sfloatX(- 0.5 * np.log(2 * np.pi))
 def normal_log_likelihood_per_component(x, mu, sigma, mixing):
      return (
         MINUS_HALF_LOG_2PI

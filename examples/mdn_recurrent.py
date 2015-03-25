@@ -15,20 +15,33 @@ from lasagne.objectives import Objective
 
 from neuralnilm.layers import MixtureDensityLayer
 from neuralnilm.objectives import mdn_nll
+from neuralnilm.utils import sfloatX
+from neuralnilm.updates import anneal_learning_rate
 
 # Number of units in the hidden (recurrent) layer
 N_HIDDEN_LAYERS = 2
 N_UNITS_PER_LAYER = 25
-N_COMPONENTS = 3
+N_COMPONENTS = 2
 # Number of training sequences in each batch
 N_SEQ_PER_BATCH = 16
 SEQ_LENGTH = 256
 SHAPE = (N_SEQ_PER_BATCH, SEQ_LENGTH, 1)
 # SGD learning rate
-LEARNING_RATE = 0.00005
-#LEARNING_RATE = 0.001
+INITIAL_LEARNING_RATE = sfloatX(5e-4)
+# LEARNING_RATE_NORMALISER = 5
+learning_rate = theano.shared(INITIAL_LEARNING_RATE, name='learning_rate')
+LEARNING_RATE_CHANGES = {
+    500: 1e-04, 
+    1000: 5e-05, 
+    2000: 1e-05, 
+    3000: 5e-06,
+    4000: 1e-06,
+}
+
 # Number of iterations to train the net
-N_ITERATIONS = 5000
+N_ITERATIONS = 10000
+VALIDATE = False
+VALIDATION_INTERVAL = 100
 
 np.random.seed(42)
 
@@ -82,7 +95,8 @@ layers.append(
     MixtureDensityLayer(
         layers[-1], 
         num_units=t_val.shape[-1], 
-        num_components=N_COMPONENTS
+        num_components=N_COMPONENTS,
+        min_sigma=0
     )
 )
 
@@ -101,7 +115,7 @@ objective = Objective(layers[-1], loss_function=mdn_nll)
 loss = objective.get_loss(X, t)
 
 all_params = lasagne.layers.get_all_params(layers[-1])
-updates = lasagne.updates.momentum(loss, all_params, LEARNING_RATE)
+updates = lasagne.updates.momentum(loss, all_params, learning_rate)
 
 # Theano functions for training, getting output, and computing loss
 print("Compiling Theano functions...")
@@ -111,22 +125,36 @@ compute_loss = theano.function([X, t], loss)
 print("Done compiling Theano functions.")
 
 # Train the net
-print("Starting training...")
-costs = np.zeros(N_ITERATIONS)
+costs = []
 t_val = t_val.reshape((N_SEQ_PER_BATCH * SEQ_LENGTH, 1))
 time_0 = time_validation = time.time()
+
+print("Starting training...")
 for n in range(N_ITERATIONS):
     X, t = gen_data()
     t = t.reshape((N_SEQ_PER_BATCH * SEQ_LENGTH, 1))
-    costs[n] = train(X, t)
-    if not n % 100:
-        cost_val = compute_loss(X_val, t_val)
-        print("Iteration {} validation cost = {}".format(n, cost_val))
-        print("Mean training costs for last 100 iterations = {}"
-              .format(costs[-100:].mean()))
-        print("Time since last validation = {:.1f}s; total time = {:.1f}s"
+    costs.append(train(X, t))
+    if not n % VALIDATION_INTERVAL:
+        if VALIDATE:
+            cost_val = compute_loss(X_val, t_val)
+        print("*********** ITERATION", len(costs), "***********")
+        if VALIDATE:
+            print("    Validation cost     = {}".format(cost_val))
+        print("    Training costs (for last", VALIDATION_INTERVAL, "iterations):")
+        recent_costs = np.array(costs[-VALIDATION_INTERVAL:])
+        print("       min = {}".format(recent_costs.min()))
+        print("      mean = {}".format(recent_costs.mean()))
+        print("       max = {}".format(recent_costs.max()))
+        print("    Time since last validation = {:.3f}s; total time = {:.1f}s"
               .format(time.time() - time_validation, time.time() - time_0))
+        print("        LR = {}".format(learning_rate.get_value()))
         time_validation = time.time()
+        # learning_rate.set_value(anneal_learning_rate(
+        #     INITIAL_LEARNING_RATE, LEARNING_RATE_NORMALISER, n))
+        if n in LEARNING_RATE_CHANGES:
+            new_learning_rate = LEARNING_RATE_CHANGES[n]
+            print("######## NEW LEARNING RATE", new_learning_rate)
+            learning_rate.set_value(sfloatX(new_learning_rate))
 
 
 def gmm_pdf(theta, x):
@@ -166,6 +194,12 @@ def gmm_heatmap(thetas, ax):
     ax.imshow(img, interpolation='none', extent=EXTENT, aspect='auto')
     return ax    
 
+# Plot costs
+ax = plt.gca()
+ax.plot(costs)
+ax.set_title("Training costs")
+ax.grid(True)
+plt.show()
 
 # Plot means
 y = y_pred(X_val)
@@ -173,7 +207,7 @@ mu     = y[:,:,:,0]
 sigma  = y[:,:,:,1]
 mixing = y[:,:,:,2]
 
-batch_i = 7
+batch_i = 6
 fig, axes = plt.subplots(3, sharex=True)
 rng = slice(batch_i*SEQ_LENGTH, (batch_i+1)*SEQ_LENGTH)
 gmm_heatmap((mu[rng,0,:], sigma[rng,0,:], mixing[rng,0,:]), axes[0])
@@ -183,6 +217,9 @@ x = range(SEQ_LENGTH)
 #ax.plot(y[rng, 0])
 for i in range(N_COMPONENTS):
     axes[2].scatter(x, mu[rng, 0, i], s=mixing[rng, 0, i] * 5)
+for ax in axes:
+    ax.grid(True)
+    ax.set_xlim((0, SEQ_LENGTH))
 
 plt.show()
 
@@ -193,4 +230,9 @@ after 5000 iterations:
   -1.087 with bias for my but not for sigma and mixing.  It does go down to -1.57
    after a total of 6000 iterations but then the cost starts bouncing around,
    I guess because sigma gets too small?
+
+after 10,000 iterations:
+  -1.7 with min_sigma=1E-6.  Got down to -1.83 but spiked up to 4.93 after 9700 iterations
+  takes 945.9s in total before using const
+  takes 942.2s using const
 """
