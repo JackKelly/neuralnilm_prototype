@@ -19,7 +19,7 @@ from neuralnilm.objectives import mdn_nll
 # Number of units in the hidden (recurrent) layer
 N_HIDDEN_LAYERS = 2
 N_UNITS_PER_LAYER = 25
-N_COMPONENTS = 2
+N_COMPONENTS = 3
 # Number of training sequences in each batch
 N_SEQ_PER_BATCH = 16
 SEQ_LENGTH = 256
@@ -82,8 +82,7 @@ layers.append(
     MixtureDensityLayer(
         layers[-1], 
         num_units=t_val.shape[-1], 
-        num_components=N_COMPONENTS,
-        b_mu=None, b_sigma=None, b_mixing=None
+        num_components=N_COMPONENTS
     )
 )
 
@@ -123,6 +122,8 @@ for n in range(N_ITERATIONS):
     if not n % 100:
         cost_val = compute_loss(X_val, t_val)
         print("Iteration {} validation cost = {}".format(n, cost_val))
+        print("Mean training costs for last 100 iterations = {}"
+              .format(costs[-100:].mean()))
         print("Time since last validation = {:.1f}s; total time = {:.1f}s"
               .format(time.time() - time_validation, time.time() - time_0))
         time_validation = time.time()
@@ -186,5 +187,10 @@ for i in range(N_COMPONENTS):
 plt.show()
 
 """
-Gets down to -1.42 with all biases activated
+after 5000 iterations:
+  -1.42 with all biases activated
+  -1.13 with no biases
+  -1.087 with bias for my but not for sigma and mixing.  It does go down to -1.57
+   after a total of 6000 iterations but then the cost starts bouncing around,
+   I guess because sigma gets too small?
 """

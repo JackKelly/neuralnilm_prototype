@@ -8,6 +8,9 @@ from lasagne.layers import Layer, LSTMLayer, RecurrentLayer, ElemwiseSumLayer
 from lasagne import nonlinearities
 from lasagne import init
 from lasagne.utils import floatX
+
+from neuralnilm.utils import remove_nones
+
             
 def BLSTMLayer(*args, **kwargs):
     # setup forward and backwards LSTM layers.  Note that
@@ -109,20 +112,23 @@ class MixtureDensityLayer(Layer):
             W_mu = init.Uniform(init_value)
         if W_sigma is None:
             W_sigma = init.Uniform(init_value)
-        if W_mixing is None:
+        if num_components == 1:
+            W_mixing = None
+            b_mixing = None
+        elif W_mixing is None:
             W_mixing = init.Uniform(init_value)
-    
-        # weights
-        weight_shape = (num_inputs, num_units * num_components)
-        self.W_mu = self.create_param(W_mu, weight_shape, name='W_mu')
-        self.W_sigma = self.create_param(W_sigma, weight_shape, name='W_sigma')
-        self.W_mixing = self.create_param(W_mixing, weight_shape, name='W_mixing')
 
         def create_param(param, *args, **kwargs):
             if param is None:
                 return None
             else:
                 return self.create_param(param, *args, **kwargs)
+    
+        # weights
+        weight_shape = (num_inputs, num_units * num_components)
+        self.W_mu = create_param(W_mu, weight_shape, name='W_mu')
+        self.W_sigma = create_param(W_sigma, weight_shape, name='W_sigma')
+        self.W_mixing = create_param(W_mixing, weight_shape, name='W_mixing')
 
         # biases
         bias_shape = (num_units * num_components, )
@@ -159,15 +165,19 @@ class MixtureDensityLayer(Layer):
 
         mu = forward_pass('mu', self.nonlinearity)
         sigma = forward_pass('sigma', T.nnet.softplus)
-        mixing = forward_pass('mixing', T.nnet.softmax)
+        if self.num_components == 1:
+            mixing = np.ones(shape=param_output_shape + (1,), 
+                             dtype=theano.config.floatX)
+        else:
+            mixing = forward_pass('mixing', T.nnet.softmax)
         return T.concatenate((mu, sigma, mixing), axis=3)
 
     def get_params(self):
-        return [self.W_mu, self.W_sigma, self.W_mixing] + self.get_bias_params()
+        weight_params = remove_nones(self.W_mu, self.W_sigma, self.W_mixing)
+        return weight_params + self.get_bias_params()
 
     def get_bias_params(self):
-        return [b for b in [self.b_mu, self.b_sigma, self.b_mixing]
-                if b is not None]
+        return remove_nones(self.b_mu, self.b_sigma, self.b_mixing)
 
     def get_output_shape_for(self, input_shape):
         return (input_shape[0], self.num_units, self.num_components, 3)
