@@ -276,6 +276,18 @@ class Net(object):
             self.logger.error(msg)
             raise TrainingError(msg)
 
+    def _write_csv_headers(self, key='both'):
+        if key in ['both', 'training_costs']:
+            _write_csv_row(
+                self.csv_filenames['training_costs'],
+                row=['iteration', 'train_cost', 'duration'], 
+                mode='w')
+        if key in ['both', 'validation_costs']:
+            _write_csv_row(
+                self.csv_filenames['validation_costs'],
+                row=['iteration', 'validation_cost'], 
+                mode='w')
+
     def _training_loop(self, n_iterations):
         # Adapted from dnouri/nolearn/nolearn/lasagne.py
         self.logger.info("Starting training for {} iterations."
@@ -286,15 +298,7 @@ class Net(object):
 """)
         iteration = self.n_iterations()
         if iteration == 0:
-            # Header for CSV file
-            _write_csv_row(
-                self.csv_filenames['training_costs'],
-                row=['iteration', 'train_cost', 'duration'], 
-                mode='w')
-            _write_csv_row(
-                self.csv_filenames['validation_costs'],
-                row=['iteration', 'validation_cost'], 
-                mode='w')
+            self._write_csv_headers()
 
         while iteration != n_iterations:
             t0 = time() # for calculating training duration
@@ -303,8 +307,8 @@ class Net(object):
                 new_lr = self.learning_rate_changes_by_iteration[iteration]
                 new_lr = sfloatX(new_lr)
                 self.logger.info(
-                    "Changing learning rate from {} to {}"
-                    .format(self.learning_rate.get_value(), new_lr))
+                    "Iteration {:d}: Change learning rate from {:.1E} to {:.1E}"
+                    .format(iteration, float(self.learning_rate.get_value()), new_lr))
                 self.learning_rate.set_value(new_lr)
             if iteration in self.layer_changes:
                 self._change_layers(iteration)
@@ -397,7 +401,13 @@ class Net(object):
         self.logger.info('Done loading params from ' + filename + '.')
         def load_csv(key):
             filename = self.csv_filenames[key]
-            return list(np.genfromtxt(filename, delimiter=',')[:,1])
+            data = np.genfromtxt(filename, delimiter=',')[:iteration, :]
+
+            # overwrite costs file
+            self._write_csv_headers(key)
+            with open(filename, mode='a') as fh:
+                np.savetxt(fh, data, delimiter=',')
+            return list(data[:,1])
         self.training_costs = load_csv('training_costs')
         self.validation_costs = load_csv('validation_costs')
 

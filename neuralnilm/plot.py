@@ -1,4 +1,6 @@
 from __future__ import division, print_function
+import matplotlib
+matplotlib.rcParams.update({'font.size': 8})
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -120,34 +122,34 @@ class MDNPlotter(Plotter):
                            if seq_length is None else seq_length)
 
     def create_estimates_fig(self, X, y, output):
-        fig, axes = plt.subplots(4)
-        mu     = output[:,:,:,:,0]
-        sigma  = output[:,:,:,:,1]
-        mixing = output[:,:,:,:,2]
-        self._plot_network_output(axes[0], mu, sigma, mixing)
-        self._plot_network_output_means(axes[1], mu, mixing)
-        self._plot_target(axes[2], y)
-        self._plot_input(axes[3], X)
+        n_outputs = output.shape[2]
+        fig, axes = plt.subplots(2 + n_outputs, figsize=(8, 11))
+        self._plot_input(axes[0], X)
+        self._plot_target(axes[1], y)
+        for output_i in range(n_outputs):
+            ax = axes[2 + output_i]
+            self._plot_network_output(ax, output_i, output)
         for ax in axes:
             ax.grid(True)
         self._save_or_display_fig('estimates', fig, end_string=self.seq_i)
         return fig, axes
 
-    def _plot_network_output(self, ax, mu, sigma, mixing):
-        ax.set_title('Network output density')
-        gmm_heatmap(ax,
-            (mu[self.seq_i, :, 0, :],
-             sigma[self.seq_i, :, 0, :], 
-             mixing[self.seq_i, :, 0, :]))
+    def _plot_network_output(self, ax, output_i, output):
+        title = 'Network output density'
+        if self.target_labels:
+            title += ' for {}'.format(self.target_labels[output_i])
+        ax.set_title(title)
+        output = output[self.seq_i, :, output_i, :, :]
+        mu     = output[:, :, 0]
+        sigma  = output[:, :, 1]
+        mixing = output[:, :, 2]
+        gmm_heatmap(ax, (mu, sigma, mixing))
 
-    def _plot_network_output_means(self, ax, mu, mixing):
+        # plot means
         n_components = mu.shape[-1]
-        x = range(self.seq_length)
-        for i in range(n_components):
-            ax.scatter(
-                x, mu[self.seq_i, :, 0, i], s=mixing[self.seq_i, :, 0, i] * 5)
+        for component_i in range(n_components):
+            ax.plot(mu[:, component_i], color='w', linewidth=0.2)
         ax.set_xlim([0, self.seq_length])
-        ax.set_title('Network output means')
 
     def _process(self, X, y, output, target_shape=None):
         if target_shape is None:
@@ -174,22 +176,25 @@ def gmm_pdf(theta, x):
     return pdf
 
 
-def gmm_heatmap(ax, thetas):
+def gmm_heatmap(ax, thetas, normalise=False):
     """
     Parameters
     ----------
     thetas : tuple of (array of mus, array of sigmas, array of mixing)
     """
-    N_X = 300
-    UPPER_LIMIT = 5
-    LOWER_LIMIT = -1
+    N_X = 200
+    mu = thetas[0]
+    extra = mu.ptp() * 0.1
+    upper_limit = mu.max() + extra
+    lower_limit = mu.min() - extra
     n_y = len(thetas[0])
-    x = np.linspace(UPPER_LIMIT, LOWER_LIMIT, N_X)
+    x = np.linspace(upper_limit, lower_limit, N_X)
     img = np.zeros(shape=(N_X, n_y))
     i = 0
     for i, (mu, sigma, mixing) in enumerate(zip(*thetas)):
         img[:, i] = gmm_pdf((mu, sigma, mixing), x)
-        img[:, i] /= np.max(img[:, i])
-    EXTENT = (0, n_y, LOWER_LIMIT, UPPER_LIMIT) # left, right, bottom, top
+        if normalise:
+            img[:, i] /= np.max(img[:, i])
+    EXTENT = (0, n_y, lower_limit, upper_limit) # left, right, bottom, top
     ax.imshow(img, interpolation='none', extent=EXTENT, aspect='auto')
     return ax    
