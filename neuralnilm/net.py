@@ -24,13 +24,9 @@ from lasagne.utils import floatX
 from lasagne.updates import nesterov_momentum
 
 from .source import quantize
-from .layers import BLSTMLayer, DimshuffleLayer
-from .utils import sfloatX, none_to_dict
+from .layers import BLSTMLayer, DimshuffleLayer, MixtureDensityLayer
+from .utils import sfloatX, none_to_dict, ndim_tensor
 
-"""
-rsync command: 
-rsync -uvzr --progress --exclude '.git' --exclude '.ropeproject' --exclude 'ipynb_checkpoints' /home/jack/workspace/python/neuralnilm/ /mnt/sshfs/imperial/workspace/python/neuralnilm/
-"""
 
 class ansi:
     # from dnouri/nolearn/nolearn/lasagne.py
@@ -56,7 +52,6 @@ class Net(object):
                  validation_interval=10, 
                  save_plot_interval=100,
                  loss_function=lasagne.objectives.mse,
-                 X_processing_func=lambda X: X,
                  layer_changes=None,
                  seed=42,
                  epoch_callbacks=None,
@@ -86,7 +81,6 @@ class Net(object):
         self.validation_interval = validation_interval
         self.save_plot_interval = save_plot_interval
         self.loss_function = loss_function
-        self.X_processing_func = X_processing_func
         self.layer_changes = none_to_dict(layer_changes)
         self.epoch_callbacks = none_to_dict(epoch_callbacks)
         self.do_save_activations = do_save_activations
@@ -134,7 +128,7 @@ class Net(object):
                              seq_length,
                              n_features)
                     self.layers.append(ReshapeLayer(self.layers[-1], shape))
-            elif layer_type in [DenseLayer]:
+            elif layer_type in [DenseLayer, MixtureDensityLayer]:
                 if n_dims == 3:
                     # The prev layer_config was a time-aware layer_config, so reshape to 2-dims.
                     seq_length = prev_layer_output_shape[1]
@@ -147,7 +141,8 @@ class Net(object):
             self.layers.append(layer_type(self.layers[-1], **layer_config))
 
         # Reshape output if necessary...
-        if self.layers[-1].get_output_shape() != self.output_shape:
+        if (self.layers[-1].get_output_shape() != self.output_shape and 
+            layer_type != MixtureDensityLayer):
             self.layers.append(ReshapeLayer(self.layers[-1], self.output_shape))
 
     def print_net(self):
@@ -162,8 +157,8 @@ class Net(object):
             self.logger.info("Output shape: {}".format(layer.get_output_shape()))
 
     def compile(self):
-        input = T.tensor3('input')
-        target_output = T.tensor3('target_output')
+        input = ndim_tensor(name='input', ndim=self.X_val.ndim)
+        target_output = ndim_tensor(name='target_output', ndim=self.y_val.ndim)
 
         # add test values
         input.tag.test_value = floatX(rand(*self.input_shape))
@@ -356,8 +351,8 @@ class Net(object):
     def plot_estimates(self, sequences=None, **kwargs):
         if sequences is None:
             sequences = range(min(self.n_seq_per_batch, self.n_seq_to_plot))
-        for seq_i in sequences:
-            self._plot_estimates(seq_i=seq_i, **kwargs)
+        # for seq_i in sequences:
+        #     self._plot_estimates(seq_i=seq_i, **kwargs)
 
     def _plot_estimates(self, save=False, seq_i=0, use_validation_data=True, 
                         X=None, y=None, linewidth=0.2):
@@ -523,3 +518,10 @@ def _write_csv_row(filename, row, mode='a'):
         csv_writer = csv.writer(csvfile)
         csv_writer.writerow(row)
 
+
+"""
+Emacs variables
+Local Variables:
+compile-command: "rsync -uvzr --progress --exclude '.git' --exclude '.ropeproject' --exclude 'ipynb_checkpoints' /home/jack/workspace/python/neuralnilm/ /mnt/sshfs/imperial/workspace/python/neuralnilm/"
+End:
+"""

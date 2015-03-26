@@ -37,11 +37,11 @@ LEARNING_RATE_CHANGES = {
     3000: 5e-06,
     4000: 1e-06,
     10000: 5e-07,
-    50000: 1e-07,
+    50000: 1e-07
 }
 
 # Number of iterations to train the net
-N_ITERATIONS = 100000
+N_ITERATIONS = 5000
 VALIDATE = False
 VALIDATION_INTERVAL = 100
 

@@ -79,7 +79,7 @@ class MixtureDensityLayer(Layer):
                  b_mu=init.Constant(0.),
                  b_sigma=init.Constant(0.),
                  b_mixing=init.Constant(0.),
-                 min_sigma=1E-6,
+                 min_sigma=0.0,
                  nonlinearity_mu=nonlinearities.identity,
                  nonlinearity_sigma=T.nnet.softplus,
                  nonlinearity_mixing=T.nnet.softmax,

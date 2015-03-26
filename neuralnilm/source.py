@@ -14,7 +14,9 @@ SECS_PER_DAY = 60 * 60 * 24
 
 class Source(object):
     def __init__(self, seq_length, n_seq_per_batch, n_inputs, n_outputs,
-                 X_processing_func=None, 
+                 X_processing_func=lambda X: X,
+                 y_processing_func=lambda y: y,
+                 reshape_target_to_2D=False,
                  standardise_input=False,
                  standardise_targets=False,
                  input_padding=0,
@@ -32,6 +34,8 @@ class Source(object):
         self._stop = threading.Event()
         self._thread = None
         self.X_processing_func = X_processing_func
+        self.y_processing_func = y_processing_func
+        self.reshape_target_to_2D = reshape_target_to_2D
         self.rng = np.random.RandomState(seed)
 
         self.input_stats = input_stats
@@ -52,7 +56,6 @@ class Source(object):
         while not self._stop.is_set():
             X, y = self._gen_data()
             X, y = self._process_data(X, y)
-            self._check_data(X, y)
             self.queue.put((X, y))
         self.empty_queue()
         self._thread = None
@@ -100,7 +103,8 @@ class Source(object):
             for i in range(n):
                 mean = stats['mean'][i]
                 std = stats['std'][i]
-                data[:,:,i] = standardise(data[:,:,i], how='std=1', mean=mean, std=std)
+                data[:,:,i] = standardise(
+                    data[:,:,i], how='std=1', mean=mean, std=std)
             return data
 
         if self.standardise_input:
@@ -109,28 +113,36 @@ class Source(object):
         if self.standardise_targets:
             y = _standardise(self.n_outputs, self.target_stats, y)
 
-        if self.X_processing_func is not None:
-            X = self.X_processing_func(X)
-        return floatX(X), floatX(y)
+        if self.reshape_target_to_2D:
+            y = y.reshape(self.output_shape_after_processing())
+
+        X = self.X_processing_func(X)
+        y = self.y_processing_func(y)
+        X, y = floatX(X), floatX(y)
+        self._check_data(X, y)
+        return X, y
 
     def _gen_data(self, validation=False):
         raise NotImplementedError()
 
     def input_shape(self):
-        return (self.n_seq_per_batch, 
-                self.seq_length, 
-                self.n_inputs)
+        return (self.n_seq_per_batch, self.seq_length, self.n_inputs)
 
     def output_shape(self):
-        return (self.n_seq_per_batch, 
-                self.seq_length, 
-                self.n_outputs)
+        return (self.n_seq_per_batch, self.seq_length, self.n_outputs)
+
+    def output_shape_after_processing(self):
+        n_seq_per_batch, seq_length, n_outputs = self.output_shape()
+        if self.reshape_target_to_2D:
+            return (n_seq_per_batch * seq_length, n_outputs)
+        else:
+            return (n_seq_per_batch, seq_length, n_outputs)
 
     def _check_data(self, X, y):
         assert X.shape == self.input_shape()
         assert not any(np.isnan(X.flatten()))
         if y is not None:
-            assert y.shape == self.output_shape()
+            assert y.shape == self.output_shape_after_processing()
             assert not any(np.isnan(y.flatten()))
 
 
@@ -426,9 +438,10 @@ class RealApplianceSource(Source):
     def output_shape(self):
         if self.seq_length % self.subsample_target:
             raise RuntimeError("subsample_target must exactly divide seq_length.")
-        return (self.n_seq_per_batch, 
-                int(self.seq_length / self.subsample_target),
-                self.n_outputs)
+        return (
+            self.n_seq_per_batch, 
+            int(self.seq_length / self.subsample_target),
+            self.n_outputs)
 
     def inside_padding(self):
         start = self.input_padding // 2
@@ -468,7 +481,6 @@ class RealApplianceSource(Source):
         for i in range(self.n_seq_per_batch):
             X[i,start:end,:], y[i,:,:] = self._gen_single_example(
                 validation, deterministic_appliances[i])
-        self._check_data(X, y)
         return X, y
 
 
@@ -657,7 +669,6 @@ class NILMTKSourceOld(Source):
             X_quantized[i,:,0] = X[i,:,0] # time of day
             X_quantized[i,:,1:] = quantize(X[i,:,1], self.n_inputs)
 
-        self._check_data(X_quantized, y)
         return X_quantized, y
 
 
