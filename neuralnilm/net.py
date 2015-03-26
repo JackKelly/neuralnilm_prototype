@@ -9,8 +9,11 @@ from datetime import datetime, timedelta
 import logging
 from numpy.random import rand
 from time import time
+
 import theano
 import theano.tensor as T
+theano.config.compute_test_value = 'raise'
+
 import lasagne
 from lasagne.layers import (InputLayer, LSTMLayer, ReshapeLayer, Layer,
                             ConcatLayer, ElemwiseSumLayer, DenseLayer,
@@ -19,9 +22,10 @@ from lasagne.layers import (InputLayer, LSTMLayer, ReshapeLayer, Layer,
 from lasagne.nonlinearities import sigmoid, rectify
 from lasagne.utils import floatX
 from lasagne.updates import nesterov_momentum
+
 from .source import quantize
 from .layers import BLSTMLayer, DimshuffleLayer
-theano.config.compute_test_value = 'raise'
+from .utils import sfloatX
 
 """
 rsync command: 
@@ -44,7 +48,10 @@ class Net(object):
     # Much of this code is adapted from craffel/nntools/examples/lstm.py
 
     def __init__(self, source, layers_config, 
-                 updates=partial(nesterov_momentum, learning_rate=0.1),
+                 updates_func=nesterov_momentum,
+                 updates_kwargs=None,
+                 learning_rate=0.1,
+                 learning_rate_changes_by_iteration=None,
                  experiment_name="", 
                  validation_interval=10, 
                  save_plot_interval=100,
@@ -69,7 +76,13 @@ class Net(object):
         if seed is not None:
             np.random.seed(seed)
         self.source = source
-        self.updates = updates
+        self.updates_func = updates_func
+        self.learning_rate = theano.shared(
+            sfloatX(learning_rate), name='learning_rate')
+        self.learning_rate_changes_by_iteration = (
+            {} if learning_rate_changes_by_iteration is None 
+            else learning_rate_changes_by_iteration)
+        self.updates_kwargs = {} if updates_kwargs is None else updates_kwargs
         self.experiment_name = experiment_name
         self.validation_interval = validation_interval
         self.save_plot_interval = save_plot_interval
@@ -161,9 +174,11 @@ class Net(object):
         loss = self.loss_function(
             self.layers[-1].get_output(input), target_output)
 
-        # Use NAG for training
+        # Updates
         all_params = lasagne.layers.get_all_params(self.layers[-1])
-        updates = self.updates(loss, all_params)
+        updates = self.updates_func(
+            loss, all_params, learning_rate=self.learning_rate, 
+            **self.updates_kwargs)
 
         # Theano functions for training, getting output, and computing loss
         self.train = theano.function(
@@ -289,6 +304,13 @@ class Net(object):
         while iteration != n_iterations:
             t0 = time() # for calculating training duration
             iteration = len(self.training_costs)
+            if iteration in self.learning_rate_changes_by_iteration:
+                new_lr = self.learning_rate_changes_by_iteration[iteration]
+                new_lr = sfloatX(new_lr)
+                self.logger.info(
+                    "Changing learning rate from {} to {}"
+                    .format(self.learning_rate.get_value(), new_lr))
+                self.learning_rate.set_value(new_lr)
             if iteration in self.layer_changes:
                 self._change_layers(iteration)
             if iteration in self.epoch_callbacks:
