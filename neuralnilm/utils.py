@@ -10,3 +10,7 @@ def remove_nones(*args):
 def sfloatX(data):
     """Convert scalar to floatX"""
     return getattr(np, theano.config.floatX)(data)
+
+
+def none_to_dict(data):
+    return {} if data is None else data

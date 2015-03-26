@@ -25,7 +25,7 @@ from lasagne.updates import nesterov_momentum
 
 from .source import quantize
 from .layers import BLSTMLayer, DimshuffleLayer
-from .utils import sfloatX
+from .utils import sfloatX, none_to_dict
 
 """
 rsync command: 
@@ -79,17 +79,16 @@ class Net(object):
         self.updates_func = updates_func
         self.learning_rate = theano.shared(
             sfloatX(learning_rate), name='learning_rate')
-        self.learning_rate_changes_by_iteration = (
-            {} if learning_rate_changes_by_iteration is None 
-            else learning_rate_changes_by_iteration)
-        self.updates_kwargs = {} if updates_kwargs is None else updates_kwargs
+        self.learning_rate_changes_by_iteration = none_to_dict(
+            learning_rate_changes_by_iteration)
+        self.updates_kwargs = none_to_dict(updates_kwargs)
         self.experiment_name = experiment_name
         self.validation_interval = validation_interval
         self.save_plot_interval = save_plot_interval
         self.loss_function = loss_function
         self.X_processing_func = X_processing_func
-        self.layer_changes = {} if layer_changes is None else layer_changes
-        self.epoch_callbacks = {} if epoch_callbacks is None else epoch_callbacks
+        self.layer_changes = none_to_dict(layer_changes)
+        self.epoch_callbacks = none_to_dict(epoch_callbacks)
         self.do_save_activations = do_save_activations
         self.n_seq_to_plot = n_seq_to_plot
 
