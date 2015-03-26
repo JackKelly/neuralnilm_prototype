@@ -11,6 +11,7 @@ from neuralnilm.experiment import run_experiment, init_experiment
 from neuralnilm.net import TrainingError
 from neuralnilm.layers import MixtureDensityLayer
 from neuralnilm.objectives import scaled_cost, mdn_nll
+from neuralnilm.plot import MDNPlotter
 
 from lasagne.nonlinearities import sigmoid, rectify, tanh
 from lasagne.objectives import mse
@@ -87,7 +88,8 @@ net_dict = dict(
         4000: 1e-06,
         10000: 5e-07,
         50000: 1e-07
-    }    
+    },
+    plotter=MDNPlotter
 )
 
 
@@ -129,6 +131,7 @@ def exp_a(name):
         }
     ]
     net = Net(**net_dict_copy)
+    net.load_params(iteration=5000)
     return net
 
 def main():
@@ -147,6 +150,8 @@ def main():
         except Exception as exception:
             logger.exception("Exception")
             raise
+        finally:
+            logging.shutdown()
 
 
 if __name__ == "__main__":

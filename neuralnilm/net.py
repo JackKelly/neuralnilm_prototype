@@ -26,7 +26,7 @@ from lasagne.updates import nesterov_momentum
 from .source import quantize
 from .layers import BLSTMLayer, DimshuffleLayer, MixtureDensityLayer
 from .utils import sfloatX, none_to_dict, ndim_tensor
-
+from .plot import Plotter
 
 class ansi:
     # from dnouri/nolearn/nolearn/lasagne.py
@@ -56,7 +56,7 @@ class Net(object):
                  seed=42,
                  epoch_callbacks=None,
                  do_save_activations=True,
-                 n_seq_to_plot=10
+                 plotter=Plotter
     ):
         """
         Parameters
@@ -84,7 +84,7 @@ class Net(object):
         self.layer_changes = none_to_dict(layer_changes)
         self.epoch_callbacks = none_to_dict(epoch_callbacks)
         self.do_save_activations = do_save_activations
-        self.n_seq_to_plot = n_seq_to_plot
+        self.plotter = plotter(self)
 
         self.csv_filenames = {
             'training_costs': self.experiment_name + "_training_costs.csv",
@@ -109,8 +109,9 @@ class Net(object):
         # Generate a "validation" sequence whose cost we will compute
         self.X_val, self.y_val = self.source.validation_data()
         self.input_shape = self.X_val.shape
-        self.output_shape = self.y_val.shape
         self.n_seq_per_batch = self.input_shape[0]
+        self.output_shape = self.y_val.shape
+        self.n_outputs = self.output_shape[-1]
 
     def add_layers(self, layers_config):
         for layer_config in layers_config:
@@ -319,84 +320,12 @@ class Net(object):
                     self.csv_filenames['validation_costs'],
                     row=[iteration, validation_cost])
             if not iteration % self.save_plot_interval:
-                self.plot_costs(save=True)
-                self.plot_estimates(save=True)
+                self.plotter.plot_all()
                 self.save_params()
                 self.save_activations()
             duration = time() - t0
             self.print_and_save_training_progress(duration)
         self.logger.info("Finished training")
-
-    def plot_costs(self, save=False):
-        fig, ax = plt.subplots(1)
-        ax.plot(self.training_costs, label='Training')
-        validation_x = np.arange(0, len(self.training_costs), self.validation_interval)
-        n_validations = min(len(validation_x), len(self.validation_costs))
-        ax.plot(validation_x[:n_validations], 
-                self.validation_costs[:n_validations],
-                label='Validation')
-        ax.set_xlabel('Iteration')
-        ax.set_ylabel('Cost')
-        ax.legend()
-        ax.grid(True)
-        fig.tight_layout()
-        if save:
-            filename = self._plot_filename('costs', include_epochs=False)
-            plt.savefig(filename, bbox_inches='tight')
-            plt.close(fig)
-        else:
-            plt.show()
-        return ax
-
-    def plot_estimates(self, sequences=None, **kwargs):
-        if sequences is None:
-            sequences = range(min(self.n_seq_per_batch, self.n_seq_to_plot))
-        # for seq_i in sequences:
-        #     self._plot_estimates(seq_i=seq_i, **kwargs)
-
-    def _plot_estimates(self, save=False, seq_i=0, use_validation_data=True, 
-                        X=None, y=None, linewidth=0.2):
-        fig, axes = plt.subplots(3)
-        if X is None or y is None:
-            if use_validation_data:
-                X, y = self.X_val, self.y_val
-            else:
-                X, y = self.source.queue.get(timeout=30)
-        y_predictions = self.y_pred(X)
-
-        n = len(y_predictions[seq_i, :, :])
-        axes[0].set_title('Network output')
-        axes[0].plot(y_predictions[seq_i, :, :], linewidth=linewidth)
-        axes[0].set_xlim([0, n])
-        axes[1].set_title('Target')
-        axes[1].plot(y[seq_i, :, :], linewidth=linewidth)
-        # alpha: lower = more transparent
-        axes[1].legend(self.source.get_labels(), fancybox=True, framealpha=0.5,
-                       prop={'size': 6})
-        axes[1].set_xlim([0, n])
-        axes[2].set_title('Network input')
-        start, end = self.source.inside_padding()
-        axes[2].plot(X[seq_i, start:end, :], linewidth=linewidth)
-        axes[2].set_xlim([0, self.source.seq_length])
-        for ax in axes:
-            ax.grid(True)
-        fig.tight_layout()
-        if save:
-            filename = self._plot_filename('estimates', end_string=seq_i)
-            plt.savefig(filename, bbox_inches='tight')
-            plt.close(fig)
-        else:
-            plt.show()
-        return axes
-
-    def _plot_filename(self, string, include_epochs=True, end_string=""):
-        end_string = str(end_string)
-        return (
-            self.experiment_name + ("_" if self.experiment_name else "") + 
-            string +
-            ("_{:d}epochs".format(self.n_iterations()) if include_epochs else "") +
-            ("_" if end_string else "") + end_string +
-            ".pdf")
 
     def n_iterations(self):
         return max(len(self.training_costs) - 1, 0)
@@ -436,7 +365,7 @@ class Net(object):
             
         f.close()
 
-    def load_params(self, filename=None, iteration=None):
+    def load_params(self, iteration, filename=None):
         """
         Load params from HDF in the following format:
             /epoch<N>/L<I>_<type>/P<I>_<name>

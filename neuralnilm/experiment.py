@@ -44,8 +44,7 @@ def run_experiment(net, epochs):
 
 def save(net):
     print("Saving plots...")
-    net.plot_estimates(save=True)
-    net.plot_costs(save=True)
+    net.plotter.plot_all()
     print("Saving params...")
     net.save_params()
     net.save_activations()

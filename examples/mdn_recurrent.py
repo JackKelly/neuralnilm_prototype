@@ -3,7 +3,6 @@ import numpy as np
 import theano
 import theano.tensor as T
 import matplotlib.pyplot as plt
-from scipy.stats import norm
 import time
 
 import lasagne
@@ -17,6 +16,8 @@ from neuralnilm.layers import MixtureDensityLayer
 from neuralnilm.objectives import mdn_nll
 from neuralnilm.utils import sfloatX
 from neuralnilm.updates import anneal_learning_rate
+from neuralnilm.plot import MDNPlotter
+
 
 # Number of units in the hidden (recurrent) layer
 N_HIDDEN_LAYERS = 2
@@ -41,7 +42,7 @@ LEARNING_RATE_CHANGES = {
 }
 
 # Number of iterations to train the net
-N_ITERATIONS = 5000
+N_ITERATIONS = 100
 VALIDATE = False
 VALIDATION_INTERVAL = 100
 
@@ -159,43 +160,6 @@ for n in range(N_ITERATIONS):
             learning_rate.set_value(sfloatX(new_learning_rate))
 
 
-def gmm_pdf(theta, x):
-    """
-    Parameters
-    ----------
-    theta : tuple of (mu, sigma, mixing)
-    """
-    pdf = None
-    for mu, sigma, mixing in zip(*theta):
-        norm_pdf = norm.pdf(x=x, loc=mu, scale=sigma)
-        norm_pdf *= mixing
-        if pdf is None:
-            pdf = norm_pdf
-        else:
-            pdf += norm_pdf
-    return pdf
-
-
-def gmm_heatmap(thetas, ax):
-    """
-    Parameters
-    ----------
-    thetas : tuple of (array of mus, array of sigmas, array of mixing)
-    """
-    N_X = 300
-    UPPER_LIMIT = 2
-    LOWER_LIMIT = -1
-    n_y = len(thetas[0])
-    x = np.linspace(UPPER_LIMIT, LOWER_LIMIT, N_X)
-    img = np.zeros(shape=(N_X, n_y))
-    i = 0
-    for i, (mu, sigma, mixing) in enumerate(zip(*thetas)):
-        img[:, i] = gmm_pdf((mu, sigma, mixing), x)
-        img[:, i] /= np.max(img[:, i])
-    EXTENT = (0, n_y, LOWER_LIMIT, UPPER_LIMIT) # left, right, bottom, top
-    ax.imshow(img, interpolation='none', extent=EXTENT, aspect='auto')
-    return ax    
-
 # Plot costs
 ax = plt.gca()
 ax.plot(costs)
@@ -204,25 +168,12 @@ ax.grid(True)
 plt.show()
 
 # Plot means
-y = y_pred(X_val)
-mu     = y[:,:,:,0]
-sigma  = y[:,:,:,1]
-mixing = y[:,:,:,2]
+output = y_pred(X_val)
 
-batch_i = 7
-fig, axes = plt.subplots(3, sharex=True)
-rng = slice(batch_i*SEQ_LENGTH, (batch_i+1)*SEQ_LENGTH)
-gmm_heatmap((mu[rng,0,:], sigma[rng,0,:], mixing[rng,0,:]), axes[0])
-axes[1].plot(X_val[batch_i, :, 0])
-axes[1].plot(t_val[rng, 0])
-x = range(SEQ_LENGTH)
-#ax.plot(y[rng, 0])
-for i in range(N_COMPONENTS):
-    axes[2].scatter(x, mu[rng, 0, i], s=mixing[rng, 0, i] * 5)
-for ax in axes:
-    ax.grid(True)
-    ax.set_xlim((0, SEQ_LENGTH))
-
+plotter = MDNPlotter(seq_length=SEQ_LENGTH)
+plotter.save = False
+_X_val, _t_val, _output = plotter._process(X_val, t_val, output, target_shape=SHAPE)
+fig, axes = plotter.create_estimates_fig(_X_val, _t_val, _output)
 plt.show()
 
 """
