@@ -151,6 +151,7 @@ def exp_a(name):
 
 def exp_b(name):
     # 5 appliances and normal cost func
+    # avg valid cost =  1.6496223211
     global source
     source_dict_copy = deepcopy(source_dict)
     source_dict_copy.update(dict(
@@ -183,6 +184,7 @@ def exp_b(name):
 
 def exp_c(name):
     # 3 appliances and 3 layers with 2x2x pool
+    # avg valid cost = -0.2468771785
     global source
     source_dict_copy = deepcopy(source_dict)
     source = RealApplianceSource(**source_dict_copy)
@@ -237,6 +239,7 @@ def exp_c(name):
 
 def exp_d(name):
     # 3 appliances and 3 layers with one 4x pool
+    # avg valid cost = -0.2574510872
     global source
     source_dict_copy = deepcopy(source_dict)
     source = RealApplianceSource(**source_dict_copy)

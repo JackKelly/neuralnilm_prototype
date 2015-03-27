@@ -21,7 +21,8 @@ def scaled_cost(x, t, loss_func=lambda x, t: (x - t) ** 2):
     mask = t > THRESHOLD
     above_thresh_mean = mask_and_mean_error(mask)
     below_thresh_mean = mask_and_mean_error(-mask)
-    return (above_thresh_mean + below_thresh_mean) / 2.0
+    cost = (above_thresh_mean + below_thresh_mean) / 2.
+    return cost
 
 
 TWO_PI = sfloatX(2 * np.pi)

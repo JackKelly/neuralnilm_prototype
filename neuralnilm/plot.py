@@ -130,7 +130,7 @@ class MDNPlotter(Plotter):
             ax = axes[2 + output_i]
             self._plot_network_output(ax, output_i, output, y)
         for ax in axes:
-            ax.grid(True)
+            ax.grid(False)
         self._save_or_display_fig('estimates', fig, end_string=self.seq_i)
         return fig, axes
 
@@ -154,10 +154,10 @@ class MDNPlotter(Plotter):
         # plot means
         n_components = mu.shape[-1]
         for component_i in range(n_components):
-            ax.plot(mu[:, component_i], color='w', linewidth=1, alpha=0.75)
+            ax.plot(mu[:, component_i], color='red', linewidth=0.5, alpha=0.5)
 
         # plot target
-        ax.plot(target, color='k', linewidth=1, alpha=0.75)
+        ax.plot(target, color='green', linewidth=0.5, alpha=0.5)
 
         # set limits
         ax.set_xlim(x_lim)
@@ -188,7 +188,8 @@ def gmm_pdf(theta, x):
     return pdf
 
 
-def gmm_heatmap(ax, thetas, x_lim, y_lim, normalise=False):
+def gmm_heatmap(ax, thetas, x_lim, y_lim, normalise=False, 
+                cmap=matplotlib.cm.Blues):
     """
     Parameters
     ----------
@@ -207,5 +208,5 @@ def gmm_heatmap(ax, thetas, x_lim, y_lim, normalise=False):
         if normalise:
             img[:, i] /= np.max(img[:, i])
     ax.imshow(img, interpolation='none', extent=extent, aspect='auto', 
-              origin='lower')
+              origin='lower', cmap=cmap)
     return ax
