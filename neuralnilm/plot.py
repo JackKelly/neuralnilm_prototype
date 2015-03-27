@@ -128,28 +128,40 @@ class MDNPlotter(Plotter):
         self._plot_target(axes[1], y)
         for output_i in range(n_outputs):
             ax = axes[2 + output_i]
-            self._plot_network_output(ax, output_i, output)
+            self._plot_network_output(ax, output_i, output, y)
         for ax in axes:
             ax.grid(True)
         self._save_or_display_fig('estimates', fig, end_string=self.seq_i)
         return fig, axes
 
-    def _plot_network_output(self, ax, output_i, output):
+    def _plot_network_output(self, ax, output_i, output, target):
         title = 'Network output density'
         if self.target_labels:
             title += ' for {}'.format(self.target_labels[output_i])
         ax.set_title(title)
         output = output[self.seq_i, :, output_i, :, :]
+        target = target[self.seq_i, :, output_i]
         mu     = output[:, :, 0]
         sigma  = output[:, :, 1]
         mixing = output[:, :, 2]
-        gmm_heatmap(ax, (mu, sigma, mixing))
+        
+        y_extra = max(target.ptp() * 0.2, mu.ptp() * 0.2)
+        y_lim = (min(target.min(), mu.min()) - y_extra, 
+                 max(target.max(), mu.max()) + y_extra)
+        x_lim = (0, self.seq_length)
+        gmm_heatmap(ax, (mu, sigma, mixing), x_lim, y_lim)
 
         # plot means
         n_components = mu.shape[-1]
         for component_i in range(n_components):
-            ax.plot(mu[:, component_i], color='w', linewidth=0.2)
-        ax.set_xlim([0, self.seq_length])
+            ax.plot(mu[:, component_i], color='w', linewidth=1, alpha=0.75)
+
+        # plot target
+        ax.plot(target, color='k', linewidth=1, alpha=0.75)
+
+        # set limits
+        ax.set_xlim(x_lim)
+        ax.set_ylim(y_lim)
 
     def _process(self, X, y, output, target_shape=None):
         if target_shape is None:
@@ -176,25 +188,24 @@ def gmm_pdf(theta, x):
     return pdf
 
 
-def gmm_heatmap(ax, thetas, normalise=False):
+def gmm_heatmap(ax, thetas, x_lim, y_lim, normalise=False):
     """
     Parameters
     ----------
     thetas : tuple of (array of mus, array of sigmas, array of mixing)
+    y_lim, x_lim : each is a 2-tuple of numbers
     """
     N_X = 200
-    mu = thetas[0]
-    extra = mu.ptp() * 0.1
-    upper_limit = mu.max() + extra
-    lower_limit = mu.min() - extra
     n_y = len(thetas[0])
-    x = np.linspace(upper_limit, lower_limit, N_X)
+    x_lim = (x_lim[0] - 0.5, x_lim[1] - 0.5)
+    extent = x_lim + y_lim # left, right, bottom, top
+    x = np.linspace(y_lim[0], y_lim[1], N_X)
     img = np.zeros(shape=(N_X, n_y))
     i = 0
     for i, (mu, sigma, mixing) in enumerate(zip(*thetas)):
         img[:, i] = gmm_pdf((mu, sigma, mixing), x)
         if normalise:
             img[:, i] /= np.max(img[:, i])
-    EXTENT = (0, n_y, lower_limit, upper_limit) # left, right, bottom, top
-    ax.imshow(img, interpolation='none', extent=EXTENT, aspect='auto')
-    return ax    
+    ax.imshow(img, interpolation='none', extent=extent, aspect='auto', 
+              origin='lower')
+    return ax

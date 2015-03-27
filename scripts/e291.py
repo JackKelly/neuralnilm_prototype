@@ -77,19 +77,20 @@ source_dict = dict(
 N = 50
 net_dict = dict(        
     save_plot_interval=SAVE_PLOT_INTERVAL,
-    loss_function=lambda x, t: mdn_nll(x, t).mean(),
+    loss_function=partial(scaled_cost, loss_func=mdn_nll),
+#    loss_function=lambda x, t: mdn_nll(x, t).mean(),
 #    loss_function=lambda x, t: mse(x, t).mean(),
     updates_func=momentum,
     learning_rate=1e-03,
-   learning_rate_changes_by_iteration={
-       100: 5e-04, 
-       500: 1e-04,
-       1500: 5e-05, 
-       3000: 1e-05,
-       7000: 5e-06,
-       10000: 1e-06,
-       15000: 5e-07,
-       50000: 1e-07
+    learning_rate_changes_by_iteration={
+        100: 5e-04, 
+        500: 1e-04,
+        1500: 5e-05
+        # 3000: 1e-05
+        # 7000: 5e-06,
+        # 10000: 1e-06,
+        # 15000: 5e-07,
+        # 50000: 1e-07
     },
     plotter=MDNPlotter,
     layers_config=[
@@ -116,13 +117,20 @@ net_dict = dict(
     ]
 )
 
-
 def exp_a(name):
-    """
-    Results: does pretty well.  Confuses the hair straighteners and fridge a little.
-    """
+    # 5 appliances
     global source
     source_dict_copy = deepcopy(source_dict)
+    source_dict_copy.update(dict(
+        appliances=[
+            ['fridge freezer', 'fridge', 'freezer'], 
+            'hair straighteners', 
+            'television',
+            'dish washer',
+            ['washer dryer', 'washing machine']
+        ],
+        skip_probability=0.7
+    ))
     source = RealApplianceSource(**source_dict_copy)
     net_dict_copy = deepcopy(net_dict)
     net_dict_copy.update(dict(
@@ -137,22 +145,30 @@ def exp_a(name):
         }
     ])
     net = Net(**net_dict_copy)
+    net.load_params(iteration=4000)
     return net
 
 
 def exp_b(name):
-    # scaled cost
-    """
-    Results: does pretty well!  Probably better than A.
-    """
+    # 5 appliances and normal cost func
     global source
     source_dict_copy = deepcopy(source_dict)
+    source_dict_copy.update(dict(
+        appliances=[
+            ['fridge freezer', 'fridge', 'freezer'], 
+            'hair straighteners', 
+            'television',
+            'dish washer',
+            ['washer dryer', 'washing machine']
+        ],
+        skip_probability=0.7
+    ))
     source = RealApplianceSource(**source_dict_copy)
     net_dict_copy = deepcopy(net_dict)
     net_dict_copy.update(dict(
         experiment_name=name,
         source=source,
-        loss_function=partial(scaled_cost, loss_func=mdn_nll)
+        loss_function=lambda x, t: mdn_nll(x, t).mean(),
     ))
     net_dict_copy['layers_config'].extend([
         {
@@ -166,60 +182,14 @@ def exp_b(name):
 
 
 def exp_c(name):
-    # 5 appliances
-    # Results: oops, no it's not, it's 3 appliances!
-    # Need to re-run.
+    # 3 appliances and 3 layers with 2x2x pool
     global source
     source_dict_copy = deepcopy(source_dict)
-    source_dict.update(dict(
-        appliances=[
-            ['fridge freezer', 'fridge', 'freezer'], 
-            'hair straighteners', 
-            'television',
-            'dish washer',
-            ['washer dryer', 'washing machine']
-        ],
-        skip_probability=0.7
-    ))
     source = RealApplianceSource(**source_dict_copy)
     net_dict_copy = deepcopy(net_dict)
     net_dict_copy.update(dict(
         experiment_name=name,
-        source=source,
-        loss_function=partial(scaled_cost, loss_func=mdn_nll)
-    ))
-    net_dict_copy['layers_config'].extend([
-        {
-            'type': MixtureDensityLayer,
-            'num_units': source.n_outputs,
-            'num_components': 2
-        }
-    ])
-    net = Net(**net_dict_copy)
-    return net
-
-
-def exp_d(name):
-    # 5 appliances and 3 layers with 2x2x pool
-    # Results: it is learning something but not very well
-    global source
-    source_dict_copy = deepcopy(source_dict)
-    source_dict.update(dict(
-        appliances=[
-            ['fridge freezer', 'fridge', 'freezer'], 
-            'hair straighteners', 
-            'television',
-            'dish washer',
-            ['washer dryer', 'washing machine']
-        ],
-        skip_probability=0.7
-    ))
-    source = RealApplianceSource(**source_dict_copy)
-    net_dict_copy = deepcopy(net_dict)
-    net_dict_copy.update(dict(
-        experiment_name=name,
-        source=source,
-        loss_function=partial(scaled_cost, loss_func=mdn_nll)
+        source=source
     ))
     net_dict_copy['layers_config'] = [
         {
@@ -265,17 +235,221 @@ def exp_d(name):
     return net
 
 
+def exp_d(name):
+    # 3 appliances and 3 layers with one 4x pool
+    global source
+    source_dict_copy = deepcopy(source_dict)
+    source = RealApplianceSource(**source_dict_copy)
+    net_dict_copy = deepcopy(net_dict)
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source
+    ))
+    net_dict_copy['layers_config'] = [
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1.),
+            'nonlinearity': tanh
+        },
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
+            'nonlinearity': tanh
+        },
+        {
+            'type': FeaturePoolLayer,
+            'ds': 4, # number of feature maps to be pooled together
+            'axis': 1, # pool over the time axis
+            'pool_function': T.max
+        },
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
+            'nonlinearity': tanh
+        },
+        {
+            'type': MixtureDensityLayer,
+            'num_units': source.n_outputs,
+            'num_components': 2
+        }
+    ]
+    net = Net(**net_dict_copy)
+    return net
+
+
+def exp_e(name):
+    # 3 appliances and 3 layers with one 4x pool after 1st layer
+    global source
+    source_dict_copy = deepcopy(source_dict)
+    source = RealApplianceSource(**source_dict_copy)
+    net_dict_copy = deepcopy(net_dict)
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source
+    ))
+    net_dict_copy['layers_config'] = [
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1.),
+            'nonlinearity': tanh
+        },
+        {
+            'type': FeaturePoolLayer,
+            'ds': 4, # number of feature maps to be pooled together
+            'axis': 1, # pool over the time axis
+            'pool_function': T.max
+        },
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
+            'nonlinearity': tanh
+        },
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
+            'nonlinearity': tanh
+        },
+        {
+            'type': MixtureDensityLayer,
+            'num_units': source.n_outputs,
+            'num_components': 2
+        }
+    ]
+    net = Net(**net_dict_copy)
+    return net
+
+
+def exp_f(name):
+    # 3 appliances and 3 layers with 2x2x pool and 1 component
+    global source
+    source_dict_copy = deepcopy(source_dict)
+    source = RealApplianceSource(**source_dict_copy)
+    net_dict_copy = deepcopy(net_dict)
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source
+    ))
+    net_dict_copy['layers_config'] = [
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1.),
+            'nonlinearity': tanh
+        },
+        {
+            'type': FeaturePoolLayer,
+            'ds': 2, # number of feature maps to be pooled together
+            'axis': 1, # pool over the time axis
+            'pool_function': T.max
+        },
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
+            'nonlinearity': tanh
+        },
+        {
+            'type': FeaturePoolLayer,
+            'ds': 2, # number of feature maps to be pooled together
+            'axis': 1, # pool over the time axis
+            'pool_function': T.max
+        },
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
+            'nonlinearity': tanh
+        },
+        {
+            'type': MixtureDensityLayer,
+            'num_units': source.n_outputs,
+            'num_components': 1
+        }
+    ]
+    net = Net(**net_dict_copy)
+    return net
+
+
+def exp_g(name):
+    # 3 appliances and 3 layers with 2x2x pool and 3 components
+    global source
+    source_dict_copy = deepcopy(source_dict)
+    source = RealApplianceSource(**source_dict_copy)
+    net_dict_copy = deepcopy(net_dict)
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source
+    ))
+    net_dict_copy['layers_config'] = [
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1.),
+            'nonlinearity': tanh
+        },
+        {
+            'type': FeaturePoolLayer,
+            'ds': 2, # number of feature maps to be pooled together
+            'axis': 1, # pool over the time axis
+            'pool_function': T.max
+        },
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
+            'nonlinearity': tanh
+        },
+        {
+            'type': FeaturePoolLayer,
+            'ds': 2, # number of feature maps to be pooled together
+            'axis': 1, # pool over the time axis
+            'pool_function': T.max
+        },
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': N,
+            'gradient_steps': GRADIENT_STEPS,
+            'W_in_to_hid': Normal(std=1/sqrt(N)),
+            'nonlinearity': tanh
+        },
+        {
+            'type': MixtureDensityLayer,
+            'num_units': source.n_outputs,
+            'num_components': 3
+        }
+    ]
+    net = Net(**net_dict_copy)
+    return net
+
+
 
 def main():
     #     EXPERIMENTS = list('abcdefghijklmnopqrstuvwxyz')
-    EXPERIMENTS = list('abcd')
+    EXPERIMENTS = list('bcdefg')
     for experiment in EXPERIMENTS:
         full_exp_name = NAME + experiment
         func_call = init_experiment(PATH, experiment, full_exp_name)
         logger = logging.getLogger(full_exp_name)
         try:
             net = eval(func_call)
-            run_experiment(net, epochs=20000)
+            run_experiment(net, epochs=5000)
         except KeyboardInterrupt:
             logger.info("KeyboardInterrupt")
             break
