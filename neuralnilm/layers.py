@@ -148,9 +148,12 @@ class MixtureDensityLayer(Layer):
     def get_output_for(self, input, *args, **kwargs):
         """
         :returns:
-            A 3D tensor.  The first two dimensions are batch_size and num_units.
-            The third dimension is the number of components.
-            The last dimension always has exactly 3 elements: mu, sigma, mixing.
+            A tensor.  The dimensions are:
+            1. batch_size 
+            2. num_units
+            3. number of mixture components
+            4. The last dimension always has exactly 3 elements: 
+               1) mu, 2) sigma, 3) mixing.
         """
         if input.ndim > 2:
             # if the input has more than two dimensions, flatten it into a
