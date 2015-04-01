@@ -9,9 +9,8 @@ from lasagne.utils import floatX
 
 from neuralnilm.utils import sfloatX
 
-
+THRESHOLD = 0
 def scaled_cost(x, t, loss_func=lambda x, t: (x - t) ** 2):
-    THRESHOLD = 0
     error = loss_func(x, t)
     def mask_and_mean_error(mask):
         masked_error = error[mask.nonzero()]
@@ -25,9 +24,7 @@ def scaled_cost(x, t, loss_func=lambda x, t: (x - t) ** 2):
     return cost
 
 
-def scaled_cost_ignore_inactive(x, t, loss_func=lambda x, t: (x - t) ** 2, 
-                                seq_length=None):
-    THRESHOLD = 0
+def ignore_inactive(x, t, loss_func, seq_length=None):
     error = loss_func(x, t)
     if seq_length is not None:
         n_seq_per_batch = t.shape[0] // seq_length
@@ -35,8 +32,21 @@ def scaled_cost_ignore_inactive(x, t, loss_func=lambda x, t: (x - t) ** 2,
         error = error.reshape(shape)
         t = t.reshape(shape)
 
-    # on the line below, don't use '==' because that will produce a single bool,
-    # not a matrix of bools
+    active_seqs = (t > THRESHOLD).sum(axis=1) > 0
+    active_seqs = active_seqs.nonzero()
+    error_only_active = error.dimshuffle(0, 2, 1)[active_seqs]
+    return error_only_active.mean()
+
+
+def scaled_cost_ignore_inactive(x, t, loss_func=lambda x, t: (x - t) ** 2, 
+                                seq_length=None):
+    error = loss_func(x, t)
+    if seq_length is not None:
+        n_seq_per_batch = t.shape[0] // seq_length
+        shape = (n_seq_per_batch, seq_length, t.shape[-1])
+        error = error.reshape(shape)
+        t = t.reshape(shape)
+
     active_seqs = (t > THRESHOLD).sum(axis=1) > 0
     active_seqs = active_seqs.nonzero()
     error_only_active = error.dimshuffle(0, 2, 1)[active_seqs]

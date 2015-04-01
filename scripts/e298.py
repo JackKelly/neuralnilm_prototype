@@ -10,7 +10,7 @@ from neuralnilm.source import standardise, discretize, fdiff, power_and_fdiff
 from neuralnilm.experiment import run_experiment, init_experiment
 from neuralnilm.net import TrainingError
 from neuralnilm.layers import MixtureDensityLayer
-from neuralnilm.objectives import scaled_cost, mdn_nll, scaled_cost_ignore_inactive
+from neuralnilm.objectives import scaled_cost, mdn_nll, scaled_cost_ignore_inactive, ignore_inactive
 from neuralnilm.plot import MDNPlotter
 
 from lasagne.nonlinearities import sigmoid, rectify, tanh
@@ -78,15 +78,15 @@ source_dict = dict(
 N = 50
 net_dict = dict(        
     save_plot_interval=SAVE_PLOT_INTERVAL,
-    loss_function=partial(scaled_cost_ignore_inactive, loss_func=mdn_nll, seq_length=SEQ_LENGTH),
+    loss_function=partial(ignore_inactive, loss_func=mdn_nll, seq_length=SEQ_LENGTH),
 #    loss_function=lambda x, t: mdn_nll(x, t).mean(),
 #    loss_function=lambda x, t: mse(x, t).mean(),
     updates_func=momentum,
     learning_rate=1e-03,
     learning_rate_changes_by_iteration={
-        2000: 5e-04, 
-        5000: 1e-04,
-        7000: 5e-05
+        100: 5e-04, 
+        500: 1e-04,
+       2000: 5e-05
         # 3000: 1e-05
         # 7000: 5e-06,
         # 10000: 1e-06,
