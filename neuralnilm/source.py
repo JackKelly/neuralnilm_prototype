@@ -9,6 +9,7 @@ from sys import stdout
 from collections import OrderedDict
 from lasagne.utils import floatX
 from warnings import warn
+import matplotlib.pyplot as plt
 
 SECS_PER_DAY = 60 * 60 * 24
 
@@ -17,7 +18,9 @@ class Source(object):
                  X_processing_func=lambda X: X,
                  y_processing_func=lambda y: y,
                  reshape_target_to_2D=False,
+                 independently_center_inputs=False,
                  standardise_input=False,
+                 unit_variance_targets=False,
                  standardise_targets=False,
                  input_padding=0,
                  input_stats=None,
@@ -40,8 +43,10 @@ class Source(object):
 
         self.input_stats = input_stats
         self.target_stats = target_stats
+        self.independently_center_inputs = independently_center_inputs
         self.standardise_input = standardise_input
         self.standardise_targets = standardise_targets
+        self.unit_variance_targets = unit_variance_targets
         self._initialise_standardisation()
 
     def start(self):
@@ -81,6 +86,8 @@ class Source(object):
             y = y.reshape(
                 int(self.n_seq_per_batch * (self.seq_length / self.subsample_target)),
                 self.n_outputs)
+            plt.plot(y)
+            plt.show()
             self.target_stats = {'mean': y.mean(axis=0), 'std': y.std(axis=0)}
 
     def stop(self):
@@ -107,10 +114,21 @@ class Source(object):
                     data[:,:,i], how='std=1', mean=mean, std=std)
             return data
 
-        if self.standardise_input:
+        if self.independently_center_inputs:
+            for seq_i in range(self.n_seq_per_batch):
+                for input_i in range(self.n_inputs):
+                    X[seq_i, :, input_i] = standardise(
+                        X[seq_i, :, input_i], how='std=1', 
+                        std=self.input_stats['std'])
+
+        elif self.standardise_input:
             X = _standardise(self.n_inputs, self.input_stats, X)
 
-        if self.standardise_targets:
+        if self.unit_variance_targets:
+            for i in range(self.n_outputs):
+                std = self.target_stats['std'][i]
+                y[:,:,i] /= std
+        elif self.standardise_targets:
             y = _standardise(self.n_outputs, self.target_stats, y)
 
         if self.reshape_target_to_2D:
@@ -713,10 +731,11 @@ def standardise(X, how='range=2', mean=None, std=None, midrange=None, ptp=None):
             mean = X.mean()
         if std is None:
             std = X.std()
+        centered = X - mean
         if std == 0:
-            return X - mean
+            return centered
         else:
-            return (X - mean) / std
+            return centered / std
     elif how == 'range=2':
         if midrange is None:
             midrange = (X.max() + X.min()) / 2
