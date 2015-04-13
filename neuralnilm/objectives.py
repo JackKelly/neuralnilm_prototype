@@ -10,7 +10,9 @@ from lasagne.utils import floatX
 from neuralnilm.utils import sfloatX
 
 THRESHOLD = 0
-def scaled_cost(x, t, loss_func=lambda x, t: (x - t) ** 2):
+mse = lambda x, t: (x - t) ** 2
+
+def scaled_cost(x, t, loss_func=mse):
     error = loss_func(x, t)
     def mask_and_mean_error(mask):
         masked_error = error[mask.nonzero()]
@@ -24,7 +26,7 @@ def scaled_cost(x, t, loss_func=lambda x, t: (x - t) ** 2):
     return cost
 
 
-def ignore_inactive(x, t, loss_func, seq_length=None):
+def ignore_inactive(x, t, loss_func=mse, seq_length=None):
     error = loss_func(x, t)
     if seq_length is not None:
         n_seq_per_batch = t.shape[0] // seq_length
@@ -38,7 +40,7 @@ def ignore_inactive(x, t, loss_func, seq_length=None):
     return error_only_active.mean()
 
 
-def scaled_cost_ignore_inactive(x, t, loss_func=lambda x, t: (x - t) ** 2, 
+def scaled_cost_ignore_inactive(x, t, loss_func=mse, 
                                 seq_length=None):
     error = loss_func(x, t)
     if seq_length is not None:
