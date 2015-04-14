@@ -12,6 +12,18 @@ from neuralnilm.utils import sfloatX
 THRESHOLD = 0
 mse = lambda x, t: (x - t) ** 2
 
+
+def is_not_nan(data):
+    return T.eq(T.isnan(data), 0)
+
+
+def nanmean(data, axis=None):
+    mask = is_not_nan(data)
+    data = T.switch(T.isnan(data), 0, data) # Replace NaNs in data with zeros
+    mean = data.sum(axis=axis) / mask.sum(axis=axis)
+    return mean
+
+
 def scaled_cost3(x, t, loss_func=mse, ignore_inactive=True, seq_length=None):
     error = loss_func(x, t)
     if seq_length is not None:
@@ -20,12 +32,30 @@ def scaled_cost3(x, t, loss_func=mse, ignore_inactive=True, seq_length=None):
         error = error.reshape(shape)
         t = t.reshape(shape)
 
-    n_seq_per_batch = t.shape[0].eval()
-    n_outputs = t.shape[2].eval()
+    def mask_and_mean_error(mask):
+        masked_error = error * mask
+        mean_masked_error = masked_error.sum(axis=1) / mask.sum(axis=1)
+        return nanmean(mean_masked_error)
+
+    mean_error_above_thresh = mask_and_mean_error(t > THRESHOLD)
+    mean_error_below_thresh = mask_and_mean_error(t <= THRESHOLD)
+    return (mean_error_above_thresh + mean_error_below_thresh) / 2.0
+
+
+def scaled_cost3_dud(x, t, loss_func=mse, ignore_inactive=True, seq_length=None):
+    error = loss_func(x, t)
+    if seq_length is not None:
+        n_seq_per_batch = t.shape[0] // seq_length
+        shape = (n_seq_per_batch, seq_length, t.shape[-1])
+        error = error.reshape(shape)
+        t = t.reshape(shape)
+
+    n_seq_per_batch = t.shape[0]
+    n_outputs = t.shape[2]
     error_accumulator = 0.0
     n_active_seqs = 0
-    for seq_i in range(n_seq_per_batch):
-        for output_i in range(n_outputs):
+    for seq_i in T.arange(n_seq_per_batch):
+        for output_i in T.arange(n_outputs):
             above_thresh = t[seq_i, :, output_i] > THRESHOLD
             if ignore_inactive and not T.any(above_thresh).eval():
                 print("Ignoring seq", seq_i, "output_i", output_i)
