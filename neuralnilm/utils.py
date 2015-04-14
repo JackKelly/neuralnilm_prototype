@@ -20,3 +20,11 @@ def none_to_dict(data):
 def ndim_tensor(name, ndim, dtype=theano.config.floatX):
     tensor_type = T.TensorType(dtype=dtype, broadcastable=((False,) * ndim))
     return tensor_type(name=name)
+
+
+def gen_pulse(amplitude, duration, start_index, seq_length, 
+              dtype=theano.config.floatX):
+    sequence = np.zeros(seq_length, dtype=dtype)
+    end_index = start_index + duration
+    sequence[start_index:end_index] += amplitude
+    return sequence
