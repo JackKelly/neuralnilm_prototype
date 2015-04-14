@@ -50,7 +50,8 @@ def scaled_cost3(x, t, loss_func=mse, ignore_inactive=True, seq_length=None):
     error_above_thresh = mask_and_mean_error(t > THRESHOLD)
     error_below_thresh = mask_and_mean_error(t <= THRESHOLD)
     error_below_thresh = nan_to_zero(error_below_thresh)
-    scaled_error = (error_above_thresh + error_below_thresh) # / 2.0
+#    scaled_error = T.true_div((error_above_thresh + error_below_thresh), 2)
+    scaled_error = error_above_thresh + error_below_thresh
     # if any sequences were inactive then they will
     # have Inf entries (because mask.sum(axis=0) will be zero)
     if ignore_inactive:
@@ -60,37 +61,6 @@ def scaled_cost3(x, t, loss_func=mse, ignore_inactive=True, seq_length=None):
         # Replace NaNs with zeros and then take the mean
         mean_scaled_error = nan_to_zero(scaled_error).mean()
     return mean_scaled_error
-
-
-def scaled_cost3_dud(x, t, loss_func=mse, ignore_inactive=True, seq_length=None):
-    error = loss_func(x, t)
-    if seq_length is not None:
-        n_seq_per_batch = t.shape[0] // seq_length
-        shape = (n_seq_per_batch, seq_length, t.shape[-1])
-        error = error.reshape(shape)
-        t = t.reshape(shape)
-
-    n_seq_per_batch = t.shape[0]
-    n_outputs = t.shape[2]
-    error_accumulator = 0.0
-    n_active_seqs = 0
-    for seq_i in T.arange(n_seq_per_batch):
-        for output_i in T.arange(n_outputs):
-            above_thresh = t[seq_i, :, output_i] > THRESHOLD
-            if ignore_inactive and not T.any(above_thresh).eval():
-                print("Ignoring seq", seq_i, "output_i", output_i)
-                continue
-            n_active_seqs += 1
-            def mask_and_mean(mask):
-                masked_error = error[seq_i,  mask.nonzero(), output_i]
-                mean = masked_error.mean()
-                mean = ifelse(T.isnan(mean), 0.0, mean)
-                return mean
-            error_above_thresh = mask_and_mean(above_thresh)
-            error_below_thresh = mask_and_mean(-above_thresh)
-            error_accumulator += (error_above_thresh + error_below_thresh) / 2.0
-
-    return error_accumulator / n_active_seqs
 
 
 def scaled_cost(x, t, loss_func=mse):

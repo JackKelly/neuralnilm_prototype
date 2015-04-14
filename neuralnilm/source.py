@@ -254,6 +254,7 @@ class RealApplianceSource(Source):
                  clip_appliance_power=True,
                  lag=None,
                  target_is_prediction=False,
+                 one_target_per_seq=False,
                  **kwargs):
         """
         Parameters
@@ -306,7 +307,8 @@ class RealApplianceSource(Source):
         self.lag = lag
         self.target_is_prediction = target_is_prediction
         self.target_is_diff = target_is_diff
-
+        self.one_target_per_seq = one_target_per_seq
+        
         print("Loading training activations...")
         if on_power_thresholds is None:
             on_power_thresholds = [None] * len(self.appliances)
@@ -380,13 +382,15 @@ class RealApplianceSource(Source):
         activations = (self.validation_activations if validation 
                        else self.train_activations)
 
-        random_appliances = []
-        while not random_appliances:
-            for appliance_i, appliance in enumerate(activations.keys()):
-                if not self.rng.binomial(n=1, p=self.skip_probability):
-                    random_appliances.append((appliance_i, appliance))
+        if not self.one_target_per_seq:
+            random_appliances = []
+            while not random_appliances:
+                for appliance_i, appliance in enumerate(activations.keys()):
+                    if not self.rng.binomial(n=1, p=self.skip_probability):
+                        random_appliances.append((appliance_i, appliance))
 
-        appliances.extend(random_appliances)
+            appliances.extend(random_appliances)
+
         appliances = list(set(appliances)) # make unique
         
         for appliance_i, appliance in appliances:
@@ -469,18 +473,22 @@ class RealApplianceSource(Source):
         return start, end
 
     def _appliances_for_sequence(self):
-        """Returns a dict which maps from seq_i to a list of appliance which
+        """Returns a dict which maps from seq_i to a list of appliances which
         must be included in that sequence.  This is used to ensure that,
         if `skip_probability` > 0 then every appliance must be represented in
         at least one sequence.
         """
+        all_appliances = list(enumerate(self.get_labels()))
+        if self.one_target_per_seq:
+            return {i:[all_appliances[i % len(all_appliances)]] 
+                    for i in range(self.n_seq_per_batch)}
         if self.skip_probability == 0:
             return {i:[] for i in range(self.n_seq_per_batch)}
         n_appliances = len(self.appliances)
         n_appliances_per_seq = n_appliances // self.n_seq_per_batch
         remainder = n_appliances % self.n_seq_per_batch
         appliances_for_sequence = {}
-        all_appliances = list(enumerate(self.get_labels()))
+
         for i in range(self.n_seq_per_batch):
             start = n_appliances_per_seq * i
             end = start + n_appliances_per_seq
