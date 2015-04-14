@@ -86,7 +86,7 @@ net_dict = dict(
 #    loss_function=lambda x, t: mse(x, t).mean(),
 #    loss_function=partial(scaled_cost, loss_func=mse),
 #    loss_function=ignore_inactive,
-    loss_function=scaled_cost3,
+    loss_function=partial(scaled_cost3, ignore_inactive=False),
     updates_func=momentum,
     learning_rate=1e-3,
     learning_rate_changes_by_iteration={
@@ -107,8 +107,8 @@ net_dict = dict(
 
 def exp_a(name):
     global source
-    source_dict_copy = deepcopy(source_dict)
-    source = RealApplianceSource(**source_dict_copy)
+    # source_dict_copy = deepcopy(source_dict)
+    # source = RealApplianceSource(**source_dict_copy)
     net_dict_copy = deepcopy(net_dict)
     net_dict_copy.update(dict(
         experiment_name=name,

@@ -17,16 +17,26 @@ def is_not_nan(data):
     return T.eq(T.isnan(data), 0)
 
 
+def inf_to_nan(data):
+    return T.switch(T.isinf(data), np.nan, data)
+
+
 def nanmean(data, axis=None):
+    data = inf_to_nan(data)
     mask = is_not_nan(data)
-    data = T.switch(T.isnan(data), 0, data) # Replace NaNs in data with zeros
+    data = nan_to_zero(data)
     mean = data.sum(axis=axis) / mask.sum(axis=axis)
-    return mean
+    return nan_to_zero(mean)
+
+
+def nan_to_zero(data):
+    data = inf_to_nan(data)
+    return T.switch(T.isnan(data), 0, data)
 
 
 def scaled_cost3(x, t, loss_func=mse, ignore_inactive=True, seq_length=None):
     error = loss_func(x, t)
-    if seq_length is not None:
+    if seq_length:
         n_seq_per_batch = t.shape[0] // seq_length
         shape = (n_seq_per_batch, seq_length, t.shape[-1])
         error = error.reshape(shape)
@@ -35,11 +45,21 @@ def scaled_cost3(x, t, loss_func=mse, ignore_inactive=True, seq_length=None):
     def mask_and_mean_error(mask):
         masked_error = error * mask
         mean_masked_error = masked_error.sum(axis=1) / mask.sum(axis=1)
-        return nanmean(mean_masked_error)
+        return mean_masked_error
 
-    mean_error_above_thresh = mask_and_mean_error(t > THRESHOLD)
-    mean_error_below_thresh = mask_and_mean_error(t <= THRESHOLD)
-    return (mean_error_above_thresh + mean_error_below_thresh) / 2.0
+    error_above_thresh = mask_and_mean_error(t > THRESHOLD)
+    error_below_thresh = mask_and_mean_error(t <= THRESHOLD)
+    error_below_thresh = nan_to_zero(error_below_thresh)
+    scaled_error = (error_above_thresh + error_below_thresh) # / 2.0
+    # if any sequences were inactive then they will
+    # have Inf entries (because mask.sum(axis=0) will be zero)
+    if ignore_inactive:
+        # Take the mean, ignoring any NaN values
+        mean_scaled_error = nanmean(scaled_error)
+    else:
+        # Replace NaNs with zeros and then take the mean
+        mean_scaled_error = nan_to_zero(scaled_error).mean()
+    return mean_scaled_error
 
 
 def scaled_cost3_dud(x, t, loss_func=mse, ignore_inactive=True, seq_length=None):

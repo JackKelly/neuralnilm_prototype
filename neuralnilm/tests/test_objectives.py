@@ -12,15 +12,18 @@ SEQ_LENGTH = 512
 N_SEQ_PER_BATCH = 8
 N_OUTPUTS = 5
 TARGET_SHAPE = (N_SEQ_PER_BATCH, SEQ_LENGTH, N_OUTPUTS)
-DURATIONS = (0, 10, 100, 300, 502)
+DURATIONS = (0, 10, 100, 300, SEQ_LENGTH)
+STARTS =    (0, 10,  10,  10,          0)
 DTYPE = np.float32
 
 def gen_target():
     t = np.zeros(shape=TARGET_SHAPE, dtype=DTYPE)
     for seq_i in range(N_SEQ_PER_BATCH):
         for output_i in range(N_OUTPUTS):
-            pulse = gen_pulse(amplitude=1, duration=DURATIONS[output_i],
-                              start_index=10, seq_length=SEQ_LENGTH,
+            pulse = gen_pulse(amplitude=1, 
+                              duration=DURATIONS[output_i],
+                              start_index=STARTS[output_i], 
+                              seq_length=SEQ_LENGTH,
                               dtype=DTYPE)
             t[seq_i, :, output_i] = pulse
     return t
@@ -32,6 +35,7 @@ class TestObjectives(unittest.TestCase):
         y = theano.shared(np.zeros(shape=TARGET_SHAPE, dtype=DTYPE))
         self.assertEqual(t.dtype, y.dtype)
         start_time = timer()
+        import ipdb; ipdb.set_trace()
         cost = objectives.scaled_cost3(y, t)
         end_time = timer()
         print("Time: {:.3f}s".format(end_time - start_time))
