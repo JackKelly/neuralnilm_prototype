@@ -33,7 +33,6 @@ NAME = os.path.splitext(os.path.split(__main__.__file__)[1])[0]
 PATH = "/homes/dk3810/workspace/python/neuralnilm/figures"
 SAVE_PLOT_INTERVAL = 1000
 GRADIENT_STEPS = 100
-SEQ_LENGTH = 512
 
 source_dict = dict(
     filename='/data/dk3810/ukdale.h5',
@@ -50,7 +49,7 @@ source_dict = dict(
     min_on_durations=[60, 1800, 1800],
     min_off_durations=[12, 1800, 600],
     window=("2013-06-01", "2014-07-01"),
-    seq_length=SEQ_LENGTH,
+    seq_length=512,
     output_one_appliance=False,
     boolean_targets=False,
     train_buildings=[1],
@@ -58,14 +57,14 @@ source_dict = dict(
 #   skip_probability=0.5,
     one_target_per_seq=True,
     n_seq_per_batch=16,
-    subsample_target=4,
+    subsample_target=8,
     include_diff=False,
     clip_appliance_power=True,
     target_is_prediction=False,
 #    independently_center_inputs = True,
     standardise_input=True,
     unit_variance_targets=True,
-    input_padding=0,
+    input_padding=32 + 16 + 8,
     lag=0
 #    reshape_target_to_2D=True,
     # input_stats={'mean': np.array([ 0.05526326], dtype=np.float32),
@@ -120,8 +119,8 @@ net_dict = dict(
 
 def exp_a(name):
     global source
-    source_dict_copy = deepcopy(source_dict)
-    source = RealApplianceSource(**source_dict_copy)
+    # source_dict_copy = deepcopy(source_dict)
+    # source = RealApplianceSource(**source_dict_copy)
     net_dict_copy = deepcopy(net_dict)
     net_dict_copy.update(dict(
         experiment_name=name,
