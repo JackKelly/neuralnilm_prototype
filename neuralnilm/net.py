@@ -56,7 +56,8 @@ class Net(object):
                  seed=42,
                  epoch_callbacks=None,
                  do_save_activations=True,
-                 plotter=Plotter
+                 plotter=Plotter,
+                 auto_reshape=True
     ):
         """
         Parameters
@@ -85,6 +86,7 @@ class Net(object):
         self.epoch_callbacks = none_to_dict(epoch_callbacks)
         self.do_save_activations = do_save_activations
         self.plotter = plotter(self)
+        self.auto_reshape = auto_reshape
 
         self.csv_filenames = {
             'training_costs': self.experiment_name + "_training_costs.csv",
@@ -118,24 +120,26 @@ class Net(object):
             layer_type = layer_config.pop('type')
 
             # Reshape if necessary
-            prev_layer_output_shape = self.layers[-1].get_output_shape()
-            n_dims = len(prev_layer_output_shape)
-            n_features = prev_layer_output_shape[-1]
-            if layer_type in [LSTMLayer, BLSTMLayer, DimshuffleLayer]:
-                if n_dims == 2:
-                    seq_length = int(prev_layer_output_shape[0] / 
-                                     self.source.n_seq_per_batch)
-                    shape = (self.source.n_seq_per_batch, 
-                             seq_length,
-                             n_features)
-                    self.layers.append(ReshapeLayer(self.layers[-1], shape))
-            elif layer_type in [DenseLayer, MixtureDensityLayer]:
-                if n_dims == 3:
-                    # The prev layer_config was a time-aware layer_config, so reshape to 2-dims.
-                    seq_length = prev_layer_output_shape[1]
-                    shape = (self.source.n_seq_per_batch * seq_length,
-                             n_features)
-                    self.layers.append(ReshapeLayer(self.layers[-1], shape))
+            if self.auto_reshape:
+                prev_layer_output_shape = self.layers[-1].get_output_shape()
+                n_dims = len(prev_layer_output_shape)
+                n_features = prev_layer_output_shape[-1]
+                if layer_type in [LSTMLayer, BLSTMLayer, DimshuffleLayer]:
+                    if n_dims == 2:
+                        seq_length = int(prev_layer_output_shape[0] / 
+                                         self.source.n_seq_per_batch)
+                        shape = (self.source.n_seq_per_batch, 
+                                 seq_length,
+                                 n_features)
+                        self.layers.append(ReshapeLayer(self.layers[-1], shape))
+                elif layer_type in [DenseLayer, MixtureDensityLayer]:
+                    if n_dims == 3:
+                        # The prev layer_config was a time-aware layer_config, 
+                        # so reshape to 2-dims.
+                        seq_length = prev_layer_output_shape[1]
+                        shape = (self.source.n_seq_per_batch * seq_length,
+                                 n_features)
+                        self.layers.append(ReshapeLayer(self.layers[-1], shape))
 
             # Init new layer_config
             self.logger.info('Initialising layer_config : {}'.format(layer_type))
