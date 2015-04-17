@@ -25,7 +25,9 @@ class Source(object):
                  input_padding=0,
                  input_stats=None,
                  target_stats=None,
-                 seed=42
+                 seed=42,
+                 output_central_value=False,
+                 classification=False
     ):
         super(Source, self).__init__()
         self.seq_length = seq_length
@@ -40,6 +42,8 @@ class Source(object):
         self.y_processing_func = y_processing_func
         self.reshape_target_to_2D = reshape_target_to_2D
         self.rng = np.random.RandomState(seed)
+        self.output_central_value = output_central_value
+        self.classification = classification
 
         self.input_stats = input_stats
         self.target_stats = target_stats
@@ -86,8 +90,6 @@ class Source(object):
             y = y.reshape(
                 int(self.n_seq_per_batch * (self.seq_length / self.subsample_target)),
                 self.n_outputs)
-            plt.plot(y)
-            plt.show()
             self.target_stats = {'mean': y.mean(axis=0), 'std': y.std(axis=0)}
 
     def stop(self):
@@ -136,6 +138,15 @@ class Source(object):
 
         X = self.X_processing_func(X)
         y = self.y_processing_func(y)
+
+        if self.classification:
+            y = (y > 0).max(axis=1).reshape(self.output_shape_after_processing())
+        elif self.output_central_value:
+            seq_length = y.shape[1]
+            half_seq_length = seq_length // 2
+            y = y[:, half_seq_length:half_seq_length+1, :]
+
+
         X, y = floatX(X), floatX(y)
         self._check_data(X, y)
         return X, y
@@ -153,6 +164,8 @@ class Source(object):
         n_seq_per_batch, seq_length, n_outputs = self.output_shape()
         if self.reshape_target_to_2D:
             return (n_seq_per_batch * seq_length, n_outputs)
+        elif self.output_central_value or self.classification:
+            return (n_seq_per_batch, 1, n_outputs)
         else:
             return (n_seq_per_batch, seq_length, n_outputs)
 

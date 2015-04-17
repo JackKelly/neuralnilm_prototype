@@ -171,6 +171,19 @@ class MDNPlotter(Plotter):
         return X, y_reshaped, output_reshaped
 
 
+class CentralOutputPlotter(Plotter):
+    def _plot_network_output(self, ax, output):
+        ax.set_title('Network output')
+        n_outputs = output.shape[2]
+        ax.bar(range(n_outputs), output[self.seq_i, 0, :])
+
+    def _plot_target(self, ax, y):
+        ax.set_title('Target')
+        n_outputs = y.shape[2]
+        ax.bar(range(n_outputs), y[self.seq_i, 0, :])
+        ax.set_xticklabels(self.target_labels)    
+
+
 def gmm_pdf(theta, x):
     """
     Parameters
