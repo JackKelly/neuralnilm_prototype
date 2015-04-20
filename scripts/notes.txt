@@ -1,3 +1,9 @@
+357:
+went back to doing regression using FF net.
+
+
+
+
 WORKS (kind of):
 
 3 appliances

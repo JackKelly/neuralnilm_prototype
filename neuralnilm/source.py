@@ -27,7 +27,8 @@ class Source(object):
                  target_stats=None,
                  seed=42,
                  output_central_value=False,
-                 classification=False
+                 classification=False,
+                 random_window=0
     ):
         super(Source, self).__init__()
         self.seq_length = seq_length
@@ -44,6 +45,10 @@ class Source(object):
         self.rng = np.random.RandomState(seed)
         self.output_central_value = output_central_value
         self.classification = classification
+        self.random_window = random_window
+        if self.random_window and self.subsample_target:
+            if self.random_window % self.subsample_target:
+                raise RuntimeError("subsample_target must exactly divide random_window")
 
         self.input_stats = input_stats
         self.target_stats = target_stats
@@ -133,6 +138,17 @@ class Source(object):
         elif self.standardise_targets:
             y = _standardise(self.n_outputs, self.target_stats, y)
 
+        if self.random_window:
+            y_seq_length = self.seq_length // self.subsample_target
+            y_window_width = self.random_window // self.subsample_target
+            latest_y_window_start = y_seq_length - y_window_width
+            y_window_start = self.rng.randint(0, latest_y_window_start)
+            y_window_end = y_window_start + y_window_width
+            y = y[:, y_window_start:y_window_end, :]
+            x_window_start = y_window_start * self.subsample_target
+            x_window_end = y_window_end * self.subsample_target
+            X = X[:, x_window_start:x_window_end, :]
+
         if self.reshape_target_to_2D:
             y = y.reshape(self.output_shape_after_processing())
 
@@ -146,7 +162,6 @@ class Source(object):
             half_seq_length = seq_length // 2
             y = y[:, half_seq_length:half_seq_length+1, :]
 
-
         X, y = floatX(X), floatX(y)
         self._check_data(X, y)
         return X, y
@@ -155,13 +170,25 @@ class Source(object):
         raise NotImplementedError()
 
     def input_shape(self):
-        return (self.n_seq_per_batch, self.seq_length, self.n_inputs)
+        if self.random_window:
+            seq_length = self.random_window
+        else:
+            seq_length = self.seq_length
+        return (self.n_seq_per_batch, seq_length, self.n_inputs)
+
+    def input_shape_after_processing(self):
+        n_seq_per_batch, seq_length, n_outputs = self.input_shape()        
+        if self.random_window:
+            seq_length = self.random_window
+        return (n_seq_per_batch, seq_length, n_outputs)
 
     def output_shape(self):
         return (self.n_seq_per_batch, self.seq_length, self.n_outputs)
 
     def output_shape_after_processing(self):
         n_seq_per_batch, seq_length, n_outputs = self.output_shape()
+        if self.random_window:
+            seq_length = self.random_window
         if self.reshape_target_to_2D:
             return (n_seq_per_batch * seq_length, n_outputs)
         elif self.output_central_value or self.classification:
@@ -170,7 +197,7 @@ class Source(object):
             return (n_seq_per_batch, seq_length, n_outputs)
 
     def _check_data(self, X, y):
-        assert X.shape == self.input_shape()
+        assert X.shape == self.input_shape_after_processing()
         assert not any(np.isnan(X.flatten()))
         if y is not None:
             assert y.shape == self.output_shape_after_processing()
@@ -286,10 +313,15 @@ class RealApplianceSource(Source):
         """
         self.dataset = DataSet(filename)
         self.appliances = appliances
+
+        if max_input_power is None and max_appliance_powers is not None:
+            self.max_input_power = np.sum(max_appliance_powers)
+        else:
+            self.max_input_power = max_input_power
+
         if max_appliance_powers is None:
             max_appliance_powers = [None] * len(appliances)
-        self.max_input_power = (np.sum(max_appliance_powers) 
-                                if max_input_power is None else max_input_power)
+
         self.max_appliance_powers = {}
         for i, appliance in enumerate(appliances):
             if isinstance(appliance, list):
@@ -321,7 +353,7 @@ class RealApplianceSource(Source):
         self.target_is_prediction = target_is_prediction
         self.target_is_diff = target_is_diff
         self.one_target_per_seq = one_target_per_seq
-        
+
         print("Loading training activations...")
         if on_power_thresholds is None:
             on_power_thresholds = [None] * len(self.appliances)
@@ -346,6 +378,7 @@ class RealApplianceSource(Source):
             input_padding=input_padding,
             **kwargs
         )
+        assert not self.input_padding and self.random_window
         print("\nDone loading activations.")
 
     def get_labels(self):
@@ -435,7 +468,8 @@ class RealApplianceSource(Source):
         np.clip(X, 0, self.max_input_power, out=X)
 
         fdiff = np.diff(X[:,0]) / self.max_diff
-        X[:,0] /= self.max_input_power
+        if self.max_input_power is not None:
+            X[:,0] /= self.max_input_power
 
         if self.target_is_prediction:
             if self.target_is_diff:
