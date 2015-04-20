@@ -30,7 +30,8 @@ import numpy as np
 import theano.tensor as T
 
 NAME = os.path.splitext(os.path.split(__main__.__file__)[1])[0]
-PATH = "/homes/dk3810/workspace/python/neuralnilm/figures"
+#PATH = "/homes/dk3810/workspace/python/neuralnilm/figures"
+PATH = "/data/dk3810/figures"
 SAVE_PLOT_INTERVAL = 5000
 GRADIENT_STEPS = 100
 
