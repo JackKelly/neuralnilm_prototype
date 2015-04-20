@@ -166,16 +166,193 @@ def exp_a(name):
     return net
 
 
+
+def exp_b(name):
+    global source
+    source_dict_copy = deepcopy(source_dict)
+    source_dict_copy['random_window'] = 128
+    source = RealApplianceSource(**source_dict_copy)
+    net_dict_copy = deepcopy(net_dict)
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source
+    ))
+    N = 512 * 8
+    output_shape = source.output_shape_after_processing()
+    net_dict_copy['layers_config'] = [
+        {
+            'type': DenseLayer,
+            'num_units': N * 2,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': N,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': N // 2,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': N // 4,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': output_shape[1] * output_shape[2],
+            'nonlinearity': sigmoid
+        }
+    ]
+    net = Net(**net_dict_copy)
+    return net
+
+
+
+def exp_c(name):
+    global source
+    source_dict_copy = deepcopy(source_dict)
+    source_dict_copy['random_window'] = 256
+    source = RealApplianceSource(**source_dict_copy)
+    net_dict_copy = deepcopy(net_dict)
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source
+    ))
+    N = 512 * 8
+    output_shape = source.output_shape_after_processing()
+    net_dict_copy['layers_config'] = [
+        {
+            'type': DenseLayer,
+            'num_units': N * 2,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': N,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': N // 2,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': N // 4,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': output_shape[1] * output_shape[2],
+            'nonlinearity': sigmoid
+        }
+    ]
+    net = Net(**net_dict_copy)
+    return net
+
+
+
+def exp_d(name):
+    global source
+    source_dict_copy = deepcopy(source_dict)
+    source_dict_copy['random_window'] = 512
+    source = RealApplianceSource(**source_dict_copy)
+    net_dict_copy = deepcopy(net_dict)
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source
+    ))
+    N = 512 * 8
+    output_shape = source.output_shape_after_processing()
+    net_dict_copy['layers_config'] = [
+        {
+            'type': DenseLayer,
+            'num_units': N * 2,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': N,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': N // 2,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': N // 4,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': output_shape[1] * output_shape[2],
+            'nonlinearity': sigmoid
+        }
+    ]
+    net = Net(**net_dict_copy)
+    return net
+
+
+
+def exp_e(name):
+    global source
+    source_dict_copy = deepcopy(source_dict)
+    source_dict_copy['random_window'] = 0
+    source = RealApplianceSource(**source_dict_copy)
+    net_dict_copy = deepcopy(net_dict)
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source
+    ))
+    N = 512 * 8
+    output_shape = source.output_shape_after_processing()
+    net_dict_copy['layers_config'] = [
+        {
+            'type': DenseLayer,
+            'num_units': N * 2,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': N,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': N // 2,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': N // 4,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': output_shape[1] * output_shape[2],
+            'nonlinearity': sigmoid
+        }
+    ]
+    net = Net(**net_dict_copy)
+    return net
+
+
+
 def main():
     #     EXPERIMENTS = list('abcdefghijklmnopqrstuvwxyz')
-    EXPERIMENTS = list('a')
+    EXPERIMENTS = list('bcde')
     for experiment in EXPERIMENTS:
         full_exp_name = NAME + experiment
         func_call = init_experiment(PATH, experiment, full_exp_name)
         logger = logging.getLogger(full_exp_name)
         try:
             net = eval(func_call)
-            run_experiment(net, epochs=None)
+            run_experiment(net, epochs=50000)
         except KeyboardInterrupt:
             logger.info("KeyboardInterrupt")
             break
