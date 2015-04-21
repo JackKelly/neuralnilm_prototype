@@ -295,6 +295,7 @@ class RealApplianceSource(Source):
                  lag=None,
                  target_is_prediction=False,
                  one_target_per_seq=False,
+                 ensure_all_appliances_represented=True,
                  **kwargs):
         """
         Parameters
@@ -353,6 +354,7 @@ class RealApplianceSource(Source):
         self.target_is_prediction = target_is_prediction
         self.target_is_diff = target_is_diff
         self.one_target_per_seq = one_target_per_seq
+        self.ensure_all_appliances_represented = ensure_all_appliances_represented
 
         print("Loading training activations...")
         if on_power_thresholds is None:
@@ -525,6 +527,8 @@ class RealApplianceSource(Source):
         if `skip_probability` > 0 then every appliance must be represented in
         at least one sequence.
         """
+        if not self.ensure_all_appliances_represented:
+            return {}
         all_appliances = list(enumerate(self.get_labels()))
         if self.one_target_per_seq:
             return {i:[all_appliances[i % len(all_appliances)]] 

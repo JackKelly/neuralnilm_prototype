@@ -30,6 +30,7 @@ class Plotter(object):
         self.seq_i = 0
         self.target_labels = (
             self.net.source.get_labels() if self.net is not None else [])
+        self.plot_additional_seqs = 0
     
     def plot_all(self):
         self.plot_costs()
