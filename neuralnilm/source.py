@@ -378,7 +378,7 @@ class RealApplianceSource(Source):
             input_padding=input_padding,
             **kwargs
         )
-        assert not self.input_padding and self.random_window
+        assert not (self.input_padding and self.random_window)
         print("\nDone loading activations.")
 
     def get_labels(self):
