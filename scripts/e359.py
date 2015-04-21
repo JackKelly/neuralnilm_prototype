@@ -94,7 +94,7 @@ net_dict = dict(
     updates_func=momentum,
     learning_rate=1e-4,
     learning_rate_changes_by_iteration={
-       10000: 1e-5,
+       50000: 1e-5,
         # 400: 1e-3,
         # 800: 1e-4
 #        500: 1e-3
@@ -348,7 +348,7 @@ def exp_e(name):
 
 def main():
     #     EXPERIMENTS = list('abcdefghijklmnopqrstuvwxyz')
-    EXPERIMENTS = list('cde')
+    EXPERIMENTS = list('de')
     for experiment in EXPERIMENTS:
         full_exp_name = NAME + experiment
         func_call = init_experiment(PATH, experiment, full_exp_name)
