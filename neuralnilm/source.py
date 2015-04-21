@@ -557,7 +557,7 @@ class RealApplianceSource(Source):
         deterministic_appliances = self._appliances_for_sequence()
         for i in range(self.n_seq_per_batch):
             X[i,start:end,:], y[i,:,:] = self._gen_single_example(
-                validation, deterministic_appliances[i])
+                validation, deterministic_appliances.get(i))
         return X, y
 
 
