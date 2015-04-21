@@ -94,7 +94,7 @@ net_dict = dict(
     updates_func=momentum,
     learning_rate=1e-4,
     learning_rate_changes_by_iteration={
-       50000: 1e-5,
+       10000: 1e-5,
         # 400: 1e-3,
         # 800: 1e-4
 #        500: 1e-3
@@ -220,7 +220,8 @@ def exp_c(name):
     net_dict_copy = deepcopy(net_dict)
     net_dict_copy.update(dict(
         experiment_name=name,
-        source=source
+        source=source,
+        learning_rate=1e-5
     ))
     N = 512 * 8
     output_shape = source.output_shape_after_processing()
@@ -252,6 +253,7 @@ def exp_c(name):
         }
     ]
     net = Net(**net_dict_copy)
+    net.load_params(30000)
     return net
 
 
@@ -346,7 +348,7 @@ def exp_e(name):
 
 def main():
     #     EXPERIMENTS = list('abcdefghijklmnopqrstuvwxyz')
-    EXPERIMENTS = list('abcde')
+    EXPERIMENTS = list('cde')
     for experiment in EXPERIMENTS:
         full_exp_name = NAME + experiment
         func_call = init_experiment(PATH, experiment, full_exp_name)
@@ -359,7 +361,7 @@ def main():
             break
         except Exception as exception:
             logger.exception("Exception")
-            raise
+            # raise
         finally:
             logging.shutdown()
 
