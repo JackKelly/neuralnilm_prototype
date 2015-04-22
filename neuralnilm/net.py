@@ -24,7 +24,7 @@ from lasagne.utils import floatX
 from lasagne.updates import nesterov_momentum
 
 from .source import quantize
-from .layers import BLSTMLayer, DimshuffleLayer, MixtureDensityLayer
+from .layers import BLSTMLayer, DimshuffleLayer, MixtureDensityLayer, BidirectionalRecurrentLayer
 from .utils import sfloatX, none_to_dict, ndim_tensor
 from .plot import Plotter
 
@@ -124,7 +124,8 @@ class Net(object):
                 prev_layer_output_shape = self.layers[-1].get_output_shape()
                 n_dims = len(prev_layer_output_shape)
                 n_features = prev_layer_output_shape[-1]
-                if layer_type in [LSTMLayer, BLSTMLayer, DimshuffleLayer]:
+                if layer_type in [LSTMLayer, BLSTMLayer, DimshuffleLayer,
+                                  RecurrentLayer, BidirectionalRecurrentLayer]:
                     if n_dims == 2:
                         seq_length = int(prev_layer_output_shape[0] / 
                                          self.source.n_seq_per_batch)

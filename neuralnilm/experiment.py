@@ -3,6 +3,7 @@ import os
 import logging
 from sys import stdout
 
+
 def init_experiment(base_path, experiment, full_exp_name):
     """
     Parameters
@@ -25,11 +26,12 @@ def init_experiment(base_path, experiment, full_exp_name):
     os.chdir(path)
     func_call = 'exp_{:s}(full_exp_name)'.format(experiment)
     logger = logging.getLogger(full_exp_name)
-    fh = logging.FileHandler(full_exp_name+'.log')
-    formatter = logging.Formatter('%(asctime)s %(message)s')
-    fh.setFormatter(formatter)
-    logger.addHandler(fh)
-    logger.addHandler(logging.StreamHandler(stream=stdout))
+    if not logger.handlers:
+        fh = logging.FileHandler(full_exp_name + '.log')
+        formatter = logging.Formatter('%(asctime)s %(message)s')
+        fh.setFormatter(formatter)
+        logger.addHandler(fh)
+        logger.addHandler(logging.StreamHandler(stream=stdout))
     logger.setLevel(logging.DEBUG)
     logger.info("***********************************")
     logger.info("Preparing " + full_exp_name + "...")
