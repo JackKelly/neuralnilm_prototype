@@ -99,8 +99,8 @@ net_dict = dict(
     updates_func=momentum,
     learning_rate=1e-1,
     learning_rate_changes_by_iteration={
-        500: 1e-2,
-      10000: 1e-3
+       5000: 1e-2,
+      20000: 1e-3
         # 800: 1e-4
 #        500: 1e-3
        #  4000: 1e-03,
