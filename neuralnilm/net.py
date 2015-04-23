@@ -73,8 +73,10 @@ class Net(object):
             np.random.seed(seed)
         self.source = source
         self.updates_func = updates_func
-        self.learning_rate = theano.shared(
+        self._learning_rate = theano.shared(
             sfloatX(learning_rate), name='learning_rate')
+        self.logger.info(
+            "Learning rate initialised to {:.1E}".format(learning_rate))
         self.learning_rate_changes_by_iteration = none_to_dict(
             learning_rate_changes_by_iteration)
         self.updates_kwargs = none_to_dict(updates_kwargs)
@@ -177,7 +179,7 @@ class Net(object):
         # Updates
         all_params = lasagne.layers.get_all_params(self.layers[-1])
         updates = self.updates_func(
-            loss, all_params, learning_rate=self.learning_rate, 
+            loss, all_params, learning_rate=self._learning_rate, 
             **self.updates_kwargs)
 
         # Theano functions for training, getting output, and computing loss
@@ -293,6 +295,18 @@ class Net(object):
                 row=['iteration', 'validation_cost'], 
                 mode='w')
 
+    @property
+    def learning_rate(self):
+        return self._learning_rate.get_value()
+
+    @learning_rate.setter
+    def learning_rate(self, rate):
+        rate = sfloatX(rate)
+        self.logger.info(
+            "Iteration {:d}: Change learning rate to {:.1E}"
+            .format(self.n_iterations(), rate))
+        self._learning_rate.set_value(rate)
+
     def _training_loop(self, n_iterations):
         # Adapted from dnouri/nolearn/nolearn/lasagne.py
         self.logger.info("Starting training for {} iterations."
@@ -309,12 +323,7 @@ class Net(object):
             t0 = time() # for calculating training duration
             iteration = len(self.training_costs)
             if iteration in self.learning_rate_changes_by_iteration:
-                new_lr = self.learning_rate_changes_by_iteration[iteration]
-                new_lr = sfloatX(new_lr)
-                self.logger.info(
-                    "Iteration {:d}: Change learning rate from {:.1E} to {:.1E}"
-                    .format(iteration, float(self.learning_rate.get_value()), new_lr))
-                self.learning_rate.set_value(new_lr)
+                self.learning_rate = self.learning_rate_changes_by_iteration[iteration]
             if iteration in self.layer_changes:
                 self._change_layers(iteration)
             if iteration in self.epoch_callbacks:
@@ -455,6 +464,7 @@ class Net(object):
             f.create_dataset('validation_data', data=self.X_val, compression="gzip")
 
         f.close()
+        
 
 
 def _write_csv_row(filename, row, mode='a'):
