@@ -22,6 +22,7 @@ from lasagne.layers import (InputLayer, LSTMLayer, ReshapeLayer, Layer,
 from lasagne.nonlinearities import sigmoid, rectify
 from lasagne.utils import floatX
 from lasagne.updates import nesterov_momentum
+from lasagne.layers.batch_norm import batch_norm
 
 from .source import quantize
 from .layers import BLSTMLayer, DimshuffleLayer, MixtureDensityLayer, BidirectionalRecurrentLayer
@@ -118,6 +119,9 @@ class Net(object):
         self.n_outputs = self.output_shape[-1]
 
     def add_layers(self, layers_config):
+        RECURRENT_LAYERS = [LSTMLayer, BLSTMLayer, DimshuffleLayer,
+                            RecurrentLayer, BidirectionalRecurrentLayer]
+
         for layer_config in layers_config:
             layer_type = layer_config.pop('type')
 
@@ -126,8 +130,7 @@ class Net(object):
                 prev_layer_output_shape = self.layers[-1].get_output_shape()
                 n_dims = len(prev_layer_output_shape)
                 n_features = prev_layer_output_shape[-1]
-                if layer_type in [LSTMLayer, BLSTMLayer, DimshuffleLayer,
-                                  RecurrentLayer, BidirectionalRecurrentLayer]:
+                if layer_type in RECURRENT_LAYERS:
                     if n_dims == 2:
                         seq_length = int(prev_layer_output_shape[0] / 
                                          self.source.n_seq_per_batch)
@@ -146,7 +149,8 @@ class Net(object):
 
             # Init new layer_config
             self.logger.info('Initialising layer_config : {}'.format(layer_type))
-            self.layers.append(layer_type(self.layers[-1], **layer_config))
+            layer = layer_type(self.layers[-1], **layer_config)
+            self.layers.append(layer)
 
         # Reshape output if necessary...
         if (self.layers[-1].get_output_shape() != self.output_shape and 
@@ -154,7 +158,9 @@ class Net(object):
             self.layers.append(ReshapeLayer(self.layers[-1], self.output_shape))
 
     def print_net(self):
-        for layer in self.layers:
+        layers = get_all_layers(self.layers[-1])
+        layers.reverse()
+        for layer in layers:
             self.logger.info(str(layer))
             try:
                 input_shape = layer.input_shape
@@ -173,27 +179,31 @@ class Net(object):
         target_output.tag.test_value = floatX(rand(*self.output_shape))
 
         self.logger.info("Compiling Theano functions...")
-        loss = self.loss_function(
+        loss_train = self.loss_function(
             self.layers[-1].get_output(input), target_output)
+        loss_eval = self.loss_function(
+            self.layers[-1].get_output(input, deterministic=True), target_output)
 
         # Updates
         all_params = lasagne.layers.get_all_params(self.layers[-1])
         updates = self.updates_func(
-            loss, all_params, learning_rate=self._learning_rate, 
+            loss_train, all_params, learning_rate=self._learning_rate, 
             **self.updates_kwargs)
 
-        # Theano functions for training, getting output, and computing loss
+        # Theano functions for training, getting output, and computing loss_train
         self.train = theano.function(
             [input, target_output],
-            loss, updates=updates, on_unused_input='warn',
+            loss_train, updates=updates, on_unused_input='warn',
             allow_input_downcast=True)
 
         self.y_pred = theano.function(
-            [input], self.layers[-1].get_output(input), on_unused_input='warn',
+            [input], self.layers[-1].get_output(input, deterministic=True), 
+            on_unused_input='warn',
             allow_input_downcast=True)
 
         self.compute_cost = theano.function(
-            [input, target_output], loss, on_unused_input='warn',
+            [input, target_output], 
+            loss_eval, on_unused_input='warn',
             allow_input_downcast=True)
 
         self.logger.info("Done compiling Theano functions.")
