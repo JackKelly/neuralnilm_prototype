@@ -158,7 +158,7 @@ def exp_a(name):
         {
             'type': BidirectionalRecurrentLayer,
             'num_units': 40,
-#            'gradient_steps': GRADIENT_STEPS,
+            'gradient_steps': GRADIENT_STEPS,
             'nonlinearity': identity,
             'b_in_to_hid': None,
             'W_hid_to_hid': Identity(scale=0.5),
@@ -192,7 +192,7 @@ def exp_a(name):
         {
             'type': BidirectionalRecurrentLayer,
             'num_units': 40,
-#            'gradient_steps': GRADIENT_STEPS,
+            'gradient_steps': GRADIENT_STEPS,
             'nonlinearity': identity,
             'b_in_to_hid': None,
             'W_hid_to_hid': Identity(scale=0.5),
@@ -251,7 +251,7 @@ def exp_b(name):
         {
             'type': BidirectionalRecurrentLayer,
             'num_units': 40,
-#            'gradient_steps': GRADIENT_STEPS,
+            'gradient_steps': GRADIENT_STEPS,
             'nonlinearity': identity,
             'b_in_to_hid': None,
             'W_hid_to_hid': Identity(scale=0.5),
@@ -285,7 +285,7 @@ def exp_b(name):
         {
             'type': BidirectionalRecurrentLayer,
             'num_units': 40,
-#            'gradient_steps': GRADIENT_STEPS,
+            'gradient_steps': GRADIENT_STEPS,
             'nonlinearity': identity,
             'b_in_to_hid': None,
             'W_hid_to_hid': Identity(scale=0.5),
@@ -344,7 +344,7 @@ def exp_c(name):
         {
             'type': BidirectionalRecurrentLayer,
             'num_units': 40,
-#            'gradient_steps': GRADIENT_STEPS,
+            'gradient_steps': GRADIENT_STEPS,
             'nonlinearity': identity,
             'b_in_to_hid': None,
             'W_hid_to_hid': Identity(scale=0.5),
@@ -378,7 +378,7 @@ def exp_c(name):
         {
             'type': BidirectionalRecurrentLayer,
             'num_units': 40,
-#            'gradient_steps': GRADIENT_STEPS,
+            'gradient_steps': GRADIENT_STEPS,
             'nonlinearity': identity,
             'b_in_to_hid': None,
             'W_hid_to_hid': Identity(scale=0.5),
@@ -436,7 +436,7 @@ def exp_d(name):
         {
             'type': BidirectionalRecurrentLayer,
             'num_units': 40,
-#            'gradient_steps': GRADIENT_STEPS,
+            'gradient_steps': GRADIENT_STEPS,
             'nonlinearity': identity,
             'b_in_to_hid': None,
             'learn_init': True
@@ -469,7 +469,7 @@ def exp_d(name):
         {
             'type': BidirectionalRecurrentLayer,
             'num_units': 40,
-#            'gradient_steps': GRADIENT_STEPS,
+            'gradient_steps': GRADIENT_STEPS,
             'nonlinearity': identity,
             'b_in_to_hid': None,
             'learn_init': True
@@ -522,7 +522,7 @@ def exp_e(name):
         {
             'type': BidirectionalRecurrentLayer,
             'num_units': 40,
-#            'gradient_steps': GRADIENT_STEPS,
+            'gradient_steps': GRADIENT_STEPS,
             'nonlinearity': tanh,
             'learn_init': True
         },
@@ -544,7 +544,7 @@ def exp_e(name):
         {
             'type': BidirectionalRecurrentLayer,
             'num_units': 40,
-#            'gradient_steps': GRADIENT_STEPS,
+            'gradient_steps': GRADIENT_STEPS,
             'nonlinearity': tanh,
             'learn_init': True
         },
@@ -562,7 +562,7 @@ def exp_e(name):
 
 def main():
     #     EXPERIMENTS = list('abcdefghijklmnopqrstuvwxyz')
-    EXPERIMENTS = list('cde')
+    EXPERIMENTS = list('de')
     for experiment in EXPERIMENTS:
         full_exp_name = NAME + experiment
         func_call = init_experiment(PATH, experiment, full_exp_name)
