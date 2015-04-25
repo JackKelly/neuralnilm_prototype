@@ -72,7 +72,6 @@ class Source(object):
             X, y = self._process_data(X, y)
             self.queue.put((X, y))
         self.empty_queue()
-        self._thread = None
             
     def _initialise_standardisation(self):
         if not (self.standardise_input or self.standardise_targets):
@@ -100,6 +99,8 @@ class Source(object):
     def stop(self):
         self.empty_queue()
         self._stop.set()
+        self._thread.join()
+        self._thread = None
 
     def empty_queue(self):
         while True:

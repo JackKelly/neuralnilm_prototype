@@ -125,7 +125,7 @@ net_dict = dict(
 
 
 def exp_a(name):
-    global source
+    
     source_dict_copy = deepcopy(source_dict)
     source = RealApplianceSource(**source_dict_copy)
     net_dict_copy = deepcopy(net_dict)
@@ -218,7 +218,7 @@ def exp_b(name):
     """
     tanh first layer, all others are rectify
     """
-    global source
+    
     source_dict_copy = deepcopy(source_dict)
     source = RealApplianceSource(**source_dict_copy)
     net_dict_copy = deepcopy(net_dict)
@@ -311,7 +311,7 @@ def exp_c(name):
     """
     tanh all the way through.  Identity init of RNNs
     """
-    global source
+    
     source_dict_copy = deepcopy(source_dict)
     source = RealApplianceSource(**source_dict_copy)
     net_dict_copy = deepcopy(net_dict)
@@ -403,7 +403,7 @@ def exp_d(name):
     """
     e380 (tanh all the way though, default inits) with batch norm
     """
-    global source
+    
     source_dict_copy = deepcopy(source_dict)
     source = RealApplianceSource(**source_dict_copy)
     net_dict_copy = deepcopy(net_dict)
@@ -494,7 +494,7 @@ def exp_e(name):
     """
     e380 again
     """
-    global source
+    
     source_dict_copy = deepcopy(source_dict)
     source = RealApplianceSource(**source_dict_copy)
     net_dict_copy = deepcopy(net_dict)
@@ -561,7 +561,7 @@ def exp_e(name):
 
 def exp_f(name):
     # two dense layers at start, batch norm
-    global source
+    
     source_dict_copy = deepcopy(source_dict)
     source = RealApplianceSource(**source_dict_copy)
     net_dict_copy = deepcopy(net_dict)
@@ -651,7 +651,7 @@ def exp_f(name):
 
 def exp_g(name):
     # two dense layers at start, no batch norm
-    global source
+    
     source_dict_copy = deepcopy(source_dict)
     source = RealApplianceSource(**source_dict_copy)
     net_dict_copy = deepcopy(net_dict)
@@ -712,7 +712,7 @@ def exp_g(name):
 
 def exp_h(name):
     # replace tanh with sigmoid
-    global source
+    
     source_dict_copy = deepcopy(source_dict)
     source = RealApplianceSource(**source_dict_copy)
     net_dict_copy = deepcopy(net_dict)
@@ -775,7 +775,7 @@ def exp_h(name):
 def exp_i(name):
     # two dense layers at start, no batch norm
     # no gradient step, do precompute input, small net
-    global source
+    
     source_dict_copy = deepcopy(source_dict)
     source = RealApplianceSource(**source_dict_copy)
     net_dict_copy = deepcopy(net_dict)
@@ -826,7 +826,7 @@ def exp_i(name):
 
 def main():
     #     EXPERIMENTS = list('abcdefghijklmnopqrstuvwxyz')
-    EXPERIMENTS = list('abcdefghi')
+    EXPERIMENTS = list('hi')
     for experiment in EXPERIMENTS:
         full_exp_name = NAME + experiment
         func_call = init_experiment(PATH, experiment, full_exp_name)
