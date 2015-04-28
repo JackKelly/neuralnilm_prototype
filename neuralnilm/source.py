@@ -277,6 +277,7 @@ class RealApplianceSource(Source):
                  min_off_durations=None,
                  on_power_thresholds=None,
                  max_input_power=None,
+                 clip_input=True,
                  window=(None, None), 
                  seq_length=1000,
                  n_seq_per_batch=5,
@@ -320,6 +321,7 @@ class RealApplianceSource(Source):
             self.max_input_power = np.sum(max_appliance_powers)
         else:
             self.max_input_power = max_input_power
+        self.clip_input = clip_input
 
         if max_appliance_powers is None:
             max_appliance_powers = [None] * len(appliances)
@@ -468,7 +470,9 @@ class RealApplianceSource(Source):
                     y[(start_i+self.lag):(end_i+self.lag-1), appliance_i] = np.diff(target)
                 else:
                     y[(start_i+self.lag):(end_i+self.lag), appliance_i] = target
-        np.clip(X, 0, self.max_input_power, out=X)
+
+        if self.clip_input:
+            np.clip(X, 0, self.max_input_power, out=X)
 
         fdiff = np.diff(X[:,0]) / self.max_diff
         if self.max_input_power is not None:

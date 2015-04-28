@@ -207,7 +207,12 @@ def exp_b(name):
     net_dict_copy = deepcopy(net_dict)
     net_dict_copy.update(dict(
         experiment_name=name,
-        source=source
+        source=source,
+        learning_rate=1e-3,
+        learning_rate_changes_by_iteration={
+            1000: 1e-4,
+            2000: 1e-5
+        }
     ))
     net_dict_copy['layers_config']= [
         {
@@ -270,10 +275,89 @@ def exp_b(name):
 
 
 
+def exp_c(name):
+    # tanh and softplus output
+    source_dict_copy = deepcopy(source_dict)
+    source_dict_copy.update(dict(
+        standardise_targets=True,
+        unit_variance_targets=True
+    ))
+    source = RealApplianceSource(**source_dict_copy)
+    net_dict_copy = deepcopy(net_dict)
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source,
+        loss_function=lambda x, t: mse(x, t).mean(),
+        learning_rate=1e-3,
+        learning_rate_changes_by_iteration={
+            1000: 1e-4,
+            2000: 1e-5
+        }
+    ))
+    net_dict_copy['layers_config']= [
+        {
+            'type': DenseLayer,
+            'num_units': 50,
+            'nonlinearity': tanh,
+            'W': Uniform(25),
+            'b': Uniform(25)
+        },
+        {
+            'type': DenseLayer,
+            'num_units': 50,
+            'nonlinearity': tanh,
+            'W': Uniform(10),
+            'b': Uniform(10)
+        },
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': 40,
+            'W_in_to_hid': Uniform(5),
+            'gradient_steps': GRADIENT_STEPS,
+            'nonlinearity': tanh,
+            'learn_init': False, 
+            'precompute_input': False
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)
+        },
+        {
+            'type': Conv1DLayer,
+            'num_filters': 20,
+            'filter_length': 4,
+            'stride': 4,
+            'nonlinearity': tanh
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)
+        },
+        {
+            'type': BidirectionalRecurrentLayer,
+            'num_units': 80,
+            'W_in_to_hid': Uniform(5),
+            'gradient_steps': GRADIENT_STEPS,
+            'nonlinearity': tanh,
+            'learn_init': False, 
+            'precompute_input': False
+        },
+        {
+            'type': DenseLayer,
+            'num_units': source.n_outputs,
+            'nonlinearity': T.nnet.softplus
+        }
+    ]
+    net = Net(**net_dict_copy)
+    return net
+
+
+
+
 def main():
     #     EXPERIMENTS = list('abcdefghijklmnopqrstuvwxyz')
 #    EXPERIMENTS = list('abcdefghi')
-    EXPERIMENTS = list('ab')
+    EXPERIMENTS = list('c')
     for experiment in EXPERIMENTS:
         full_exp_name = NAME + experiment
         func_call = init_experiment(PATH, experiment, full_exp_name)
