@@ -57,7 +57,7 @@ class Net(object):
                  seed=42,
                  epoch_callbacks=None,
                  do_save_activations=True,
-                 plotter=Plotter,
+                 plotter=Plotter(),
                  auto_reshape=True
     ):
         """
@@ -88,7 +88,8 @@ class Net(object):
         self.layer_changes = none_to_dict(layer_changes)
         self.epoch_callbacks = none_to_dict(epoch_callbacks)
         self.do_save_activations = do_save_activations
-        self.plotter = plotter(self)
+        self.plotter = plotter
+        self.plotter.net = self
         self.auto_reshape = auto_reshape
 
         self.csv_filenames = {

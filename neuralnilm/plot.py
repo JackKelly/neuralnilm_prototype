@@ -22,16 +22,18 @@ def plot_activations(filename, epoch, seq_i=0, normalise=False):
 
 
 class Plotter(object):
-    def __init__(self, net):
-        self.net = net
-        self.n_seq_to_plot = 10
+    def __init__(self, n_seq_to_plot=10):
+        self.n_seq_to_plot = n_seq_to_plot
         self.linewidth = 0.2
         self.save = True
         self.seq_i = 0
-        self.target_labels = (
-            self.net.source.get_labels() if self.net is not None else [])
         self.plot_additional_seqs = 0
+        self.net = None
     
+    @property
+    def target_labels(self):
+        return self.net.source.get_labels() if self.net is not None else []
+
     def plot_all(self):
         self.plot_costs()
         self.plot_estimates()

@@ -38,3 +38,11 @@ cross entropy, scale appliances, first 2 layers are dense layers
 similar to 131c, but lots of pretraining
 
 156: not great
+
+
+Integration works (with no noise!): 413 
+
+Integration works (kind of) with 3 appliances: 418.  Needs more
+training?
+
+

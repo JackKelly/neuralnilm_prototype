@@ -62,8 +62,8 @@ def fit(net, epochs):
         enter_debugger = raw_input("Enter debugger [N/y]? ")
         if enter_debugger.lower() == 'y':
             import ipdb; ipdb.set_trace()
-        save_data = raw_input("Save latest data [Y/n]? ")
-        if save_data.lower() in ["y", ""]:
+        save_data = raw_input("Save latest data [N/y]? ")
+        if save_data.lower() == "y":
             save(net)
         stop_all = raw_input("Stop all experiments [N/y]? ")
         if stop_all.lower() == "y":
