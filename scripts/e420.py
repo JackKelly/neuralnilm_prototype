@@ -143,8 +143,8 @@ def exp_a(name):
     # 100% skip prob for other appliances
     # input is diff
     global source
-    # source_dict_copy = deepcopy(source_dict)
-    # source = RealApplianceSource(**source_dict_copy)
+    source_dict_copy = deepcopy(source_dict)
+    source = RealApplianceSource(**source_dict_copy)
     net_dict_copy = deepcopy(net_dict)
     net_dict_copy.update(dict(
         experiment_name=name,

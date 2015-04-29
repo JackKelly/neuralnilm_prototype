@@ -32,11 +32,11 @@ class Source(object):
                  clock_period=None,
                  clock_type=None
     ):
-    """
-    Parameters
-    ----------
-    clock_type : {'one_hot'}
-    """
+        """
+        Parameters
+        ----------
+        clock_type : {'one_hot'}
+        """
         self.seq_length = seq_length
         self.n_seq_per_batch = n_seq_per_batch
         self.n_inputs = n_inputs
@@ -179,7 +179,7 @@ class Source(object):
             X_new = np.zeros(
                 shape=self.input_shape_after_processing(), dtype=np.float32)
             X_new[:, :, :self.n_inputs] = X
-            # X_new[:, :, self.n_inputs:] = -1
+            X_new[:, :, self.n_inputs:] = -1
             for i in range(self.clock_period):
                 X_new[:, i::self.clock_period, self.n_inputs+i] = 1
             X = X_new
