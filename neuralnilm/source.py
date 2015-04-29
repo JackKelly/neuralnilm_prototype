@@ -87,9 +87,12 @@ class Source(object):
         if self.target_stats is None:
             # Get targets.  Temporarily turn off skip probability 
             skip_prob = self.skip_probability
+            skip_prob_for_first_appliance = self.skip_probability_for_first_appliance
             self.skip_probability = 0
+            self.skip_probability_for_first_appliance = 0
             X, y = self._gen_data()
             self.skip_probability = skip_prob
+            self.skip_probability_for_first_appliance = skip_prob_for_first_appliance
 
             y = y.reshape(
                 int(self.n_seq_per_batch * (self.seq_length / self.subsample_target)),
@@ -289,6 +292,7 @@ class RealApplianceSource(Source):
                  subsample_target=1, 
                  input_padding=0,
                  skip_probability=0,
+                 skip_probability_for_first_appliance=None,
                  include_diff=False,
                  include_power=True,
                  target_is_diff=False,
@@ -344,6 +348,10 @@ class RealApplianceSource(Source):
         self.boolean_targets = boolean_targets
         self.subsample_target = subsample_target
         self.skip_probability = skip_probability
+        if skip_probability_for_first_appliance is None:
+            self.skip_probability_for_first_appliance = skip_probability
+        else:
+            self.skip_probability_for_first_appliance = skip_probability_for_first_appliance
         self._tz = self.dataset.metadata['timezone']
         self.include_diff = include_diff
         self.include_power = include_power
@@ -435,10 +443,15 @@ class RealApplianceSource(Source):
 
         if not self.one_target_per_seq:
             random_appliances = []
+            appliance_names = activations.keys()
             while not random_appliances:
-                for appliance_i, appliance in enumerate(activations.keys()):
+                if not self.rng.binomial(n=1, p=self.skip_probability_for_first_appliance):
+                    appliance_i = 0
+                    appliance = appliance_names[0]
+                    random_appliances.append((appliance_i, appliance))
+                for appliance_i, appliance in enumerate(appliance_names[1:]):
                     if not self.rng.binomial(n=1, p=self.skip_probability):
-                        random_appliances.append((appliance_i, appliance))
+                        random_appliances.append((appliance_i+1, appliance))
 
             appliances.extend(random_appliances)
 
