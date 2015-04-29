@@ -109,11 +109,12 @@ class Plotter(object):
 
     def _plot_input(self, ax, X):
         ax.set_title('Network input')
+        CHANNEL = 0
         if self.net is None:
-            data = X[self.seq_i, :, :]
+            data = X[self.seq_i, :, CHANNEL]
         else:
             start, end = self.net.source.inside_padding()
-            data = X[self.seq_i, start:end, :]
+            data = X[self.seq_i, start:end, CHANNEL]
         ax.plot(data, linewidth=self.linewidth)
         ax.set_xlim([0, data.shape[0]])
 

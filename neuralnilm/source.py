@@ -28,9 +28,10 @@ class Source(object):
                  seed=42,
                  output_central_value=False,
                  classification=False,
-                 random_window=0
+                 random_window=0,
+                 clock_period=None,
+                 clock_type=None
     ):
-        super(Source, self).__init__()
         self.seq_length = seq_length
         self.n_seq_per_batch = n_seq_per_batch
         self.n_inputs = n_inputs
@@ -57,6 +58,9 @@ class Source(object):
         self.standardise_targets = standardise_targets
         self.unit_variance_targets = unit_variance_targets
         self._initialise_standardisation()
+        
+        self.clock_period = self.lag if clock_period is None else clock_period
+        self.clock_type = clock_type
 
     def start(self):
         if self._thread is not None:
@@ -166,6 +170,15 @@ class Source(object):
             half_seq_length = seq_length // 2
             y = y[:, half_seq_length:half_seq_length+1, :]
 
+        if self.clock_type == 'one_hot':
+            X_new = np.zeros(
+                shape=self.input_shape_after_processing(), dtype=np.float32)
+            X_new[:, :, :self.n_inputs] = X
+            # X_new[:, :, self.n_inputs:] = -1
+            for i in range(self.clock_period):
+                X_new[:, i::self.clock_period, self.n_inputs+i] = 1
+            X = X_new
+
         X, y = floatX(X), floatX(y)
         self._check_data(X, y)
         return X, y
@@ -178,13 +191,16 @@ class Source(object):
             seq_length = self.random_window
         else:
             seq_length = self.seq_length
+
         return (self.n_seq_per_batch, seq_length, self.n_inputs)
 
     def input_shape_after_processing(self):
-        n_seq_per_batch, seq_length, n_outputs = self.input_shape()        
+        n_seq_per_batch, seq_length, n_inputs = self.input_shape()        
         if self.random_window:
             seq_length = self.random_window
-        return (n_seq_per_batch, seq_length, n_outputs)
+        if self.clock_type == 'one_hot':
+            n_inputs += self.clock_period
+        return (n_seq_per_batch, seq_length, n_inputs)
 
     def output_shape(self):
         return (self.n_seq_per_batch, self.seq_length, self.n_outputs)
