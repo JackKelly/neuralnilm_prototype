@@ -32,6 +32,11 @@ class Source(object):
                  clock_period=None,
                  clock_type=None
     ):
+    """
+    Parameters
+    ----------
+    clock_type : {'one_hot'}
+    """
         self.seq_length = seq_length
         self.n_seq_per_batch = n_seq_per_batch
         self.n_inputs = n_inputs
