@@ -30,12 +30,13 @@ class Source(object):
                  classification=False,
                  random_window=0,
                  clock_period=None,
-                 clock_type=None
+                 clock_type=None,
+                 two_pass=False
     ):
         """
         Parameters
         ----------
-        clock_type : {'one_hot'}
+        clock_type : {'one_hot', 'ramp'}
         """
         self.seq_length = seq_length
         self.n_seq_per_batch = n_seq_per_batch
@@ -66,6 +67,7 @@ class Source(object):
         
         self.clock_period = self.lag if clock_period is None else clock_period
         self.clock_type = clock_type
+        self.two_pass = two_pass
 
     def start(self):
         if self._thread is not None:
@@ -175,14 +177,26 @@ class Source(object):
             half_seq_length = seq_length // 2
             y = y[:, half_seq_length:half_seq_length+1, :]
 
-        if self.clock_type == 'one_hot':
+        if self.clock_type is not None:
             X_new = np.zeros(
                 shape=self.input_shape_after_processing(), dtype=np.float32)
             X_new[:, :, :self.n_inputs] = X
-            # X_new[:, :, self.n_inputs:] = -1
-            for i in range(self.clock_period):
-                X_new[:, i::self.clock_period, self.n_inputs+i] = 1
+            
+            if self.clock_type == 'one_hot':
+                # X_new[:, :, self.n_inputs:] = -1
+                for i in range(self.clock_period):
+                    X_new[:, i::self.clock_period, self.n_inputs+i] = 1
+            elif self.clock_type == 'ramp':
+                ramp = np.linspace(start=-1, stop=1, num=self.clock_period)
+                seq_length = self.input_shape_after_processing()[1]
+                n_ramps = np.ceil(seq_length / self.clock_period)
+                ramp_for_one_seq = np.tile(ramp, n_ramps)[:seq_length]
+                X_new[:, :, self.n_inputs] = np.tile(
+                    ramp_for_one_seq, (self.n_seq_per_batch, 1))
             X = X_new
+
+        if self.two_pass:
+            pass # TODO
 
         X, y = floatX(X), floatX(y)
         self._check_data(X, y)
@@ -205,6 +219,10 @@ class Source(object):
             seq_length = self.random_window
         if self.clock_type == 'one_hot':
             n_inputs += self.clock_period
+        elif self.clock_type == 'ramp':
+            n_inputs += 1
+        if self.two_pass:
+            n_inputs += 1
         return (n_seq_per_batch, seq_length, n_inputs)
 
     def output_shape(self):
