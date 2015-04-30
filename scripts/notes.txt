@@ -92,3 +92,12 @@ SEQ_LENGTH to 1024, and bring learning rate down faster.
 houses 4,5 for validation).  Try again!
 
 439: 434 but longer seq and longer train.
+
+440: 439 but 2048 seq and 32D middle layer
+RESULTS: Hmm, didn't work well at all. Let's go back to
+SEQ_LENGTH=1024
+
+441: 440 but SEQ_LENGTH=1024
+
+442: 441 but grid search over size of middle layer (1 to 64) and batch
+norm / no batch norm
