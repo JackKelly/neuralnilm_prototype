@@ -51,14 +51,14 @@ source_dict = dict(
     filename='/data/dk3810/ukdale.h5',
     appliances=[
         ['fridge freezer', 'fridge', 'freezer'],
-         'hair straighteners', 
-         'television'
+        'hair straighteners',
+        'television'
         # 'dish washer',
         # ['washer dryer', 'washing machine']
     ],
     max_appliance_powers=[100, 500, 200, 2500, 2400],
 #    max_input_power=100,
-    max_diff = 100,
+    max_diff=100,
     on_power_thresholds=[5] * 5,
     min_on_durations=[60, 60, 60, 1800, 1800],
     min_off_durations=[12, 12, 12, 1800, 600],
@@ -68,15 +68,15 @@ source_dict = dict(
     output_one_appliance=True,
     boolean_targets=False,
     train_buildings=[1],
-    validation_buildings=[1], 
-    skip_probability=1,
+    validation_buildings=[1],
+    skip_probability=0.75,
     skip_probability_for_first_appliance=0,
     one_target_per_seq=False,
     n_seq_per_batch=64,
 #    subsample_target=4,
     include_diff=True,
     include_power=False,
-    clip_appliance_power=True,
+    clip_appliance_power=False,
     target_is_prediction=False,
 #   independently_center_inputs=True,
 #   standardise_input=True,
@@ -99,7 +99,7 @@ source_dict = dict(
 )
 
 N = 50
-net_dict = dict(        
+net_dict = dict(
     save_plot_interval=SAVE_PLOT_INTERVAL,
 #    loss_function=partial(ignore_inactive, loss_func=mdn_nll, seq_length=SEQ_LENGTH),
 #    loss_function=lambda x, t: mdn_nll(x, t).mean(),
@@ -113,8 +113,8 @@ net_dict = dict(
     updates_kwargs={'clip_range': (0, 10)},
     learning_rate=1e-5,
     learning_rate_changes_by_iteration={
-        10000: 1e-6,
-        20000: 1e-7
+        5000: 1e-6,
+        7000: 1e-7
         # 800: 1e-4
 #        500: 1e-3
        #  4000: 1e-03,
@@ -126,7 +126,7 @@ net_dict = dict(
         # 10000: 1e-06,
         # 15000: 5e-07,
         # 50000: 1e-07
-    },  
+    },
     do_save_activations=True,
 #    auto_reshape=False,
 #    plotter=CentralOutputPlotter
@@ -143,6 +143,7 @@ def exp_a(name):
     # input is diff
     global source
     source_dict_copy = deepcopy(source_dict)
+    source_dict_copy['lag'] = 30
     source = RealApplianceSource(**source_dict_copy)
     net_dict_copy = deepcopy(net_dict)
     net_dict_copy.update(dict(
@@ -156,7 +157,7 @@ def exp_a(name):
             'W_in_to_hid': Normal(std=1),
             'W_hid_to_hid': Identity(scale=0.9),
             'nonlinearity': rectify,
-            'learn_init': False, 
+            'learn_init': False,
             'precompute_input': True
         },
         {
@@ -165,7 +166,7 @@ def exp_a(name):
             'W_in_to_hid': Normal(std=1/sqrt(50)),
             'W_hid_to_hid': Identity(scale=0.9),
             'nonlinearity': rectify,
-            'learn_init': False, 
+            'learn_init': False,
             'precompute_input': True
         },
         {
@@ -188,21 +189,21 @@ def exp_b(name):
     # input is diff
     global source
     source_dict_copy = deepcopy(source_dict)
-    source_dict_copy['skip_probability'] = 0.75
+    source_dict_copy['lag'] = 50
     source = RealApplianceSource(**source_dict_copy)
     net_dict_copy = deepcopy(net_dict)
     net_dict_copy.update(dict(
         experiment_name=name,
         source=source
     ))
-    net_dict_copy['layers_config']= [
+    net_dict_copy['layers_config'] = [
         {
             'type': RecurrentLayer,
             'num_units': 50,
             'W_in_to_hid': Normal(std=1),
             'W_hid_to_hid': Identity(scale=0.9),
             'nonlinearity': rectify,
-            'learn_init': False, 
+            'learn_init': False,
             'precompute_input': True
         },
         {
@@ -211,7 +212,7 @@ def exp_b(name):
             'W_in_to_hid': Normal(std=1/sqrt(50)),
             'W_hid_to_hid': Identity(scale=0.9),
             'nonlinearity': rectify,
-            'learn_init': False, 
+            'learn_init': False,
             'precompute_input': True
         },
         {
@@ -223,6 +224,7 @@ def exp_b(name):
     ]
     net = Net(**net_dict_copy)
     return net
+
 
 def exp_c(name):
     # ReLU hidden layers
@@ -233,21 +235,21 @@ def exp_c(name):
     # input is diff
     global source
     source_dict_copy = deepcopy(source_dict)
-    source_dict_copy['lag'] = 10
+    source_dict_copy['lag'] = 100
     source = RealApplianceSource(**source_dict_copy)
     net_dict_copy = deepcopy(net_dict)
     net_dict_copy.update(dict(
         experiment_name=name,
         source=source
     ))
-    net_dict_copy['layers_config']= [
+    net_dict_copy['layers_config'] = [
         {
             'type': RecurrentLayer,
             'num_units': 50,
             'W_in_to_hid': Normal(std=1),
             'W_hid_to_hid': Identity(scale=0.9),
             'nonlinearity': rectify,
-            'learn_init': False, 
+            'learn_init': False,
             'precompute_input': True
         },
         {
@@ -256,7 +258,7 @@ def exp_c(name):
             'W_in_to_hid': Normal(std=1/sqrt(50)),
             'W_hid_to_hid': Identity(scale=0.9),
             'nonlinearity': rectify,
-            'learn_init': False, 
+            'learn_init': False,
             'precompute_input': True
         },
         {
@@ -268,161 +270,19 @@ def exp_c(name):
     ]
     net = Net(**net_dict_copy)
     return net
-
-
-def exp_d(name):
-    # ReLU hidden layers
-    # linear output
-    # output one appliance
-    # 0% skip prob for first appliance
-    # 100% skip prob for other appliances
-    # input is diff
-    global source
-    source_dict_copy = deepcopy(source_dict)
-    source_dict_copy['skip_probability'] = 0.75
-    source_dict_copy['lag'] = 10
-    source = RealApplianceSource(**source_dict_copy)
-    net_dict_copy = deepcopy(net_dict)
-    net_dict_copy.update(dict(
-        experiment_name=name,
-        source=source
-    ))
-    net_dict_copy['layers_config']= [
-        {
-            'type': RecurrentLayer,
-            'num_units': 50,
-            'W_in_to_hid': Normal(std=1),
-            'W_hid_to_hid': Identity(scale=0.9),
-            'nonlinearity': rectify,
-            'learn_init': False, 
-            'precompute_input': True
-        },
-        {
-            'type': RecurrentLayer,
-            'num_units': 50,
-            'W_in_to_hid': Normal(std=1/sqrt(50)),
-            'W_hid_to_hid': Identity(scale=0.9),
-            'nonlinearity': rectify,
-            'learn_init': False, 
-            'precompute_input': True
-        },
-        {
-            'type': DenseLayer,
-            'num_units': source.n_outputs,
-            'nonlinearity': None,
-            'W': Normal(std=1/sqrt(50))
-        }
-    ]
-    net = Net(**net_dict_copy)
-    return net
-
-
-def exp_e(name):
-    # ReLU hidden layers
-    # linear output
-    # output one appliance
-    # 0% skip prob for first appliance
-    # 100% skip prob for other appliances
-    # input is diff
-    global source
-    source_dict_copy = deepcopy(source_dict)
-    source_dict_copy['lag'] = 15
-    source = RealApplianceSource(**source_dict_copy)
-    net_dict_copy = deepcopy(net_dict)
-    net_dict_copy.update(dict(
-        experiment_name=name,
-        source=source
-    ))
-    net_dict_copy['layers_config']= [
-        {
-            'type': RecurrentLayer,
-            'num_units': 50,
-            'W_in_to_hid': Normal(std=1),
-            'W_hid_to_hid': Identity(scale=0.9),
-            'nonlinearity': rectify,
-            'learn_init': False, 
-            'precompute_input': True
-        },
-        {
-            'type': RecurrentLayer,
-            'num_units': 50,
-            'W_in_to_hid': Normal(std=1/sqrt(50)),
-            'W_hid_to_hid': Identity(scale=0.9),
-            'nonlinearity': rectify,
-            'learn_init': False, 
-            'precompute_input': True
-        },
-        {
-            'type': DenseLayer,
-            'num_units': source.n_outputs,
-            'nonlinearity': None,
-            'W': Normal(std=1/sqrt(50))
-        }
-    ]
-    net = Net(**net_dict_copy)
-    return net
-
-
-def exp_f(name):
-    # ReLU hidden layers
-    # linear output
-    # output one appliance
-    # 0% skip prob for first appliance
-    # 100% skip prob for other appliances
-    # input is diff
-    global source
-    source_dict_copy = deepcopy(source_dict)
-    source_dict_copy['skip_probability'] = 0.75
-    source_dict_copy['lag'] = 15
-    source = RealApplianceSource(**source_dict_copy)
-    net_dict_copy = deepcopy(net_dict)
-    net_dict_copy.update(dict(
-        experiment_name=name,
-        source=source
-    ))
-    net_dict_copy['layers_config']= [
-        {
-            'type': RecurrentLayer,
-            'num_units': 50,
-            'W_in_to_hid': Normal(std=1),
-            'W_hid_to_hid': Identity(scale=0.9),
-            'nonlinearity': rectify,
-            'learn_init': False, 
-            'precompute_input': True
-        },
-        {
-            'type': RecurrentLayer,
-            'num_units': 50,
-            'W_in_to_hid': Normal(std=1/sqrt(50)),
-            'W_hid_to_hid': Identity(scale=0.9),
-            'nonlinearity': rectify,
-            'learn_init': False, 
-            'precompute_input': True
-        },
-        {
-            'type': DenseLayer,
-            'num_units': source.n_outputs,
-            'nonlinearity': None,
-            'W': Normal(std=1/sqrt(50))
-        }
-    ]
-    net = Net(**net_dict_copy)
-    return net
-
-
 
 
 def main():
     #     EXPERIMENTS = list('abcdefghijklmnopqrstuvwxyz')
 #    EXPERIMENTS = list('abcdefghi')
-    EXPERIMENTS = list('abcdef')
+    EXPERIMENTS = list('abc')
     for experiment in EXPERIMENTS:
         full_exp_name = NAME + experiment
         func_call = init_experiment(PATH, experiment, full_exp_name)
         logger = logging.getLogger(full_exp_name)
         try:
             net = eval(func_call)
-            run_experiment(net, epochs=30000)
+            run_experiment(net, epochs=10000)
         except KeyboardInterrupt:
             logger.info("KeyboardInterrupt")
             break

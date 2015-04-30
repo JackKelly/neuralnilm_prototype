@@ -32,6 +32,7 @@ import numpy as np
 import theano.tensor as T
 import gc
 
+
 """
 e400
 'learn_init': False
@@ -51,24 +52,24 @@ source_dict = dict(
     filename='/data/dk3810/ukdale.h5',
     appliances=[
         ['fridge freezer', 'fridge', 'freezer']
-#         'hair straighteners', 
+#         'hair straighteners',
 #         'television'
         # 'dish washer',
         # ['washer dryer', 'washing machine']
     ],
     max_appliance_powers=[300, 500, 200, 2500, 2400],
 #    max_input_power=100,
-    max_diff = 100,
+    max_diff=100,
     on_power_thresholds=[5] * 5,
     min_on_durations=[60, 60, 60, 1800, 1800],
     min_off_durations=[12, 12, 12, 1800, 600],
     window=("2013-06-01", "2014-07-01"),
     seq_length=512,
-#    random_window=64,
+#   random_window=64,
     output_one_appliance=True,
     boolean_targets=False,
     train_buildings=[1],
-    validation_buildings=[1], 
+    validation_buildings=[1],
     skip_probability=0.75,
     skip_probability_for_first_appliance=0,
     one_target_per_seq=False,
@@ -127,7 +128,7 @@ net_dict = dict(
         # 10000: 1e-06,
         # 15000: 5e-07,
         # 50000: 1e-07
-    },  
+    },
     do_save_activations=True,
 #    auto_reshape=False,
 #    plotter=CentralOutputPlotter
