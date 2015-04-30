@@ -29,6 +29,7 @@ from .layers import BLSTMLayer, DimshuffleLayer, MixtureDensityLayer, Bidirectio
 from .utils import sfloatX, none_to_dict, ndim_tensor
 from .plot import Plotter
 
+
 class ansi:
     # from dnouri/nolearn/nolearn/lasagne.py
     BLUE = '\033[94m'
@@ -38,19 +39,19 @@ class ansi:
 
 class TrainingError(Exception):
     pass
-    
 
-######################## Neural network class ########################
+
+# ####################### Neural network class ########################
 class Net(object):
     # Much of this code is adapted from craffel/nntools/examples/lstm.py
 
-    def __init__(self, source, layers_config, 
+    def __init__(self, source, layers_config,
                  updates_func=nesterov_momentum,
                  updates_kwargs=None,
                  learning_rate=0.1,
                  learning_rate_changes_by_iteration=None,
-                 experiment_name="", 
-                 validation_interval=10, 
+                 experiment_name="",
+                 validation_interval=10,
                  save_plot_interval=100,
                  loss_function=lasagne.objectives.mse,
                  layer_changes=None,
@@ -58,8 +59,7 @@ class Net(object):
                  epoch_callbacks=None,
                  do_save_activations=True,
                  plotter=Plotter(),
-                 auto_reshape=True
-    ):
+                 auto_reshape=True):
         """
         Parameters
         ----------
@@ -109,7 +109,8 @@ class Net(object):
         #           number of features per example)
         self.layers.append(InputLayer(shape=self.input_shape))
         self.add_layers(layers_config)
-        self.logger.info("Done initialising network for " + self.experiment_name)
+        self.logger.info(
+            "Done initialising network for " + self.experiment_name)
 
     def generate_validation_data_and_set_shapes(self):
         # Generate a "validation" sequence whose cost we will compute
@@ -133,15 +134,15 @@ class Net(object):
                 n_features = prev_layer_output_shape[-1]
                 if layer_type in RECURRENT_LAYERS:
                     if n_dims == 2:
-                        seq_length = int(prev_layer_output_shape[0] / 
+                        seq_length = int(prev_layer_output_shape[0] /
                                          self.source.n_seq_per_batch)
-                        shape = (self.source.n_seq_per_batch, 
+                        shape = (self.source.n_seq_per_batch,
                                  seq_length,
                                  n_features)
                         self.layers.append(ReshapeLayer(self.layers[-1], shape))
                 elif layer_type in [DenseLayer, MixtureDensityLayer]:
                     if n_dims == 3:
-                        # The prev layer_config was a time-aware layer_config, 
+                        # The prev layer_config was a time-aware layer_config,
                         # so reshape to 2-dims.
                         seq_length = prev_layer_output_shape[1]
                         shape = (self.source.n_seq_per_batch * seq_length,
@@ -198,12 +199,12 @@ class Net(object):
             allow_input_downcast=True)
 
         self.y_pred = theano.function(
-            [input], self.layers[-1].get_output(input, deterministic=True), 
+            [input], self.layers[-1].get_output(input, deterministic=True),
             on_unused_input='warn',
             allow_input_downcast=True)
 
         self.compute_cost = theano.function(
-            [input, target_output], 
+            [input, target_output],
             loss_eval, on_unused_input='warn',
             allow_input_downcast=True)
 

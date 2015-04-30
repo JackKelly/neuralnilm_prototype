@@ -46,3 +46,49 @@ Integration works (kind of) with 3 appliances: 418.  Needs more
 training?
 
 
+424: attempt to get a net to remember a sequence of 256 numbers didn't
+work very well at all!
+
+########## FF AUTO ENCODER FOR SINGLE APPLIANCE
+
+425: FF auto encoder with single appliance (Fridge)
+RESULTS: works pretty well. Not perfectly.
+
+426: add hair straighteners and TV.  Didn't learn well.  Maybe because
+learning rate was too high to start???
+
+427: Kind of worked.  Didn't do a great job of denoising.
+
+428: Conv1D layer at bottom.  Worked well once I stopped saturating
+the first dense layer!
+
+429: 2 conv layers.  Down to a 32-dimensional vector in middle.  Works
+pretty well!
+
+430: 2 conv layers.  Down to a 16-dimensional vector in middle.
+Appears to work as well as 32D vector.
+
+431: try 4D vector in middle (!)  Works just as well!!!!
+
+432: 5 appliances. 20% chance of skipping target appliance.  Still
+comes down to 4D vector in middle ;)  Incredible results! Almost
+certainly the best results I've had with all 5 appliances. Main issue
+is a few false positives.
+
+433: Exact same network as 432. But washer is target (not fridge).
+It works really really well!!!
+
+434: Same as 433 but with batch norm after every layer.
+
+435: Same as *432* but with different houses for validation
+and training.  Works pretty well.  But might be overfitting.
+
+436: same as 435 but move house 4 from train to validation, and double
+SEQ_LENGTH to 1024, and bring learning rate down faster.
+
+437: Add dropout to 436.  Can't get it to run.  SHOULD TRY AGAIN.
+
+438: 434 (dropout) with Source from 437 (i.e. houses 1,2,3 for train,
+houses 4,5 for validation).  Try again!
+
+439: 434 but longer seq and longer train.

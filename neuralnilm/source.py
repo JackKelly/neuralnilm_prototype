@@ -177,26 +177,35 @@ class Source(object):
             half_seq_length = seq_length // 2
             y = y[:, half_seq_length:half_seq_length+1, :]
 
+
+        if self.clock_type == 'one_hot':
+            clock = np.zeros(
+                shape=(self.n_seq_per_batch, self.seq_length, self.n_inputs),
+                dtype=np.float32)
+
+            # X_new[:, :, :] = -1
+            for i in range(self.clock_period):
+                clock[:, i::self.clock_period, i] = 1
+                
+        elif self.clock_type == 'ramp':
+            ramp = np.linspace(start=-1, stop=1, num=self.clock_period,
+                               dtype=np.float32)
+            n_ramps = np.ceil(self.seq_length / self.clock_period)
+            ramp_for_one_seq = np.tile(ramp, n_ramps)[:self.seq_length]
+            clock = np.tile(ramp_for_one_seq, (self.n_seq_per_batch, 1))
+            clock = clock.reshape((self.n_seq_per_batch, self.seq_length, 1))
+
         if self.clock_type is not None:
-            X_new = np.zeros(
-                shape=self.input_shape_after_processing(), dtype=np.float32)
-            X_new[:, :, :self.n_inputs] = X
-            
-            if self.clock_type == 'one_hot':
-                # X_new[:, :, self.n_inputs:] = -1
-                for i in range(self.clock_period):
-                    X_new[:, i::self.clock_period, self.n_inputs+i] = 1
-            elif self.clock_type == 'ramp':
-                ramp = np.linspace(start=-1, stop=1, num=self.clock_period)
-                seq_length = self.input_shape_after_processing()[1]
-                n_ramps = np.ceil(seq_length / self.clock_period)
-                ramp_for_one_seq = np.tile(ramp, n_ramps)[:seq_length]
-                X_new[:, :, self.n_inputs] = np.tile(
-                    ramp_for_one_seq, (self.n_seq_per_batch, 1))
-            X = X_new
+            X = np.concatenate((X, clock), axis=2)
 
         if self.two_pass:
-            pass # TODO
+            X = np.tile(X, (1, 2, 1))
+            encode_flag = np.zeros((self.n_seq_per_batch, self.seq_length * 2, 1))
+            encode_flag[:, :self.seq_length, :] = 0
+            encode_flag[:, self.seq_length:, :] = 1
+            X = np.concatenate((X, encode_flag), axis=2)
+            X[:, self.seq_length:, 0] = 0
+            y = np.tile(y, (1, 2, 1))
 
         X, y = floatX(X), floatX(y)
         self._check_data(X, y)
@@ -217,6 +226,8 @@ class Source(object):
         n_seq_per_batch, seq_length, n_inputs = self.input_shape()        
         if self.random_window:
             seq_length = self.random_window
+        if self.two_pass:
+            seq_length *= 2
         if self.clock_type == 'one_hot':
             n_inputs += self.clock_period
         elif self.clock_type == 'ramp':
@@ -232,6 +243,9 @@ class Source(object):
         n_seq_per_batch, seq_length, n_outputs = self.output_shape()
         if self.random_window:
             seq_length = self.random_window
+        if self.two_pass:
+            seq_length *= 2
+            
         if self.reshape_target_to_2D:
             return (n_seq_per_batch * seq_length, n_outputs)
         elif self.output_central_value or self.classification:
