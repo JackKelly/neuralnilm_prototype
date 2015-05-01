@@ -1461,10 +1461,304 @@ def exp_n(name):
     return net
 
 
+def exp_o(name):
+    global source
+    source_dict_copy = deepcopy(source_dict)
+    source = RealApplianceSource(**source_dict_copy)
+    net_dict_copy = deepcopy(net_dict)
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source
+    ))
+    net_dict_copy['layers_config'] = [
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # (batch, features, time)
+        },
+        {
+            'type': Conv1DLayer,  # convolve over the time axis
+            'num_filters': 16,
+            'filter_length': 4,
+            'stride': 1,
+            'nonlinearity': rectify,
+            'border_mode': 'same'
+        },
+        {
+            'type': Conv1DLayer,  # convolve over the time axis
+            'num_filters': 16,
+            'filter_length': 4,
+            'stride': 1,
+            'nonlinearity': rectify,
+            'border_mode': 'same'
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # back to (batch, time, features)
+        },
+        {
+            'type': DenseLayer,
+            'num_units': SEQ_LENGTH,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': SEQ_LENGTH // 4,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': SEQ_LENGTH // 8,
+            'nonlinearity': rectify
+        },
+        {   # MIDDLE LAYER
+            'type': DenseLayer,
+            'num_units': 128,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': SEQ_LENGTH // 8,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': SEQ_LENGTH // 4,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': SEQ_LENGTH,
+            'nonlinearity': None
+        }
+    ]
+    net = Net(**net_dict_copy)
+    return net
+
+
+def exp_p(name):
+    global source
+    source_dict_copy = deepcopy(source_dict)
+    source = RealApplianceSource(**source_dict_copy)
+    net_dict_copy = deepcopy(net_dict)
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source
+    ))
+    net_dict_copy['layers_config'] = [
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # (batch, features, time)
+        },
+        {
+            'type': Conv1DLayer,  # convolve over the time axis
+            'num_filters': 16,
+            'filter_length': 4,
+            'stride': 1,
+            'nonlinearity': rectify,
+            'border_mode': 'same'
+        },
+        {
+            'type': Conv1DLayer,  # convolve over the time axis
+            'num_filters': 16,
+            'filter_length': 4,
+            'stride': 1,
+            'nonlinearity': rectify,
+            'border_mode': 'same'
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # back to (batch, time, features)
+        },
+        {
+            'type': DenseLayer,
+            'num_units': SEQ_LENGTH,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': SEQ_LENGTH // 4,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': SEQ_LENGTH // 6,
+            'nonlinearity': rectify
+        },
+        {   # MIDDLE LAYER
+            'type': DenseLayer,
+            'num_units': 128,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': SEQ_LENGTH // 6,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': SEQ_LENGTH // 4,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': SEQ_LENGTH,
+            'nonlinearity': None
+        }
+    ]
+    net = Net(**net_dict_copy)
+    return net
+
+
+def exp_q(name):
+    global source
+    source_dict_copy = deepcopy(source_dict)
+    source = RealApplianceSource(**source_dict_copy)
+    net_dict_copy = deepcopy(net_dict)
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source
+    ))
+    net_dict_copy['layers_config'] = [
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # (batch, features, time)
+        },
+        {
+            'type': Conv1DLayer,  # convolve over the time axis
+            'num_filters': 16,
+            'filter_length': 4,
+            'stride': 1,
+            'nonlinearity': rectify,
+            'border_mode': 'same'
+        },
+        {
+            'type': Conv1DLayer,  # convolve over the time axis
+            'num_filters': 16,
+            'filter_length': 4,
+            'stride': 1,
+            'nonlinearity': rectify,
+            'border_mode': 'same'
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # back to (batch, time, features)
+        },
+        {
+            'type': DenseLayer,
+            'num_units': SEQ_LENGTH,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': SEQ_LENGTH // 4,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': SEQ_LENGTH // 6,
+            'nonlinearity': rectify
+        },
+        {   # MIDDLE LAYER
+            'type': DenseLayer,
+            'num_units': 170,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': SEQ_LENGTH // 6,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': SEQ_LENGTH // 4,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': SEQ_LENGTH,
+            'nonlinearity': None
+        }
+    ]
+    net = Net(**net_dict_copy)
+    return net
+
+
+def exp_r(name):
+    global source
+    source_dict_copy = deepcopy(source_dict)
+    source = RealApplianceSource(**source_dict_copy)
+    net_dict_copy = deepcopy(net_dict)
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source
+    ))
+    net_dict_copy['layers_config'] = [
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # (batch, features, time)
+        },
+        {
+            'type': Conv1DLayer,  # convolve over the time axis
+            'num_filters': 16,
+            'filter_length': 4,
+            'stride': 1,
+            'nonlinearity': rectify,
+            'border_mode': 'same'
+        },
+        {
+            'type': Conv1DLayer,  # convolve over the time axis
+            'num_filters': 16,
+            'filter_length': 4,
+            'stride': 1,
+            'nonlinearity': rectify,
+            'border_mode': 'same'
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # back to (batch, time, features)
+        },
+        {
+            'type': DenseLayer,
+            'num_units': SEQ_LENGTH,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': SEQ_LENGTH,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': SEQ_LENGTH,
+            'nonlinearity': rectify
+        },
+        {   # MIDDLE LAYER
+            'type': DenseLayer,
+            'num_units': SEQ_LENGTH,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': SEQ_LENGTH,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': SEQ_LENGTH,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': SEQ_LENGTH,
+            'nonlinearity': None
+        }
+    ]
+    net = Net(**net_dict_copy)
+    return net
 
 
 def main():
-    EXPERIMENTS = list('abcdefghijklmn')
+    EXPERIMENTS = list('ropq')
     for experiment in EXPERIMENTS:
         full_exp_name = NAME + experiment
         func_call = init_experiment(PATH, experiment, full_exp_name)
