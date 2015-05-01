@@ -101,3 +101,16 @@ SEQ_LENGTH=1024
 
 442: 441 but grid search over size of middle layer (1 to 64) and batch
 norm / no batch norm
+RESULTS: the larger the net, the better the performance HOWEVER, this
+is unsurprising.  We need to compare validation costs on unseen houses
+and data.
+
+443: like 442m (32D middle, no batch norm, avg for 25 best = 0.131),
+ experiment with conv or no conv
+  a) remove 1 conv layer (0.140)
+  b) remove both conv layers (0.156)
+  c) 3 conv layers (0.131)
+  d) 2 conv layers, double number of filters to 32 (0.134)
+  e) 2 conv layers, 16 filters each, halve filter length to 2 (0.155)
+  f) filter length = 3 (0.140)
+  g) filter length = 8 (0.135)
