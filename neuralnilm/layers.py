@@ -4,7 +4,8 @@ import theano.tensor as T
 
 import numpy as np
 
-from lasagne.layers import Layer, LSTMLayer, RecurrentLayer, ElemwiseSumLayer
+from lasagne.layers import (Layer, LSTMLayer, RecurrentLayer, ElemwiseSumLayer,
+                            DimshuffleLayer)
 from lasagne import nonlinearities
 from lasagne import init
 from lasagne.utils import floatX
@@ -13,26 +14,19 @@ from neuralnilm.utils import remove_nones
 
             
 def BLSTMLayer(*args, **kwargs):
-    # setup forward and backwards LSTM layers.  Note that
-    # LSTMLayer takes a backwards flag. The backwards flag tells
-    # scan to go backwards before it returns the output from
-    # backwards layers.  It is reversed again such that the output
-    # from the layer is always from x_1 to x_n.
+    """Configures forward and backwards LSTM layers to create a
+    bidirectional LSTM.
 
-    # If learn_init=True then you can't have multiple
-    # layers of LSTM cells.
+    If learn_init=True then you can't have multiple
+    layers of LSTM cells.  
+    See https://github.com/craffel/nntools/issues/11
+    """
     return BidirectionalLayer(LSTMLayer, *args, **kwargs)
 
           
 def BidirectionalRecurrentLayer(*args, **kwargs):
-    # setup forward and backwards LSTM layers.  Note that
-    # LSTMLayer takes a backwards flag. The backwards flag tells
-    # scan to go backwards before it returns the output from
-    # backwards layers.  It is reversed again such that the output
-    # from the layer is always from x_1 to x_n.
-
-    # If learn_init=True then you can't have multiple
-    # layers of LSTM cells.
+    """Configures forward and backwards RecurrentLayers to create a
+    bidirectional recurrent layer."""
     return BidirectionalLayer(RecurrentLayer, *args, **kwargs)
 
 
@@ -41,18 +35,6 @@ def BidirectionalLayer(layer_class, *args, **kwargs):
     l_fwd = layer_class(*args, backwards=False, **kwargs)
     l_bck = layer_class(*args, backwards=True, **kwargs)
     return ElemwiseSumLayer([l_fwd, l_bck])
-
-
-class DimshuffleLayer(Layer):
-    def __init__(self, input_layer, pattern):
-        super(DimshuffleLayer, self).__init__(input_layer)
-        self.pattern = pattern
-
-    def get_output_shape_for(self, input_shape):
-        return tuple([input_shape[i] for i in self.pattern])
-
-    def get_output_for(self, input, *args, **kwargs):
-        return input.dimshuffle(self.pattern)
 
 
 class MixtureDensityLayer(Layer):
