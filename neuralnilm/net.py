@@ -103,6 +103,7 @@ class Net(object):
         self.validation_costs = []
         self.training_costs = []
         self.layers = []
+        self.layer_labels = {}
 
         # Shape is (number of examples per batch,
         #           maximum number of time steps per example,
@@ -126,6 +127,7 @@ class Net(object):
 
         for layer_config in layers_config:
             layer_type = layer_config.pop('type')
+            layer_label = layer_config.pop('label', None)
 
             # Reshape if necessary
             if self.auto_reshape:
@@ -149,10 +151,25 @@ class Net(object):
                                  n_features)
                         self.layers.append(ReshapeLayer(self.layers[-1], shape))
 
+            # Handle references:
+            for k, v in layer_config.iteritems():
+                if isinstance(v, basestring) and v.startswith("ref:"):
+                    v = v[4:] # remove "ref:"
+                    label, _, attr = v.partition('.')
+                    target_layer = self.layer_labels[label]
+#                    layer_config[k] = getattr(target_layer, attr)
+                    layer_config[k] = eval("target_layer.{:s}".format(attr))
+                    print(layer_config[k])
+                    print(type(layer_config[k]))
+
             # Init new layer_config
             self.logger.info('Initialising layer_config : {}'.format(layer_type))
             layer = layer_type(self.layers[-1], **layer_config)
             self.layers.append(layer)
+
+            if layer_label is not None:
+                self.layer_labels[layer_label] = layer
+            
 
         # Reshape output if necessary...
         if (self.layers[-1].get_output_shape() != self.output_shape and 

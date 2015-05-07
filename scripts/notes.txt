@@ -114,3 +114,13 @@ and data.
   e) 2 conv layers, 16 filters each, halve filter length to 2 (0.155)
   f) filter length = 3 (0.140)
   g) filter length = 8 (0.135)
+
+444: just testing new dimshuffle layer
+
+445: first test of DeConv1DLayer.  Just washing machine and hair straighteners.
+  Works pretty well!
+  Looks like we do want to reverse the last dimension of the weights,
+  as per
+  https://github.com/ChienliMa/DeConvNet/blob/master/DeConvNet/CPRStage.py#L118
+
+446: DeConv1DLayer in a full AE
