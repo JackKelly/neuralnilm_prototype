@@ -126,6 +126,7 @@ net_dict = dict(
 
 def exp_a(name):
     # 445n
+    # avg valid cost =  0.0498397239
     global source
     source_dict_copy = deepcopy(source_dict)
     source = RealApplianceSource(**source_dict_copy)

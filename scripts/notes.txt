@@ -124,3 +124,36 @@ and data.
   https://github.com/ChienliMa/DeConvNet/blob/master/DeConvNet/CPRStage.py#L118
 
 446: DeConv1DLayer in a full AE
+
+a: just 2 linear dense layers, tied weights, no conv
+   avg valid cost =  0.0498397239 
+
+b: just 2 linear conv layers, tied weights
+   avg valid cost =  0.4122743905
+   
+c: 2 conv layers, tied weights, 1 rectify dense layer in between
+   avg valid cost =  0.0315488130
+
+d: b but with 4 filters
+   avg valid cost =  0.4122795463
+   
+e: c but learning rate 1e-1
+   avg valid cost =  0.0151113402
+   pretty stunning output. 20 is good example (with noise)
+   Perhaps not perfect suppression of hair straighteners (see 27).  
+
+f: 2 conv layers, tied weights, 1 dense linear layer in between
+   avg valid cost =  0.0307678953
+   
+g: full AE with tied weights and 1 conv layer
+   avg valid cost =  0.0455133170
+   output looks pretty perfect ;) (apart from being a little 'blurry')
+
+h: 4 linear convs, tied weights
+
+i: 4 linear convs, untied weights
+
+j: like g (full AE) but untied weights for conv layers
+
+k: like g (full AE) but untied weights all through
+
