@@ -194,12 +194,16 @@ t: n but target is TV & rectify final dense layer
    avg valid cost =  0.2374919057
 
 v: t but 2 input conv layers (linear)
+   avg valid cost =  0.2364626676
 
 w: o but with ReLU conv layers
+   avg valid cost =  0.2731662989
 
 x: o but with ReLU for input conv, linear for output conv
+   avg valid cost =  0.0118574286
 
 y: o but with linear for input conv, ReLU for output conv
+   avg valid cost =  0.2745352983
 
 447: first attempt to disaggregate real mains power (using network
    learnt in 446o).  doesn't work too well.  Lots of false positives.
