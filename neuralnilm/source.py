@@ -855,6 +855,10 @@ def standardise(X, how='range=2', mean=None, std=None, midrange=None, ptp=None):
     -------
     new_X : matrix
         Same shape as `X`.  Sample is in range [lower, upper]
+
+    See also
+    --------
+    unstandardise
     """
     if how == 'std=1':
         if mean is None:
@@ -913,7 +917,6 @@ def power_and_fdiff(X):
     return output
     
 
-
 def get_meters_for_appliances(elec, appliances):
     meters = []
     for appliance_i, apps in enumerate(appliances):
@@ -932,3 +935,10 @@ def get_meters_for_appliances(elec, appliances):
                   elec.building())
             continue
     return meters
+
+
+def unstandardise(data, std, mean, maximum=None):
+    unstandardised_data = (data * std) + mean
+    if maximum is not None:
+        unstandardised_data *= maximum
+    return unstandardised_data

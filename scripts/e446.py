@@ -55,7 +55,7 @@ source_dict = dict(
         ['fridge freezer', 'fridge', 'freezer']
     ],
     max_appliance_powers=[2400, 500, 200, 2500, 200],
-#    max_input_power=200,
+#    max_input_power=200,   = 5800
     max_diff=200,
     on_power_thresholds=[5] * 5,
     min_on_durations=[1800, 60, 60, 1800, 60],
@@ -97,6 +97,10 @@ source_dict = dict(
     #     'std': np.array([ 0.11449792,  0.07338708,  
     #                    0.26608968,  0.33463112,  0.21250485], 
     #                  dtype=np.float32)}
+
+  # input_stats = 
+  # {'std': array([ 0.17724811], dtype=float32), 'mean': array([ 0.13002439], dtype=float32)}
+
 )
 
 
@@ -941,9 +945,1060 @@ def exp_l(name):
     return net
 
 
+def exp_m(name):
+    # k but stay at learning rate = 1e-1
+    global source
+    source_dict_copy = deepcopy(source_dict)
+    source = RealApplianceSource(**source_dict_copy)
+    net_dict_copy = deepcopy(net_dict)
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source,
+        learning_rate=1e-1,
+        learning_rate_changes_by_iteration={}
+    ))
+    NUM_FILTERS = 4
+    net_dict_copy['layers_config'] = [
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # (batch, features, time)
+        },
+        {
+            'label': 'conv0',
+            'type': Conv1DLayer,  # convolve over the time axis
+            'num_filters': NUM_FILTERS,
+            'filter_length': 4,
+            'stride': 1,
+            'nonlinearity': None,
+            'border_mode': 'valid'
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # back to (batch, time, features)
+        },
+        {
+            'label': 'dense0',
+            'type': DenseLayer,
+            'num_units': 1021,
+            'nonlinearity': rectify
+        },
+        {
+            'label': 'dense1',
+            'type': DenseLayer,
+            'num_units': 256,
+            'nonlinearity': rectify
+        },
+        {
+            'label': 'dense2',
+            'type': DenseLayer,
+            'num_units': 32,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': 256,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': 1021,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': 1021 * NUM_FILTERS,
+            'nonlinearity': None
+        },
+        {
+            'type': ReshapeLayer,
+            'shape': (N_SEQ_PER_BATCH, 1021, NUM_FILTERS)
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # (batch, features, time)
+        },
+        {
+            'type': DeConv1DLayer,
+            'num_output_channels': 1,
+            'filter_length': 4,
+            'stride': 1,
+            'nonlinearity': None,
+            'border_mode': 'full'
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # back to (batch, time, features)
+        }
+    ]
+    net = Net(**net_dict_copy)
+    return net
+
+
+def exp_n(name):
+    # m but less middle layers
+    global source
+    source_dict_copy = deepcopy(source_dict)
+    source = RealApplianceSource(**source_dict_copy)
+    net_dict_copy = deepcopy(net_dict)
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source,
+        learning_rate=1e-1,
+        learning_rate_changes_by_iteration={}
+    ))
+    NUM_FILTERS = 4
+    net_dict_copy['layers_config'] = [
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # (batch, features, time)
+        },
+        {
+            'label': 'conv0',
+            'type': Conv1DLayer,  # convolve over the time axis
+            'num_filters': NUM_FILTERS,
+            'filter_length': 4,
+            'stride': 1,
+            'nonlinearity': None,
+            'border_mode': 'valid'
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # back to (batch, time, features)
+        },
+        {
+            'label': 'dense0',
+            'type': DenseLayer,
+            'num_units': 1021 * NUM_FILTERS,
+            'nonlinearity': rectify
+        },
+        {
+            'label': 'dense1',
+            'type': DenseLayer,
+            'num_units': 1021,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': 1021 * NUM_FILTERS,
+            'nonlinearity': None
+        },
+        {
+            'type': ReshapeLayer,
+            'shape': (N_SEQ_PER_BATCH, 1021, NUM_FILTERS)
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # (batch, features, time)
+        },
+        {
+            'type': DeConv1DLayer,
+            'num_output_channels': 1,
+            'filter_length': 4,
+            'stride': 1,
+            'nonlinearity': None,
+            'border_mode': 'full'
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # back to (batch, time, features)
+        }
+    ]
+    net = Net(**net_dict_copy)
+    return net
+
+
+def exp_o(name):
+    global source
+    source_dict_copy = deepcopy(source_dict)
+    source = RealApplianceSource(**source_dict_copy)
+    net_dict_copy = deepcopy(net_dict)
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source,
+        learning_rate=1e-1,
+        learning_rate_changes_by_iteration={}
+    ))
+    NUM_FILTERS = 4
+    net_dict_copy['layers_config'] = [
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # (batch, features, time)
+        },
+        {
+            'label': 'conv0',
+            'type': Conv1DLayer,  # convolve over the time axis
+            'num_filters': NUM_FILTERS,
+            'filter_length': 4,
+            'stride': 1,
+            'nonlinearity': None,
+            'border_mode': 'valid'
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # back to (batch, time, features)
+        },
+        {
+            'label': 'dense0',
+            'type': DenseLayer,
+            'num_units': 1021 * NUM_FILTERS,
+            'nonlinearity': rectify
+        },
+        {
+            'label': 'dense1',
+            'type': DenseLayer,
+            'num_units': 1021,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': 1021 * NUM_FILTERS,
+            'nonlinearity': rectify
+        },
+        {
+            'type': ReshapeLayer,
+            'shape': (N_SEQ_PER_BATCH, 1021, NUM_FILTERS)
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # (batch, features, time)
+        },
+        {
+            'type': DeConv1DLayer,
+            'num_output_channels': 1,
+            'filter_length': 4,
+            'stride': 1,
+            'nonlinearity': None,
+            'border_mode': 'full'
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # back to (batch, time, features)
+        }
+    ]
+    net = Net(**net_dict_copy)
+    return net
+
+
+def exp_p(name):
+    global source
+    source_dict_copy = deepcopy(source_dict)
+    source = RealApplianceSource(**source_dict_copy)
+    net_dict_copy = deepcopy(net_dict)
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source,
+        learning_rate=1e-1,
+        learning_rate_changes_by_iteration={}
+    ))
+    NUM_FILTERS = 4
+    net_dict_copy['layers_config'] = [
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # (batch, features, time)
+        },
+        {
+            'label': 'conv0',
+            'type': Conv1DLayer,  # convolve over the time axis
+            'num_filters': NUM_FILTERS,
+            'filter_length': 4,
+            'stride': 1,
+            'nonlinearity': None,
+            'border_mode': 'valid'
+        },
+        {
+            'label': 'conv1',
+            'type': Conv1DLayer,  # convolve over the time axis
+            'num_filters': NUM_FILTERS,
+            'filter_length': 4,
+            'stride': 1,
+            'nonlinearity': None,
+            'border_mode': 'valid'
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # back to (batch, time, features)
+        },
+        {
+            'label': 'dense0',
+            'type': DenseLayer,
+            'num_units': 1018 * NUM_FILTERS,
+            'nonlinearity': rectify
+        },
+        {
+            'label': 'dense1',
+            'type': DenseLayer,
+            'num_units': 1018,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': 1018 * NUM_FILTERS,
+            'nonlinearity': None
+        },
+        {
+            'type': ReshapeLayer,
+            'shape': (N_SEQ_PER_BATCH, 1018, NUM_FILTERS)
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # (batch, features, time)
+        },
+        {
+            'type': DeConv1DLayer,
+            'num_output_channels': 4,
+            'filter_length': 4,
+            'stride': 1,
+            'nonlinearity': None,
+            'border_mode': 'full'
+        },
+        {
+            'type': DeConv1DLayer,
+            'num_output_channels': 1,
+            'filter_length': 4,
+            'stride': 1,
+            'nonlinearity': None,
+            'border_mode': 'full'
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # back to (batch, time, features)
+        }
+    ]
+    net = Net(**net_dict_copy)
+    return net
+
+
+
+def exp_q(name):
+    global source
+    source_dict_copy = deepcopy(source_dict)
+    source = RealApplianceSource(**source_dict_copy)
+    net_dict_copy = deepcopy(net_dict)
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source,
+        learning_rate=1e-1,
+        learning_rate_changes_by_iteration={}
+    ))
+    NUM_FILTERS = 4
+    net_dict_copy['layers_config'] = [
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # (batch, features, time)
+        },
+        {
+            'label': 'conv0',
+            'type': Conv1DLayer,  # convolve over the time axis
+            'num_filters': NUM_FILTERS,
+            'filter_length': 4,
+            'stride': 1,
+            'nonlinearity': None,
+            'border_mode': 'valid'
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # back to (batch, time, features)
+        },
+        {
+            'label': 'dense0',
+            'type': DenseLayer,
+            'num_units': 1021 * NUM_FILTERS,
+            'nonlinearity': rectify
+        },
+        {
+            'label': 'dense1',
+            'type': DenseLayer,
+            'num_units': 128,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': 1021 * NUM_FILTERS,
+            'nonlinearity': rectify
+        },
+        {
+            'type': ReshapeLayer,
+            'shape': (N_SEQ_PER_BATCH, 1021, NUM_FILTERS)
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # (batch, features, time)
+        },
+        {
+            'type': DeConv1DLayer,
+            'num_output_channels': 1,
+            'filter_length': 4,
+            'stride': 1,
+            'nonlinearity': None,
+            'border_mode': 'full'
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # back to (batch, time, features)
+        }
+    ]
+    net = Net(**net_dict_copy)
+    return net
+
+
+
+def exp_r(name):
+    global source
+    source_dict_copy = deepcopy(source_dict)
+    source_dict_copy['appliances'] = [
+        ['fridge freezer', 'fridge', 'freezer'],
+        'hair straighteners',
+        'television',
+        'dish washer',
+        ['washer dryer', 'washing machine']
+    ]
+    source_dict_copy.update(dict(
+        max_appliance_powers=[500, 200, 200, 2500, 2400],
+        min_on_durations=[60, 60, 60, 1800, 1800],
+        min_off_durations=[12, 12, 12, 1800, 600] 
+    ))
+    source = RealApplianceSource(**source_dict_copy)
+    net_dict_copy = deepcopy(net_dict)
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source,
+        learning_rate=1e-1,
+        learning_rate_changes_by_iteration={}
+    ))
+    NUM_FILTERS = 4
+    net_dict_copy['layers_config'] = [
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # (batch, features, time)
+        },
+        {
+            'label': 'conv0',
+            'type': Conv1DLayer,  # convolve over the time axis
+            'num_filters': NUM_FILTERS,
+            'filter_length': 4,
+            'stride': 1,
+            'nonlinearity': None,
+            'border_mode': 'valid'
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # back to (batch, time, features)
+        },
+        {
+            'label': 'dense0',
+            'type': DenseLayer,
+            'num_units': 1021 * NUM_FILTERS,
+            'nonlinearity': rectify
+        },
+        {
+            'label': 'dense1',
+            'type': DenseLayer,
+            'num_units': 1021,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': 1021 * NUM_FILTERS,
+            'nonlinearity': rectify
+        },
+        {
+            'type': ReshapeLayer,
+            'shape': (N_SEQ_PER_BATCH, 1021, NUM_FILTERS)
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # (batch, features, time)
+        },
+        {
+            'type': DeConv1DLayer,
+            'num_output_channels': 1,
+            'filter_length': 4,
+            'stride': 1,
+            'nonlinearity': None,
+            'border_mode': 'full'
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # back to (batch, time, features)
+        }
+    ]
+    net = Net(**net_dict_copy)
+    return net
+
+
+
+def exp_s(name):
+    global source
+    source_dict_copy = deepcopy(source_dict)
+    source_dict_copy['appliances'] = [
+        'hair straighteners',
+        ['fridge freezer', 'fridge', 'freezer'],
+        'television',
+        'dish washer',
+        ['washer dryer', 'washing machine']
+    ]
+    source_dict_copy.update(dict(
+        max_appliance_powers=[200, 500, 200, 2500, 2400],
+        min_on_durations=[60, 60, 60, 1800, 1800],
+        min_off_durations=[12, 12, 12, 1800, 600] 
+    ))
+    source = RealApplianceSource(**source_dict_copy)
+    net_dict_copy = deepcopy(net_dict)
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source,
+        learning_rate=1e-1,
+        learning_rate_changes_by_iteration={}
+    ))
+    NUM_FILTERS = 4
+    net_dict_copy['layers_config'] = [
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # (batch, features, time)
+        },
+        {
+            'label': 'conv0',
+            'type': Conv1DLayer,  # convolve over the time axis
+            'num_filters': NUM_FILTERS,
+            'filter_length': 4,
+            'stride': 1,
+            'nonlinearity': None,
+            'border_mode': 'valid'
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # back to (batch, time, features)
+        },
+        {
+            'label': 'dense0',
+            'type': DenseLayer,
+            'num_units': 1021 * NUM_FILTERS,
+            'nonlinearity': rectify
+        },
+        {
+            'label': 'dense1',
+            'type': DenseLayer,
+            'num_units': 1021,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': 1021 * NUM_FILTERS,
+            'nonlinearity': rectify
+        },
+        {
+            'type': ReshapeLayer,
+            'shape': (N_SEQ_PER_BATCH, 1021, NUM_FILTERS)
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # (batch, features, time)
+        },
+        {
+            'type': DeConv1DLayer,
+            'num_output_channels': 1,
+            'filter_length': 4,
+            'stride': 1,
+            'nonlinearity': None,
+            'border_mode': 'full'
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # back to (batch, time, features)
+        }
+    ]
+    net = Net(**net_dict_copy)
+    return net
+
+
+
+def exp_t(name):
+    global source
+    source_dict_copy = deepcopy(source_dict)
+    source_dict_copy['appliances'] = [
+        'television',
+        'hair straighteners',
+        ['fridge freezer', 'fridge', 'freezer'],
+        'dish washer',
+        ['washer dryer', 'washing machine']
+    ]
+    source_dict_copy.update(dict(
+        max_appliance_powers=[200, 500, 200, 2500, 2400],
+        min_on_durations=[60, 60, 60, 1800, 1800],
+        min_off_durations=[12, 12, 12, 1800, 600] 
+    ))
+    source = RealApplianceSource(**source_dict_copy)
+    net_dict_copy = deepcopy(net_dict)
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source,
+        learning_rate=1e-2,
+        learning_rate_changes_by_iteration={}
+    ))
+    NUM_FILTERS = 4
+    net_dict_copy['layers_config'] = [
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # (batch, features, time)
+        },
+        {
+            'label': 'conv0',
+            'type': Conv1DLayer,  # convolve over the time axis
+            'num_filters': NUM_FILTERS,
+            'filter_length': 4,
+            'stride': 1,
+            'nonlinearity': None,
+            'border_mode': 'valid'
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # back to (batch, time, features)
+        },
+        {
+            'label': 'dense0',
+            'type': DenseLayer,
+            'num_units': 1021 * NUM_FILTERS,
+            'nonlinearity': rectify
+        },
+        {
+            'label': 'dense1',
+            'type': DenseLayer,
+            'num_units': 1021,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': 1021 * NUM_FILTERS,
+            'nonlinearity': rectify
+        },
+        {
+            'type': ReshapeLayer,
+            'shape': (N_SEQ_PER_BATCH, 1021, NUM_FILTERS)
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # (batch, features, time)
+        },
+        {
+            'type': DeConv1DLayer,
+            'num_output_channels': 1,
+            'filter_length': 4,
+            'stride': 1,
+            'nonlinearity': None,
+            'border_mode': 'full'
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # back to (batch, time, features)
+        }
+    ]
+    net = Net(**net_dict_copy)
+    return net
+
+
+
+def exp_u(name):
+    global source
+    source_dict_copy = deepcopy(source_dict)
+    source_dict_copy['appliances'] = [
+        'dish washer',
+        'television',
+        'hair straighteners',
+        ['fridge freezer', 'fridge', 'freezer'],
+        ['washer dryer', 'washing machine']
+    ]
+    source_dict_copy.update(dict(
+        max_appliance_powers=[2500, 200, 500, 200, 2400],
+        min_on_durations=[1800, 60, 60, 60, 1800],
+        min_off_durations=[1800, 12, 12, 12, 600] 
+    ))
+    source = RealApplianceSource(**source_dict_copy)
+    net_dict_copy = deepcopy(net_dict)
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source,
+        learning_rate=1e-2,
+        learning_rate_changes_by_iteration={}
+    ))
+    NUM_FILTERS = 4
+    net_dict_copy['layers_config'] = [
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # (batch, features, time)
+        },
+        {
+            'label': 'conv0',
+            'type': Conv1DLayer,  # convolve over the time axis
+            'num_filters': NUM_FILTERS,
+            'filter_length': 4,
+            'stride': 1,
+            'nonlinearity': None,
+            'border_mode': 'valid'
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # back to (batch, time, features)
+        },
+        {
+            'label': 'dense0',
+            'type': DenseLayer,
+            'num_units': 1021 * NUM_FILTERS,
+            'nonlinearity': rectify
+        },
+        {
+            'label': 'dense1',
+            'type': DenseLayer,
+            'num_units': 1021,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': 1021 * NUM_FILTERS,
+            'nonlinearity': rectify
+        },
+        {
+            'type': ReshapeLayer,
+            'shape': (N_SEQ_PER_BATCH, 1021, NUM_FILTERS)
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # (batch, features, time)
+        },
+        {
+            'type': DeConv1DLayer,
+            'num_output_channels': 1,
+            'filter_length': 4,
+            'stride': 1,
+            'nonlinearity': None,
+            'border_mode': 'full'
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # back to (batch, time, features)
+        }
+    ]
+    net = Net(**net_dict_copy)
+    return net
+
+
+
+
+def exp_v(name):
+    global source
+    source_dict_copy = deepcopy(source_dict)
+    source_dict_copy['appliances'] = [
+        'television',
+        'hair straighteners',
+        ['fridge freezer', 'fridge', 'freezer'],
+        'dish washer',
+        ['washer dryer', 'washing machine']
+    ]
+    source_dict_copy.update(dict(
+        max_appliance_powers=[200, 500, 200, 2500, 2400],
+        min_on_durations=[60, 60, 60, 1800, 1800],
+        min_off_durations=[12, 12, 12, 1800, 600] 
+    ))
+    source = RealApplianceSource(**source_dict_copy)
+    net_dict_copy = deepcopy(net_dict)
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source,
+        learning_rate=1e-2,
+        learning_rate_changes_by_iteration={
+            2141: 1e-3
+        }
+    ))
+    NUM_FILTERS = 4
+    net_dict_copy['layers_config'] = [
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # (batch, features, time)
+        },
+        {
+            'label': 'conv0',
+            'type': Conv1DLayer,  # convolve over the time axis
+            'num_filters': NUM_FILTERS,
+            'filter_length': 4,
+            'stride': 1,
+            'nonlinearity': None,
+            'border_mode': 'valid'
+        },
+        {
+            'label': 'conv1',
+            'type': Conv1DLayer,  # convolve over the time axis
+            'num_filters': NUM_FILTERS,
+            'filter_length': 4,
+            'stride': 1,
+            'nonlinearity': None,
+            'border_mode': 'valid'
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # back to (batch, time, features)
+        },
+        {
+            'label': 'dense0',
+            'type': DenseLayer,
+            'num_units': 1021 * NUM_FILTERS,
+            'nonlinearity': rectify
+        },
+        {
+            'label': 'dense1',
+            'type': DenseLayer,
+            'num_units': 1021,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': 1021 * NUM_FILTERS,
+            'nonlinearity': rectify
+        },
+        {
+            'type': ReshapeLayer,
+            'shape': (N_SEQ_PER_BATCH, 1021, NUM_FILTERS)
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # (batch, features, time)
+        },
+        {
+            'type': DeConv1DLayer,
+            'num_output_channels': 1,
+            'filter_length': 4,
+            'stride': 1,
+            'nonlinearity': None,
+            'border_mode': 'full'
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # back to (batch, time, features)
+        }
+    ]
+    net = Net(**net_dict_copy)
+    return net
+
+
+
+def exp_w(name):
+    global source
+    source_dict_copy = deepcopy(source_dict)
+    source = RealApplianceSource(**source_dict_copy)
+    net_dict_copy = deepcopy(net_dict)
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source,
+        learning_rate=1e-1,
+        learning_rate_changes_by_iteration={}
+    ))
+    NUM_FILTERS = 4
+    net_dict_copy['layers_config'] = [
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # (batch, features, time)
+        },
+        {
+            'label': 'conv0',
+            'type': Conv1DLayer,  # convolve over the time axis
+            'num_filters': NUM_FILTERS,
+            'filter_length': 4,
+            'stride': 1,
+            'nonlinearity': rectify,
+            'border_mode': 'valid'
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # back to (batch, time, features)
+        },
+        {
+            'label': 'dense0',
+            'type': DenseLayer,
+            'num_units': 1021 * NUM_FILTERS,
+            'nonlinearity': rectify
+        },
+        {
+            'label': 'dense1',
+            'type': DenseLayer,
+            'num_units': 1021,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': 1021 * NUM_FILTERS,
+            'nonlinearity': rectify
+        },
+        {
+            'type': ReshapeLayer,
+            'shape': (N_SEQ_PER_BATCH, 1021, NUM_FILTERS)
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # (batch, features, time)
+        },
+        {
+            'type': DeConv1DLayer,
+            'num_output_channels': 1,
+            'filter_length': 4,
+            'stride': 1,
+            'nonlinearity': rectify,
+            'border_mode': 'full'
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # back to (batch, time, features)
+        }
+    ]
+    net = Net(**net_dict_copy)
+    return net
+
+
+
+def exp_x(name):
+    global source
+    source_dict_copy = deepcopy(source_dict)
+    source = RealApplianceSource(**source_dict_copy)
+    net_dict_copy = deepcopy(net_dict)
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source,
+        learning_rate=1e-1,
+        learning_rate_changes_by_iteration={}
+    ))
+    NUM_FILTERS = 4
+    net_dict_copy['layers_config'] = [
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # (batch, features, time)
+        },
+        {
+            'label': 'conv0',
+            'type': Conv1DLayer,  # convolve over the time axis
+            'num_filters': NUM_FILTERS,
+            'filter_length': 4,
+            'stride': 1,
+            'nonlinearity': rectify,
+            'border_mode': 'valid'
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # back to (batch, time, features)
+        },
+        {
+            'label': 'dense0',
+            'type': DenseLayer,
+            'num_units': 1021 * NUM_FILTERS,
+            'nonlinearity': rectify
+        },
+        {
+            'label': 'dense1',
+            'type': DenseLayer,
+            'num_units': 1021,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': 1021 * NUM_FILTERS,
+            'nonlinearity': rectify
+        },
+        {
+            'type': ReshapeLayer,
+            'shape': (N_SEQ_PER_BATCH, 1021, NUM_FILTERS)
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # (batch, features, time)
+        },
+        {
+            'type': DeConv1DLayer,
+            'num_output_channels': 1,
+            'filter_length': 4,
+            'stride': 1,
+            'nonlinearity': None,
+            'border_mode': 'full'
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # back to (batch, time, features)
+        }
+    ]
+    net = Net(**net_dict_copy)
+    return net
+
+
+def exp_y(name):
+    global source
+    source_dict_copy = deepcopy(source_dict)
+    source = RealApplianceSource(**source_dict_copy)
+    net_dict_copy = deepcopy(net_dict)
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source,
+        learning_rate=1e-1,
+        learning_rate_changes_by_iteration={}
+    ))
+    NUM_FILTERS = 4
+    net_dict_copy['layers_config'] = [
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # (batch, features, time)
+        },
+        {
+            'label': 'conv0',
+            'type': Conv1DLayer,  # convolve over the time axis
+            'num_filters': NUM_FILTERS,
+            'filter_length': 4,
+            'stride': 1,
+            'nonlinearity': None,
+            'border_mode': 'valid'
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # back to (batch, time, features)
+        },
+        {
+            'label': 'dense0',
+            'type': DenseLayer,
+            'num_units': 1021 * NUM_FILTERS,
+            'nonlinearity': rectify
+        },
+        {
+            'label': 'dense1',
+            'type': DenseLayer,
+            'num_units': 1021,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': 1021 * NUM_FILTERS,
+            'nonlinearity': rectify
+        },
+        {
+            'type': ReshapeLayer,
+            'shape': (N_SEQ_PER_BATCH, 1021, NUM_FILTERS)
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # (batch, features, time)
+        },
+        {
+            'type': DeConv1DLayer,
+            'num_output_channels': 1,
+            'filter_length': 4,
+            'stride': 1,
+            'nonlinearity': rectify,
+            'border_mode': 'full'
+        },
+        {
+            'type': DimshuffleLayer,
+            'pattern': (0, 2, 1)  # back to (batch, time, features)
+        }
+    ]
+    net = Net(**net_dict_copy)
+    return net
+
+
 
 def main():
-    EXPERIMENTS = list('abcdefghijkl')
+    EXPERIMENTS = list('vwxy')
     for experiment in EXPERIMENTS:
         full_exp_name = NAME + experiment
         func_call = init_experiment(PATH, experiment, full_exp_name)

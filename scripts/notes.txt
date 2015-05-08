@@ -137,7 +137,7 @@ c: 2 conv layers, tied weights, 1 rectify dense layer in between
 d: b but with 4 filters
    avg valid cost =  0.4122795463
    
-e: c but learning rate 1e-1
+e: c but learning rate 1e-1 for all 50,000 iterations
    avg valid cost =  0.0151113402
    pretty stunning output. 20 is good example (with noise)
    Perhaps not perfect suppression of hair straighteners (see 27).  
@@ -146,14 +146,61 @@ f: 2 conv layers, tied weights, 1 dense linear layer in between
    avg valid cost =  0.0307678953
    
 g: full AE with tied weights and 1 conv layer
-   avg valid cost =  0.0455133170
+   avg valid cost =  0.0442434102
    output looks pretty perfect ;) (apart from being a little 'blurry')
 
-h: 4 linear convs, tied weights
+h: 4 linear convs, no dense layers, tied weights
+   avg valid cost =  0.4093216062
 
-i: 4 linear convs, untied weights
+i: 4 linear convs, no dense layers, untied weights
+   avg valid cost =  0.4090858698
 
 j: like g (full AE) but untied weights for conv layers
+   avg valid cost =  0.0453109629
 
 k: like g (full AE) but untied weights all through
+   avg valid cost =  0.0438082032
+   does better job than 'e' at suppressing hair straighteners (see 27)
 
+l: like g (full AE) but untied weights for conv layers
+   avg valid cost =  0.0452575982
+
+m: like k but LR=1e-1 for all 50,000 epochs
+   avg valid cost =  0.0318283364
+
+n: like k but LR=1e-1 for all 50,000 epochs and only 
+   3 middle dense layers (4084 x ReLU, 1021 x ReLU, 4084 x linear)
+   Looks excellent. Pretty much as good reconstruction as 'e' but
+   better suppression.
+   avg valid cost =  0.0125398841
+
+o: n but last dense layer is ReLU
+   avg valid cost =  0.0108001959  <-- BEST YET!
+
+p: n but with 4 conv layer. (set LR=0.01 manually)
+   avg valid cost =  0.0290298369
+
+q: n but only 128-d middle layer & rectify final dense layer
+   I changed LR to 0.01 around 42000 iterations.
+   avg valid cost =  0.0238524191
+
+r: n but target is fridge & rectify final dense layer
+   change LR=0.01 around 28000 iterations
+
+t: n but target is TV & rectify final dense layer
+   not bad but confuses TV and Fridge (e.g. see 10)
+   IDEA: maybe try two conv layers at front to try to detect
+   oscillations?  Or more dense layers?
+   avg valid cost =  0.2374919057
+
+v: t but 2 input conv layers (linear)
+
+w: o but with ReLU conv layers
+
+x: o but with ReLU for input conv, linear for output conv
+
+y: o but with linear for input conv, ReLU for output conv
+
+447: first attempt to disaggregate real mains power (using network
+   learnt in 446o).  doesn't work too well.  Lots of false positives.
+   Hence next thing to do will be to train on real data.
