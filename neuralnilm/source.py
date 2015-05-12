@@ -31,8 +31,7 @@ class Source(object):
                  random_window=0,
                  clock_period=None,
                  clock_type=None,
-                 two_pass=False
-    ):
+                 two_pass=False):
         """
         Parameters
         ----------
@@ -55,7 +54,8 @@ class Source(object):
         self.random_window = random_window
         if self.random_window and self.subsample_target:
             if self.random_window % self.subsample_target:
-                raise RuntimeError("subsample_target must exactly divide random_window")
+                raise RuntimeError(
+                    "subsample_target must exactly divide random_window")
 
         self.input_stats = input_stats
         self.target_stats = target_stats
@@ -64,7 +64,7 @@ class Source(object):
         self.standardise_targets = standardise_targets
         self.unit_variance_targets = unit_variance_targets
         self._initialise_standardisation()
-        
+
         self.clock_period = self.lag if clock_period is None else clock_period
         self.clock_type = clock_type
         self.two_pass = two_pass
@@ -74,8 +74,8 @@ class Source(object):
             return
         self._stop.clear()
         self._thread = threading.Thread(target=self.run)
-        self._thread.start()    
-        
+        self._thread.start()
+
     def run(self):
         """Puts training data into a Queue"""
         while not self._stop.is_set():
@@ -83,7 +83,7 @@ class Source(object):
             X, y = self._process_data(X, y)
             self.queue.put((X, y))
         self.empty_queue()
-            
+
     def _initialise_standardisation(self):
         if not (self.standardise_input or self.standardise_targets):
             return
@@ -91,12 +91,12 @@ class Source(object):
         if self.input_stats is None:
             X, y = self._gen_data()
             X = X.reshape(
-                self.n_seq_per_batch * (self.seq_length + self.input_padding), 
+                self.n_seq_per_batch * (self.seq_length + self.input_padding),
                 self.n_inputs)
             self.input_stats = {'mean': X.mean(axis=0), 'std': X.std(axis=0)}
 
         if self.target_stats is None:
-            # Get targets.  Temporarily turn off skip probability 
+            # Get targets.  Temporarily turn off skip probability
             skip_prob = self.skip_probability
             skip_prob_for_first_appliance = self.skip_probability_for_first_appliance
             self.skip_probability = 0
