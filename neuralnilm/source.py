@@ -65,7 +65,8 @@ class Source(object):
         self.unit_variance_targets = unit_variance_targets
         self._initialise_standardisation()
 
-        self.clock_period = self.lag if clock_period is None else clock_period
+        if 'lag' in self.__dict__:
+            self.clock_period = self.lag if clock_period is None else clock_period
         self.clock_type = clock_type
         self.two_pass = two_pass
 
@@ -97,17 +98,21 @@ class Source(object):
 
         if self.target_stats is None:
             # Get targets.  Temporarily turn off skip probability
-            skip_prob = self.skip_probability
-            skip_prob_for_first_appliance = self.skip_probability_for_first_appliance
-            self.skip_probability = 0
-            self.skip_probability_for_first_appliance = 0
+            if 'skip_probability' in self.__dict__:
+                skip_prob = self.skip_probability
+                skip_prob_for_first_appliance = self.skip_probability_for_first_appliance
+                self.skip_probability = 0
+                self.skip_probability_for_first_appliance = 0
             X, y = self._gen_data()
-            self.skip_probability = skip_prob
-            self.skip_probability_for_first_appliance = skip_prob_for_first_appliance
+            if 'skip_probability' in self.__dict__:            
+                self.skip_probability = skip_prob
+                self.skip_probability_for_first_appliance = skip_prob_for_first_appliance
 
-            y = y.reshape(
-                int(self.n_seq_per_batch * (self.seq_length / self.subsample_target)),
-                self.n_outputs)
+            if 'subsample_target' in self.__dict__:
+                length = self.seq_length / self.subsample_target
+            else:
+                length = self.seq_length
+            y = y.reshape(int(self.n_seq_per_batch * length), self.n_outputs)
             self.target_stats = {'mean': y.mean(axis=0), 'std': y.std(axis=0)}
 
     def stop(self):
@@ -177,7 +182,6 @@ class Source(object):
             half_seq_length = seq_length // 2
             y = y[:, half_seq_length:half_seq_length+1, :]
 
-
         if self.clock_type == 'one_hot':
             clock = np.zeros(
                 shape=(self.n_seq_per_batch, self.seq_length, self.n_inputs),
@@ -186,7 +190,7 @@ class Source(object):
             # X_new[:, :, :] = -1
             for i in range(self.clock_period):
                 clock[:, i::self.clock_period, i] = 1
-                
+
         elif self.clock_type == 'ramp':
             ramp = np.linspace(start=-1, stop=1, num=self.clock_period,
                                dtype=np.float32)
@@ -581,7 +585,7 @@ class RealApplianceSource(Source):
         if self.seq_length % self.subsample_target:
             raise RuntimeError("subsample_target must exactly divide seq_length.")
         return (
-            self.n_seq_per_batch, 
+            self.n_seq_per_batch,
             int(self.seq_length / self.subsample_target),
             self.n_outputs)
 
@@ -820,6 +824,80 @@ class NILMTKSourceOld(Source):
         return X_quantized, y
 
 
+class RandomSegments(Source):
+    def __init__(self, filename, target_appliance,
+                 train_buildings, validation_buildings,
+                 seq_length,
+                 window=(None, None),
+                 sample_period=6,
+                 **kwargs):
+        self.dataset = DataSet(filename)
+        self.dataset.set_window(*window)
+        self.window = self.dataset.store.window
+        self.tz = self.dataset.metadata['timezone']
+        self.target_appliance = target_appliance
+        self.train_buildings = train_buildings
+        self.validation_buildings = validation_buildings
+        self.sample_period = sample_period
+        all_buildings = list(set(train_buildings + validation_buildings))
+        self.good_sections = {}
+        for building_i in all_buildings:
+            elec = self.dataset.buildings[building_i].elec            
+            self.good_sections[building_i] = elec.mains().good_sections()
+        super(RandomSegments, self).__init__(
+            n_outputs=1, n_inputs=1, seq_length=seq_length, **kwargs)
+
+    def _gen_single_example(self, validation=False):
+        """
+        * choose building at random.
+        * choose start date at random (from self.window) and add seq_length
+        * load from building (no resampling). If it contains less than
+          expected samples then chose another chunk (up to a number of retries)
+        * load data from target appliance.  Fill with zeros
+        """
+        buildings = (self.validation_buildings if validation
+                     else self.train_buildings)
+        building_i = self.rng.choice(buildings, 1)[0]
+        elec = self.dataset.buildings[building_i].elec
+        good_sections = self.good_sections[building_i]
+        seq_duration_secs = self.seq_length * self.sample_period
+        N_RETRIES = 100
+        for retry in range(N_RETRIES):
+            good_section = self.rng.choice(good_sections, 1)[0]
+            max_start_offset_secs = (good_section.timedelta.total_seconds() -
+                                     seq_duration_secs)
+            if max_start_offset_secs > 0:
+                break
+        else:
+            raise RuntimeError("Cannot find long enough good section!")
+        offset = timedelta(seconds=self.rng.randint(0, max_start_offset_secs))
+        start = good_section.start + offset
+        end = start + timedelta(seconds=seq_duration_secs)
+        timeframe = TimeFrame(start, end)
+
+        def load_data(electric):
+            data = electric.power_series_all_data(
+                sections=[timeframe], sample_period=self.sample_period)
+            data = data.fillna(0)
+            data = data.values[:self.seq_length]
+            pad_width = self.seq_length - len(data)
+            data = np.pad(data, (0, pad_width), 'constant')
+            return data
+
+        mains = load_data(elec.mains())
+        appliance = load_data(elec[self.target_appliance])
+        return mains, appliance
+
+    def _gen_data(self, validation=False):
+        X = np.zeros(self.input_shape(), dtype=np.float32)
+        y = np.zeros(self.output_shape(), dtype=np.float32)
+        for i in range(self.n_seq_per_batch):
+            X[i, :, 0], y[i, :, 0] = self._gen_single_example(validation)
+        return X, y
+
+    def get_labels(self):
+        return [self.target_appliance]
+
 def quantize(data, n_bins, all_hot=True, range=(-1, 1), length=None):
     midpoint = n_bins // 2
     if length is None:
@@ -942,3 +1020,10 @@ def unstandardise(data, std, mean, maximum=None):
     if maximum is not None:
         unstandardised_data *= maximum
     return unstandardised_data
+
+"""
+Emacs variables
+Local Variables:
+compile-command: "cp /home/jack/workspace/python/neuralnilm/neuralnilm/source.py /mnt/sshfs/imperial/workspace/python/neuralnilm/neuralnilm/"
+End:
+"""

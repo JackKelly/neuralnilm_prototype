@@ -208,3 +208,5 @@ y: o but with linear for input conv, ReLU for output conv
 447: first attempt to disaggregate real mains power (using network
    learnt in 446o).  doesn't work too well.  Lots of false positives.
    Hence next thing to do will be to train on real data.
+
+448: train on real data!

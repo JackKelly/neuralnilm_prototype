@@ -112,9 +112,11 @@ class Plotter(object):
         CHANNEL = 0
         if self.net is None:
             data = X[self.seq_i, :, CHANNEL]
-        else:
+        elif hasattr(self.net.source, 'inside_padding'):
             start, end = self.net.source.inside_padding()
             data = X[self.seq_i, start:end, CHANNEL]
+        else:
+            data = X[self.seq_i, :, CHANNEL]
         ax.plot(data, linewidth=self.linewidth)
         ax.set_xlim([0, data.shape[0]])
 
@@ -227,3 +229,10 @@ def gmm_heatmap(ax, thetas, x_lim, y_lim, normalise=False,
     ax.imshow(img, interpolation='none', extent=extent, aspect='auto', 
               origin='lower', cmap=cmap)
     return ax
+
+"""
+Emacs variables
+Local Variables:
+compile-command: "cp /home/jack/workspace/python/neuralnilm/neuralnilm/plot.py /mnt/sshfs/imperial/workspace/python/neuralnilm/neuralnilm/"
+End:
+"""
