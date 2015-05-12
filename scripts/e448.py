@@ -74,7 +74,11 @@ net_dict = dict(
     updates_func=clipped_nesterov_momentum,
     updates_kwargs={'clip_range': (0, 10)},
     learning_rate=1e-1,
-    learning_rate_changes_by_iteration={},
+    learning_rate_changes_by_iteration={
+        100: 1e-2,
+        5000: 1e-3,
+        20000: 1e-4
+    },
     do_save_activations=True,
     auto_reshape=False,
 #    plotter=CentralOutputPlotter
