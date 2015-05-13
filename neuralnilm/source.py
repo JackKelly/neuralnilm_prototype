@@ -9,9 +9,10 @@ from sys import stdout
 from collections import OrderedDict
 from lasagne.utils import floatX
 from warnings import warn
-import matplotlib.pyplot as plt
+
 
 SECS_PER_DAY = 60 * 60 * 24
+
 
 class Source(object):
     def __init__(self, seq_length, n_seq_per_batch, n_inputs, n_outputs,
@@ -66,7 +67,8 @@ class Source(object):
         self._initialise_standardisation()
 
         if 'lag' in self.__dict__:
-            self.clock_period = self.lag if clock_period is None else clock_period
+            self.clock_period = (self.lag if clock_period is None
+                                 else clock_period)
         self.clock_type = clock_type
         self.two_pass = two_pass
 
@@ -100,13 +102,15 @@ class Source(object):
             # Get targets.  Temporarily turn off skip probability
             if 'skip_probability' in self.__dict__:
                 skip_prob = self.skip_probability
-                skip_prob_for_first_appliance = self.skip_probability_for_first_appliance
+                skip_prob_for_first_appliance = (
+                    self.skip_probability_for_first_appliance)
                 self.skip_probability = 0
                 self.skip_probability_for_first_appliance = 0
             X, y = self._gen_data()
-            if 'skip_probability' in self.__dict__:            
+            if 'skip_probability' in self.__dict__:
                 self.skip_probability = skip_prob
-                self.skip_probability_for_first_appliance = skip_prob_for_first_appliance
+                self.skip_probability_for_first_appliance = (
+                    skip_prob_for_first_appliance)
 
             if 'subsample_target' in self.__dict__:
                 length = self.seq_length / self.subsample_target
@@ -127,7 +131,7 @@ class Source(object):
                 self.queue.get(block=False)
             except Empty:
                 break
-        
+
     def validation_data(self):
         X, y = self._gen_data(validation=True)
         return self._process_data(X, y)
@@ -137,15 +141,15 @@ class Source(object):
             for i in range(n):
                 mean = stats['mean'][i]
                 std = stats['std'][i]
-                data[:,:,i] = standardise(
-                    data[:,:,i], how='std=1', mean=mean, std=std)
+                data[:, :, i] = standardise(
+                    data[:, :, i], how='std=1', mean=mean, std=std)
             return data
 
         if self.independently_center_inputs:
             for seq_i in range(self.n_seq_per_batch):
                 for input_i in range(self.n_inputs):
                     X[seq_i, :, input_i] = standardise(
-                        X[seq_i, :, input_i], how='std=1', 
+                        X[seq_i, :, input_i], how='std=1',
                         std=self.input_stats['std'])
 
         elif self.standardise_input:
@@ -154,7 +158,7 @@ class Source(object):
         if self.unit_variance_targets:
             for i in range(self.n_outputs):
                 std = self.target_stats['std'][i]
-                y[:,:,i] /= std
+                y[:, :, i] /= std
         elif self.standardise_targets:
             y = _standardise(self.n_outputs, self.target_stats, y)
 
@@ -176,7 +180,8 @@ class Source(object):
         y = self.y_processing_func(y)
 
         if self.classification:
-            y = (y > 0).max(axis=1).reshape(self.output_shape_after_processing())
+            y = (y > 0).max(axis=1).reshape(
+                self.output_shape_after_processing())
         elif self.output_central_value:
             seq_length = y.shape[1]
             half_seq_length = seq_length // 2
@@ -187,7 +192,6 @@ class Source(object):
                 shape=(self.n_seq_per_batch, self.seq_length, self.n_inputs),
                 dtype=np.float32)
 
-            # X_new[:, :, :] = -1
             for i in range(self.clock_period):
                 clock[:, i::self.clock_period, i] = 1
 
@@ -204,7 +208,8 @@ class Source(object):
 
         if self.two_pass:
             X = np.tile(X, (1, 2, 1))
-            encode_flag = np.zeros((self.n_seq_per_batch, self.seq_length * 2, 1))
+            shape = (self.n_seq_per_batch, self.seq_length * 2, 1)
+            encode_flag = np.zeros(shape)
             encode_flag[:, :self.seq_length, :] = 0
             encode_flag[:, self.seq_length:, :] = 1
             X = np.concatenate((X, encode_flag), axis=2)
@@ -227,7 +232,7 @@ class Source(object):
         return (self.n_seq_per_batch, seq_length, self.n_inputs)
 
     def input_shape_after_processing(self):
-        n_seq_per_batch, seq_length, n_inputs = self.input_shape()        
+        n_seq_per_batch, seq_length, n_inputs = self.input_shape()
         if self.random_window:
             seq_length = self.random_window
         if self.two_pass:
@@ -249,7 +254,7 @@ class Source(object):
             seq_length = self.random_window
         if self.two_pass:
             seq_length *= 2
-            
+
         if self.reshape_target_to_2D:
             return (n_seq_per_batch * seq_length, n_outputs)
         elif self.output_central_value or self.classification:
@@ -271,7 +276,7 @@ def none_to_list(x):
 
 class ToySource(Source):
     def __init__(self, seq_length, n_seq_per_batch, n_inputs=1,
-                 powers=None, on_durations=None, all_hot=True, 
+                 powers=None, on_durations=None, all_hot=True,
                  fdiff=False):
         """
         Parameters
@@ -281,18 +286,17 @@ class ToySource(Source):
         powers : list of numbers
         on_durations : list of numbers
         """
-        self.powers = [10,40] if powers is None else powers
-        self.on_durations = [3,10] if on_durations is None else on_durations
+        self.powers = [10, 40] if powers is None else powers
+        self.on_durations = [3, 10] if on_durations is None else on_durations
         self.all_hot = all_hot
         self.fdiff = fdiff
         super(ToySource, self).__init__(
-            seq_length=seq_length, 
+            seq_length=seq_length,
             n_seq_per_batch=n_seq_per_batch,
-            n_inputs=n_inputs, 
+            n_inputs=n_inputs,
             n_outputs=1)
 
-
-    def _gen_single_appliance(self, power, on_duration, 
+    def _gen_single_appliance(self, power, on_duration,
                               min_off_duration=20, p=0.2):
         length = self.seq_length + 1 if self.fdiff else self.seq_length
         appliance_power = np.zeros(length)
@@ -331,22 +335,22 @@ class ToySource(Source):
 
 
 class RealApplianceSource(Source):
-    def __init__(self, filename, appliances, 
+    def __init__(self, filename, appliances,
                  min_on_durations,
-                 max_appliance_powers=None, 
+                 max_appliance_powers=None,
                  min_off_durations=None,
                  on_power_thresholds=None,
                  max_input_power=None,
                  clip_input=True,
-                 window=(None, None), 
+                 window=(None, None),
                  seq_length=1000,
                  n_seq_per_batch=5,
-                 train_buildings=None, 
+                 train_buildings=None,
                  validation_buildings=None,
-                 output_one_appliance=True, 
+                 output_one_appliance=True,
                  sample_period=6,
                  boolean_targets=False,
-                 subsample_target=1, 
+                 subsample_target=1,
                  input_padding=0,
                  skip_probability=0,
                  skip_probability_for_first_appliance=None,
@@ -365,13 +369,15 @@ class RealApplianceSource(Source):
         ----------
         filename : str
         appliances : list of strings
-            The first one is the target appliance, if output_one_appliance is True.
-            Use a list of lists for alternative names (e.g. ['fridge', 'fridge freezer'])
+            The first one is the target appliance, if
+            output_one_appliance is True.
+            Use a list of lists for alternative names
+            (e.g. ['fridge', 'fridge freezer']).
         subsample_target : int
             If > 1 then subsample the targets.
         skip_probability : float, [0, 1]
-            If `skip_probability` == 0 then all appliances will be included in 
-            every sequence.  Else each appliance will be skipped with this 
+            If `skip_probability` == 0 then all appliances will be included in
+            every sequence.  Else each appliance will be skipped with this
             probability but every appliance will be present in at least
             one sequence per batch.
         """
@@ -408,7 +414,8 @@ class RealApplianceSource(Source):
         if skip_probability_for_first_appliance is None:
             self.skip_probability_for_first_appliance = skip_probability
         else:
-            self.skip_probability_for_first_appliance = skip_probability_for_first_appliance
+            self.skip_probability_for_first_appliance = (
+                skip_probability_for_first_appliance)
         self._tz = self.dataset.metadata['timezone']
         self.include_diff = include_diff
         self.include_power = include_power
@@ -417,12 +424,14 @@ class RealApplianceSource(Source):
         if lag is None:
             lag = -1 if target_is_prediction else 0
         elif lag == 0 and target_is_prediction:
-            warn("lag is 0 and target_is_prediction==True.  Hence output will be identical to input.")
+            warn("lag is 0 and target_is_prediction==True."
+                 "  Hence output will be identical to input.")
         self.lag = lag
         self.target_is_prediction = target_is_prediction
         self.target_is_diff = target_is_diff
         self.one_target_per_seq = one_target_per_seq
-        self.ensure_all_appliances_represented = ensure_all_appliances_represented
+        self.ensure_all_appliances_represented = (
+            ensure_all_appliances_represented)
 
         print("Loading training activations...")
         if on_power_thresholds is None:
@@ -431,20 +440,23 @@ class RealApplianceSource(Source):
             min_on_durations = [0] * len(self.appliances)
 
         self.train_activations = self._load_activations(
-            train_buildings, min_on_durations, min_off_durations, on_power_thresholds)
+            train_buildings, min_on_durations, min_off_durations,
+            on_power_thresholds)
         if train_buildings == validation_buildings:
             self.validation_activations = self.train_activations
         else:
             print("\nLoading validation activations...")
             self.validation_activations = self._load_activations(
-                validation_buildings, min_on_durations, min_off_durations, on_power_thresholds)
+                validation_buildings, min_on_durations, min_off_durations,
+                on_power_thresholds)
         self.dataset.store.close()
 
         super(RealApplianceSource, self).__init__(
-            seq_length=seq_length, 
+            seq_length=seq_length,
             n_seq_per_batch=n_seq_per_batch,
             n_inputs=sum([include_diff, include_power]),
-            n_outputs=1 if output_one_appliance or target_is_prediction else len(appliances),
+            n_outputs=(1 if output_one_appliance or target_is_prediction
+                       else len(appliances)),
             input_padding=input_padding,
             **kwargs
         )
@@ -454,7 +466,8 @@ class RealApplianceSource(Source):
     def get_labels(self):
         return self.train_activations.keys()
 
-    def _load_activations(self, buildings, min_on_durations, min_off_durations, on_power_thresholds):
+    def _load_activations(self, buildings, min_on_durations, min_off_durations,
+                          on_power_thresholds):
         activations = OrderedDict()
         for building_i in buildings:
             elec = self.dataset.buildings[building_i].elec
@@ -468,7 +481,7 @@ class RealApplianceSource(Source):
                 stdout.flush()
                 activation_series = meter.activation_series(
                     on_power_threshold=on_power_thresholds[appliance_i],
-                    min_on_duration=min_on_durations[appliance_i], 
+                    min_on_duration=min_on_durations[appliance_i],
                     min_off_duration=min_off_durations[appliance_i])
                 activations[appliance] = self._preprocess_activations(
                     activation_series, self.max_appliance_powers[appliance])
@@ -479,8 +492,9 @@ class RealApplianceSource(Source):
         for i, activation in enumerate(activations):
             # tz_convert(None) is a workaround for Pandas bug #5172
             # (AmbiguousTimeError: Cannot infer dst time from Timestamp)
-            activation = activation.tz_convert(None) 
-            activation = activation.resample("{:d}S".format(self.sample_period))
+            activation = activation.tz_convert(None)
+            freq = "{:d}S".format(self.sample_period)
+            activation = activation.resample(freq)
             activation.fillna(method='ffill', inplace=True)
             activation.fillna(method='bfill', inplace=True)
             if self.clip_appliance_power:
@@ -495,14 +509,15 @@ class RealApplianceSource(Source):
         y = np.zeros(shape=(self.seq_length, self.n_outputs), dtype=np.float32)
         POWER_THRESHOLD = 1
         BORDER = 5
-        activations = (self.validation_activations if validation 
+        activations = (self.validation_activations if validation
                        else self.train_activations)
 
         if not self.one_target_per_seq:
             random_appliances = []
             appliance_names = activations.keys()
             while not random_appliances:
-                if not self.rng.binomial(n=1, p=self.skip_probability_for_first_appliance):
+                if not self.rng.binomial(
+                        n=1, p=self.skip_probability_for_first_appliance):
                     appliance_i = 0
                     appliance = appliance_names[0]
                     random_appliances.append((appliance_i, appliance))
@@ -512,22 +527,24 @@ class RealApplianceSource(Source):
 
             appliances.extend(random_appliances)
 
-        appliances = list(set(appliances)) # make unique
-        
+        appliances = list(set(appliances))  # make unique
+
         for appliance_i, appliance in appliances:
             n_activations = len(activations[appliance])
             if n_activations == 0:
                 continue
             activation_i = self.rng.randint(0, n_activations)
             activation = activations[appliance][activation_i]
-            latest_start_i = (self.seq_length - len(activation)) - (BORDER + self.lag) 
+            latest_start_i = ((self.seq_length - len(activation)) -
+                              (BORDER + self.lag))
             latest_start_i = max(latest_start_i, BORDER)
             start_i = self.rng.randint(0, latest_start_i)
             end_i = start_i + len(activation)
             end_i = min(end_i, self.seq_length-(1+self.lag))
             target = activation.values[:end_i-start_i]
-            X[start_i:end_i,0] += target 
-            if not self.target_is_prediction and (appliance_i == 0 or not self.output_one_appliance):
+            X[start_i:end_i, 0] += target
+            if (not self.target_is_prediction and
+                    (appliance_i == 0 or not self.output_one_appliance)):
                 target = np.copy(target)
                 if self.boolean_targets:
                     target[target <= POWER_THRESHOLD] = 0
@@ -537,16 +554,18 @@ class RealApplianceSource(Source):
                     if max_appliance_power is not None:
                         target /= max_appliance_power
                 if self.target_is_diff:
-                    y[(start_i+self.lag):(end_i+self.lag-1), appliance_i] = np.diff(target)
+                    y[(start_i+self.lag):(end_i+self.lag-1), appliance_i] = (
+                        np.diff(target))
                 else:
-                    y[(start_i+self.lag):(end_i+self.lag), appliance_i] = target
+                    y[(start_i+self.lag):(end_i+self.lag), appliance_i] = (
+                        target)
 
         if self.clip_input:
             np.clip(X, 0, self.max_input_power, out=X)
 
-        fdiff = np.diff(X[:,0]) / self.max_diff
+        fdiff = np.diff(X[:, 0]) / self.max_diff
         if self.max_input_power is not None:
-            X[:,0] /= self.max_input_power
+            X[:, 0] /= self.max_input_power
 
         if self.target_is_prediction:
             if self.target_is_diff:
@@ -563,27 +582,28 @@ class RealApplianceSource(Source):
 
         if self.include_diff:
             feature_i = int(self.include_power)
-            X[:-1,feature_i] = fdiff
+            X[:-1, feature_i] = fdiff
 
         if self.subsample_target > 1:
-            shape = (int(self.seq_length / self.subsample_target), 
+            shape = (int(self.seq_length / self.subsample_target),
                      self.n_outputs)
             subsampled_y = np.empty(shape=shape, dtype=np.float32)
             for output_i in range(self.n_outputs):
-                subsampled_y[:,output_i] = np.mean(
-                    y[:,output_i].reshape(-1, self.subsample_target), axis=-1)
+                subsampled_y[:, output_i] = np.mean(
+                    y[:, output_i].reshape(-1, self.subsample_target), axis=-1)
             y = subsampled_y
 
         return X, y
-    
+
     def input_shape(self):
-        return (self.n_seq_per_batch, 
-                self.seq_length + self.input_padding, 
+        return (self.n_seq_per_batch,
+                self.seq_length + self.input_padding,
                 self.n_inputs)
 
     def output_shape(self):
         if self.seq_length % self.subsample_target:
-            raise RuntimeError("subsample_target must exactly divide seq_length.")
+            raise RuntimeError(
+                "subsample_target must exactly divide seq_length.")
         return (
             self.n_seq_per_batch,
             int(self.seq_length / self.subsample_target),
@@ -606,10 +626,10 @@ class RealApplianceSource(Source):
             return {}
         all_appliances = list(enumerate(self.get_labels()))
         if self.one_target_per_seq:
-            return {i:[all_appliances[i % len(all_appliances)]] 
+            return {i: [all_appliances[i % len(all_appliances)]]
                     for i in range(self.n_seq_per_batch)}
         if self.skip_probability == 0:
-            return {i:[] for i in range(self.n_seq_per_batch)}
+            return {i: [] for i in range(self.n_seq_per_batch)}
         n_appliances = len(self.appliances)
         n_appliances_per_seq = n_appliances // self.n_seq_per_batch
         remainder = n_appliances % self.n_seq_per_batch
@@ -631,13 +651,13 @@ class RealApplianceSource(Source):
         start, end = self.inside_padding()
         deterministic_appliances = self._appliances_for_sequence()
         for i in range(self.n_seq_per_batch):
-            X[i,start:end,:], y[i,:,:] = self._gen_single_example(
+            X[i, start:end, :], y[i, :, :] = self._gen_single_example(
                 validation, deterministic_appliances.get(i))
         return X, y
 
 
 class NILMTKSource(Source):
-    def __init__(self, filename, appliances, 
+    def __init__(self, filename, appliances,
                  train_buildings, validation_buildings,
                  window=(None, None),
                  sample_period=6,
@@ -657,7 +677,7 @@ class NILMTKSource(Source):
         self.sample_period = sample_period
         self._init_meter_groups()
         self._init_good_sections()
-        
+
     def _init_meter_groups(self):
         self.metergroups = {}
         for building_i in self._all_buildings():
@@ -683,7 +703,7 @@ class NILMTKSource(Source):
             ]
 
     def _gen_single_example(self, validation=False):
-        buildings = (self.validation_buildings if validation 
+        buildings = (self.validation_buildings if validation
                      else self.train_buildings)
         building_i = self.rng.choice(buildings)
         elec = self.dataset.buildings[building_i].elec
@@ -699,6 +719,7 @@ class NILMTKSource(Source):
             sample_period=self.sample_period, sections=sections).next()
         appliances_power = self.metergroups[building_i].dataframe_of_meters(
             sample_period=self.sample_period, sections=sections)
+
         def truncate(data):
             n = len(data)
             assert n >= self.seq_length
@@ -708,7 +729,7 @@ class NILMTKSource(Source):
         mains_power = truncate(mains_power)
         appliances_power = truncate(appliances_power)
         appliances_power.columns = elec.get_labels(appliances_power.columns)
-        
+
         # time of day
         index = mains_power.index.tz_localize(None)
         secs_into_day = (index.astype(int) / 1E9) % SECS_PER_DAY
@@ -716,7 +737,7 @@ class NILMTKSource(Source):
 
         return appliances_power, mains_power, time_of_day
 
-        
+
 def timestamp_to_int(ts):
     ts = pd.Timestamp(ts)
     return ts.asm8.astype('datetime64[s]').astype(int)
@@ -733,12 +754,12 @@ class NILMTKSourceOld(Source):
         building : int
         """
         super(NILMTKSource, self).__init__(
-            seq_length=14400, 
+            seq_length=14400,
             n_seq_per_batch=5,
-            n_inputs=1000, 
+            n_inputs=1000,
             n_outputs=1)
         self.sample_period = 6
-        self.min_power =  20
+        self.min_power = 20
         self.max_power = 200
         self.dataset = DataSet(filename)
         self.appliances = appliances
@@ -749,21 +770,25 @@ class NILMTKSourceOld(Source):
         start = pd.Timestamp(start).date()
         end = start + timedelta(days=1)
         timeframe = TimeFrame(start, end, tz=self._tz)
-        load_kwargs = dict(sample_period=self.sample_period, 
+        load_kwargs = dict(sample_period=self.sample_period,
                            sections=[timeframe])
 
         # Load output (target) data
-        y = self.metergroup[self.appliances[0]].power_series_all_data(**load_kwargs)
+        app = self.metergroup[self.appliances[0]]
+        y = app.power_series_all_data(**load_kwargs)
         if y is None or y.max() < self.min_power:
             return None, None
 
         # Load input (aggregate) data
-        X = y + self.metergroup[self.appliances[1]].power_series_all_data(**load_kwargs)
+        app = y + self.metergroup[self.appliances[1]]
+        X = app.power_series_all_data(**load_kwargs)
         for appliance in self.appliances[2:]:
-            X += self.metergroup[appliance].power_series_all_data(**load_kwargs)
+            app = self.metergroup[appliance]
+            X += app.power_series_all_data(**load_kwargs)
 
         freq = "{:d}S".format(self.sample_period)
         index = pd.date_range(start, end, freq=freq, tz=self._tz)
+
         def preprocess(data):
             data = data.fillna(0)
             data = data.clip(upper=self.max_power)
@@ -786,21 +811,24 @@ class NILMTKSourceOld(Source):
     def _gen_unquantized_data(self, validation=False):
         X = np.empty(shape=(self.n_seq_per_batch, self.seq_length, 1))
         y = np.empty(shape=self.output_shape())
-        N_DAYS = 600 # there are more like 632 days in the dataset
+        N_DAYS = 600  # there are more like 632 days in the dataset
         FIRST_DAY = pd.Timestamp("2013-04-12")
         seq_i = 0
         while seq_i < self.n_seq_per_batch:
             if validation:
-                days = self.rng.randint(low=N_DAYS, high=N_DAYS + self.n_seq_per_batch)
+                low = N_DAYS
+                high = N_DAYS + self.n_seq_per_batch
             else:
-                days = self.rng.randint(low=0, high=N_DAYS)
+                low = 0
+                high = N_DAYS
+            days = self.rng.randint(low=low, high=high)
             start = FIRST_DAY + timedelta(days=days)
             X_one_seq, y_one_seq = self._get_data_for_single_day(start)
 
             if y_one_seq is not None:
                 try:
-                    X[seq_i,:,:] = X_one_seq.reshape(self.seq_length, 1)
-                    y[seq_i,:,:] = y_one_seq.reshape(self.seq_length, 1)
+                    X[seq_i, :, :] = X_one_seq.reshape(self.seq_length, 1)
+                    y[seq_i, :, :] = y_one_seq.reshape(self.seq_length, 1)
                 except ValueError as e:
                     print(e)
                     print("Skipping", start)
@@ -818,8 +846,8 @@ class NILMTKSourceOld(Source):
             y = None
         X_quantized = np.empty(shape=self.input_shape())
         for i in range(self.n_seq_per_batch):
-            X_quantized[i,:,0] = X[i,:,0] # time of day
-            X_quantized[i,:,1:] = quantize(X[i,:,1], self.n_inputs)
+            X_quantized[i, :, 0] = X[i, :, 0]  # time of day
+            X_quantized[i, :, 1:] = quantize(X[i, :, 1], self.n_inputs)
 
         return X_quantized, y
 
@@ -842,7 +870,7 @@ class RandomSegments(Source):
         all_buildings = list(set(train_buildings + validation_buildings))
         self.good_sections = {}
         for building_i in all_buildings:
-            elec = self.dataset.buildings[building_i].elec            
+            elec = self.dataset.buildings[building_i].elec
             self.good_sections[building_i] = elec.mains().good_sections()
         super(RandomSegments, self).__init__(
             n_outputs=1, n_inputs=1, seq_length=seq_length, **kwargs)
@@ -907,19 +935,19 @@ def quantize(data, n_bins, all_hot=True, range=(-1, 1), length=None):
         d = data[i]
         hist, _ = np.histogram(d, bins=n_bins, range=range)
         if all_hot:
-            where = np.where(hist==1)[0][0]
+            where = np.where(hist == 1)[0][0]
             if where > midpoint:
                 hist[midpoint:where] = 1
             elif where < midpoint:
                 hist[where:midpoint] = 1
-        out[i,:] = hist
+        out[i, :] = hist
     return (out * 2) - 1
 
 
 def standardise(X, how='range=2', mean=None, std=None, midrange=None, ptp=None):
     """Standardise.
     ftp://ftp.sas.com/pub/neural/FAQ2.html#A_std_in
-    
+
     Parameters
     ----------
     X : matrix
@@ -959,7 +987,7 @@ def standardise(X, how='range=2', mean=None, std=None, midrange=None, ptp=None):
 
 
 def discretize_scalar(X, n_bins=10, all_hot=False, boolean=True):
-    output = np.zeros(n_bins) 
+    output = np.zeros(n_bins)
     bin_i = int(X * n_bins)
     bin_i = min(bin_i, n_bins-1)
     output[bin_i] = 1 if boolean else ((X * n_bins) - bin_i)
@@ -974,7 +1002,8 @@ def discretize(X, n_bins=10, **kwargs):
     for i in range(X.shape[0]):
         for j in range(X.shape[1]):
             for k in range(X.shape[2]):
-                output[i,j,:] = discretize_scalar(X[i,j,k], n_bins, **kwargs)
+                output[i, j, :] = discretize_scalar(
+                    X[i, j, k], n_bins, **kwargs)
     return output
 
 
@@ -982,7 +1011,7 @@ def fdiff(X):
     assert X.shape[2] == 1
     output = np.zeros(X.shape)
     for i in range(X.shape[0]):
-        output[i,:-1,0] = np.diff(X[i,:,0])
+        output[i, :-1, 0] = np.diff(X[i, :, 0])
     return output
 
 
@@ -990,10 +1019,10 @@ def power_and_fdiff(X):
     assert X.shape[2] == 1
     output = np.zeros((X.shape[0], X.shape[1], 2))
     for i in range(X.shape[0]):
-        output[i,:  ,0] = X[i,:,0]
-        output[i,:-1,1] = np.diff(X[i,:,0])
+        output[i, :, 0] = X[i, :, 0]
+        output[i, :-1, 1] = np.diff(X[i, :, 0])
     return output
-    
+
 
 def get_meters_for_appliances(elec, appliances):
     meters = []
@@ -1009,7 +1038,7 @@ def get_meters_for_appliances(elec, appliances):
                 meters.append(meter)
                 break
         else:
-            print("  No appliance matching", apps, "in building", 
+            print("  No appliance matching", apps, "in building",
                   elec.building())
             continue
     return meters
