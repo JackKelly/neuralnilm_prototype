@@ -9,6 +9,7 @@ from sys import stdout
 from collections import OrderedDict
 from lasagne.utils import floatX
 from warnings import warn
+import gc
 
 
 SECS_PER_DAY = 60 * 60 * 24
@@ -855,7 +856,6 @@ class NILMTKSourceOld(Source):
 class RandomSegments(Source):
     def __init__(self, filename, target_appliance,
                  train_buildings, validation_buildings,
-                 seq_length,
                  window=(None, None),
                  sample_period=6,
                  **kwargs):
@@ -867,13 +867,19 @@ class RandomSegments(Source):
         self.train_buildings = train_buildings
         self.validation_buildings = validation_buildings
         self.sample_period = sample_period
-        all_buildings = list(set(train_buildings + validation_buildings))
         self.good_sections = {}
-        for building_i in all_buildings:
+        for building_i in self.get_all_buildings():
             elec = self.dataset.buildings[building_i].elec
             self.good_sections[building_i] = elec.mains().good_sections()
-        super(RandomSegments, self).__init__(
-            n_outputs=1, n_inputs=1, seq_length=seq_length, **kwargs)
+        self._init_data()
+        super(RandomSegments, self).__init__(n_outputs=1, n_inputs=1, **kwargs)
+
+    def _init_data(self):
+        """Overridden by sub-classes."""
+        pass
+
+    def get_all_buildings(self):
+        return list(set(self.train_buildings + self.validation_buildings))
 
     def _gen_single_example(self, validation=False):
         """
@@ -886,7 +892,6 @@ class RandomSegments(Source):
         buildings = (self.validation_buildings if validation
                      else self.train_buildings)
         building_i = self.rng.choice(buildings, 1)[0]
-        elec = self.dataset.buildings[building_i].elec
         good_sections = self.good_sections[building_i]
         seq_duration_secs = self.seq_length * self.sample_period
         N_RETRIES = 100
@@ -902,19 +907,25 @@ class RandomSegments(Source):
         start = good_section.start + offset
         end = start + timedelta(seconds=seq_duration_secs)
         timeframe = TimeFrame(start, end)
-
-        def load_data(electric):
-            data = electric.power_series_all_data(
-                sections=[timeframe], sample_period=self.sample_period)
-            data = data.fillna(0)
-            data = data.values[:self.seq_length]
-            pad_width = self.seq_length - len(data)
-            data = np.pad(data, (0, pad_width), 'constant')
-            return data
-
-        mains = load_data(elec.mains())
-        appliance = load_data(elec[self.target_appliance])
+        mains = self._load_data('mains', building_i, timeframe)
+        appliance = self._load_data('target', building_i, timeframe)
         return mains, appliance
+
+    def _load_data(self, mains_or_target, building_i, timeframe):
+        elec = self.dataset.buildings[building_i].elec
+        if mains_or_target == 'mains':
+            electric = elec.mains()
+        elif mains_or_target == 'target':
+            electric = elec[self.target_appliance]
+        else:
+            raise RuntimeError("Unrecognised: '" + mains_or_target + "'")
+        data = electric.power_series_all_data(
+            sections=[timeframe], sample_period=self.sample_period)
+        data = data.fillna(0)
+        data = data.values[:self.seq_length]
+        pad_width = self.seq_length - len(data)
+        data = np.pad(data, (0, pad_width), 'constant')
+        return data
 
     def _gen_data(self, validation=False):
         X = np.zeros(self.input_shape(), dtype=np.float32)
@@ -925,6 +936,25 @@ class RandomSegments(Source):
 
     def get_labels(self):
         return [self.target_appliance]
+
+
+class RandomSegmentsInMemory(RandomSegments):
+    def _init_data(self):
+        if len(self.get_all_buildings()) > 1:
+            raise RuntimeError("Cannot use more than one building with"
+                               " RandomSegmentsInMemory")
+        building_i = self.train_buildings[0]
+        elec = self.dataset.buildings[building_i].elec
+        self.data = {
+            'mains': elec.mains().power_series_all_data(
+                sample_period=self.sample_period),
+            'target': elec[self.target_appliance].power_series_all_data(
+                sample_period=self.sample_period).fillna(0)
+        }
+        gc.collect()
+
+    def _load_data(self, mains_or_target, building_i, timeframe):
+        return self.data[mains_or_target][timeframe.start:timeframe.end]
 
 
 def quantize(data, n_bins, all_hot=True, range=(-1, 1), length=None):
