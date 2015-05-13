@@ -926,6 +926,7 @@ class RandomSegments(Source):
     def get_labels(self):
         return [self.target_appliance]
 
+
 def quantize(data, n_bins, all_hot=True, range=(-1, 1), length=None):
     midpoint = n_bins // 2
     if length is None:
@@ -944,7 +945,8 @@ def quantize(data, n_bins, all_hot=True, range=(-1, 1), length=None):
     return (out * 2) - 1
 
 
-def standardise(X, how='range=2', mean=None, std=None, midrange=None, ptp=None):
+def standardise(X, how='range=2', mean=None, std=None, midrange=None,
+                ptp=None):
     """Standardise.
     ftp://ftp.sas.com/pub/neural/FAQ2.html#A_std_in
 
