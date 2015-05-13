@@ -216,3 +216,22 @@ y: o but with linear for input conv, ReLU for output conv
 450: Independently standardise each input
 
 451: ignore incomplete activations
+
+452:
+a: don't centre inputs individually
+
+b: reduce seq length to 256
+
+c: reduced central layer to 4
+
+d: reduced central layer to 8
+
+e: reduced central layer to 32
+
+f: reduce number of layers
+
+g: no conv
+
+TODO:
+* ensure 75% of training examples include target.
+* use same scaling factor for target and input
