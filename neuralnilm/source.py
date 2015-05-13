@@ -10,6 +10,7 @@ from collections import OrderedDict
 from lasagne.utils import floatX
 from warnings import warn
 import gc
+from nilmtk.electric import activation_series_for_chunk
 
 
 SECS_PER_DAY = 60 * 60 * 24
@@ -858,6 +859,7 @@ class RandomSegments(Source):
                  train_buildings, validation_buildings,
                  window=(None, None),
                  sample_period=6,
+                 ignore_incomplete=False,
                  **kwargs):
         self.dataset = DataSet(filename)
         self.dataset.set_window(*window)
@@ -867,6 +869,7 @@ class RandomSegments(Source):
         self.train_buildings = train_buildings
         self.validation_buildings = validation_buildings
         self.sample_period = sample_period
+        self.ignore_incomplete = ignore_incomplete
         self.good_sections = {}
         for building_i in self.get_all_buildings():
             elec = self.dataset.buildings[building_i].elec
@@ -921,6 +924,8 @@ class RandomSegments(Source):
             raise RuntimeError("Unrecognised: '" + mains_or_target + "'")
         data = electric.power_series_all_data(
             sections=[timeframe], sample_period=self.sample_period)
+        if mains_or_target == 'target' and self.ignore_incomplete:
+            data = self._remove_incomplete(data)
         data = data.fillna(0)
         data = data.values[:self.seq_length]
         pad_width = self.seq_length - len(data)
@@ -936,6 +941,14 @@ class RandomSegments(Source):
 
     def get_labels(self):
         return [self.target_appliance]
+
+    def _remove_incomplete(self, data):
+        activations = activation_series_for_chunk(data)
+        new_data = pd.Series(0, index=data.index)
+        for activation in activations:
+            if activation is not None:
+                new_data = new_data.add(activation, fill_value=0)
+        return new_data
 
 
 class RandomSegmentsInMemory(RandomSegments):
@@ -954,7 +967,13 @@ class RandomSegmentsInMemory(RandomSegments):
         gc.collect()
 
     def _load_data(self, mains_or_target, building_i, timeframe):
-        return self.data[mains_or_target][timeframe.start:timeframe.end]
+        data = self.data[mains_or_target][timeframe.start:timeframe.end]
+        if mains_or_target == 'target' and self.ignore_incomplete:
+            data = self._remove_incomplete(data)
+        data = data.values[:self.seq_length]
+        pad_width = self.seq_length - len(data)
+        data = np.pad(data, (0, pad_width), 'constant')
+        return data
 
 
 def quantize(data, n_bins, all_hot=True, range=(-1, 1), length=None):

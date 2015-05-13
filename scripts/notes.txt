@@ -210,3 +210,9 @@ y: o but with linear for input conv, ReLU for output conv
    Hence next thing to do will be to train on real data.
 
 448: train on real data!
+
+449: Reduce seq length to 512 and use RandomSegmentsInMemory
+
+450: Independently standardise each input
+
+451: ignore incomplete activations
