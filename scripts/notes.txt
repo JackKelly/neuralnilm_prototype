@@ -218,19 +218,19 @@ y: o but with linear for input conv, ReLU for output conv
 451: ignore incomplete activations
 
 452:
-a: don't centre inputs individually
+a: 451a but don't centre inputs individually
 
-b: reduce seq length to 256
+b: 451a but reduce seq length to 256
 
-c: reduced central layer to 4
+c: 451a but reduced central layer to 4
 
-d: reduced central layer to 8
+d: 451a but reduced central layer to 8
 
-e: reduced central layer to 32
+e: 451a but reduced central layer to 32
 
-f: reduce number of layers
+f: 451a but reduce number of layers
 
-g: no conv
+g: 451a but no conv
 
 TODO:
 * ensure 75% of training examples include target.
