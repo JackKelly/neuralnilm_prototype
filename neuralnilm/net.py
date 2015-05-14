@@ -443,9 +443,9 @@ class Net(object):
         f.close()
         self.logger.info('Done loading params from ' + filename + '.')
 
-        def load_csv(key):
+        def load_csv(key, limit):
             filename = self.csv_filenames[key]
-            data = np.genfromtxt(filename, delimiter=',')[:iteration, :]
+            data = np.genfromtxt(filename, delimiter=',')[:limit, :]
 
             # overwrite costs file
             self._write_csv_headers(key)
@@ -453,8 +453,9 @@ class Net(object):
                 np.savetxt(fh, data, delimiter=',')
             return list(data[:, 1])
 
-        self.training_costs = load_csv('training_costs')
-        self.validation_costs = load_csv('validation_costs')
+        self.training_costs = load_csv('training_costs', iteration)
+        self.validation_costs = load_csv(
+            'validation_costs', iteration // self.validation_interval)
 
         # set learning rate
         if self.learning_rate_changes_by_iteration:

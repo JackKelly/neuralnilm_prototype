@@ -242,6 +242,18 @@ f: 451a but reduce number of layers
 
 g: 451a but no conv
 
+453: keep activations in same location (in time)
+
+454: like 453 but offset 50% of activations and ignore those.
+
+b: increase filters from 4 to 16
+
+c: no conv
+
+d: 16d middle layer
+
+e: 64d middle layers
+
 TODO:
 * ensure 75% of training examples include target.
 * use same scaling factor for target and input

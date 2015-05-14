@@ -968,6 +968,14 @@ class RandomSegmentsInMemory(RandomSegments):
 
 
 class SameLocation(RandomSegments):
+    def __init__(self,
+                 offset_probability=0,
+                 ignore_offset_activations=False,
+                 *args, **kwargs):
+        self.offset_probability = offset_probability
+        self.ignore_offset_activations = ignore_offset_activations
+        super(SameLocation, self).__init__(*args, **kwargs)
+
     def _init_data(self):
         """
         * Load all activations for target with nice sized border
@@ -990,16 +998,47 @@ class SameLocation(RandomSegments):
         activations = self.activations[building_i]
         activation_i = self.rng.randint(low=0, high=len(activations)-1)
         activation = activations[activation_i]
-        y = activation.values[:self.seq_length]
-        n_zeros_to_pad = self.seq_length - len(y)
-        y = np.pad(y, (0, n_zeros_to_pad), 'constant')
+        y = activation.values
+
+        # random offset (number of samples)
+        if self.rng.binomial(n=1, p=self.offset_probability):
+            offset = self.rng.randint(low=1, high=50)
+            if self.rng.binomial(n=1, p=0.5):
+                # shift backwards
+                y = y[offset:]
+                offset_direction = 'backwards'
+            else:
+                # shift forwards
+                y = np.pad(y, (offset, 0), 'constant')
+                offset_direction = 'forwards'
+            if self.ignore_offset_activations:
+                y = np.zeros(self.seq_length, dtype=np.float32)
+        else:
+            offset = 0
+
+        # clip or pad to get seq to exactly self.seq_length samples
+        def clip_or_pad(data):
+            data = data[:self.seq_length]
+            n_zeros_to_pad = self.seq_length - len(data)
+            data = np.pad(data, (0, n_zeros_to_pad), 'constant')
+            return data
+
+        y = clip_or_pad(y)
 
         # get mains
         mains = self.mains[building_i]
         start = activation.index[0]
+        if offset:
+            offset_timedelta = timedelta(seconds=offset * self.sample_period)
+            if offset_direction == 'backwards':
+                start += offset_timedelta
+            else:
+                start -= offset_timedelta
+
         end = start + timedelta(
             seconds=(self.seq_length * self.sample_period) - 1)
         X = mains[start:end].values
+        X = clip_or_pad(X)
         return X, y
 
     def _load_activations(self):
