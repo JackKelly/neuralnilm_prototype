@@ -485,23 +485,12 @@ class RealApplianceSource(Source):
                     on_power_threshold=on_power_thresholds[appliance_i],
                     min_on_duration=min_on_durations[appliance_i],
                     min_off_duration=min_off_durations[appliance_i])
-                activations[appliance] = self._preprocess_activations(
-                    activation_series, self.max_appliance_powers[appliance])
+                activations[appliance] = _preprocess_activations(
+                    activation_series,
+                    max_power=self.max_appliance_powers[appliance],
+                    sample_period=self.sample_period,
+                    clip_appliance_power=self.clip_appliance_power)
                 print("Loaded", len(activation_series), "activations.")
-        return activations
-
-    def _preprocess_activations(self, activations, max_power):
-        for i, activation in enumerate(activations):
-            # tz_convert(None) is a workaround for Pandas bug #5172
-            # (AmbiguousTimeError: Cannot infer dst time from Timestamp)
-            activation = activation.tz_convert(None)
-            freq = "{:d}S".format(self.sample_period)
-            activation = activation.resample(freq)
-            activation.fillna(method='ffill', inplace=True)
-            activation.fillna(method='bfill', inplace=True)
-            if self.clip_appliance_power:
-                activation = activation.clip(0, max_power)
-            activations[i] = floatX(activation)
         return activations
 
     def _gen_single_example(self, validation=False, appliances=None):
@@ -870,16 +859,15 @@ class RandomSegments(Source):
         self.validation_buildings = validation_buildings
         self.sample_period = sample_period
         self.ignore_incomplete = ignore_incomplete
-        self.good_sections = {}
-        for building_i in self.get_all_buildings():
-            elec = self.dataset.buildings[building_i].elec
-            self.good_sections[building_i] = elec.mains().good_sections()
         self._init_data()
         super(RandomSegments, self).__init__(n_outputs=1, n_inputs=1, **kwargs)
 
     def _init_data(self):
         """Overridden by sub-classes."""
-        pass
+        self.good_sections = {}
+        for building_i in self.get_all_buildings():
+            elec = self.dataset.buildings[building_i].elec
+            self.good_sections[building_i] = elec.mains().good_sections()
 
     def get_all_buildings(self):
         return list(set(self.train_buildings + self.validation_buildings))
@@ -926,7 +914,7 @@ class RandomSegments(Source):
             sections=[timeframe], sample_period=self.sample_period)
         if mains_or_target == 'target' and self.ignore_incomplete:
             data = self._remove_incomplete(data)
-        data = data.fillna(0)
+        data.fillna(0, inplace=True)
         data = data.values[:self.seq_length]
         pad_width = self.seq_length - len(data)
         data = np.pad(data, (0, pad_width), 'constant')
@@ -953,16 +941,19 @@ class RandomSegments(Source):
 
 class RandomSegmentsInMemory(RandomSegments):
     def _init_data(self):
+        super(RandomSegmentsInMemory, self)._init_data(self)
         if len(self.get_all_buildings()) > 1:
             raise RuntimeError("Cannot use more than one building with"
                                " RandomSegmentsInMemory")
         building_i = self.train_buildings[0]
         elec = self.dataset.buildings[building_i].elec
+        target = elec[self.target_appliance].power_series_all_data(
+            sample_period=self.sample_period)
+        target.fillna(0, inplace=True)
         self.data = {
             'mains': elec.mains().power_series_all_data(
                 sample_period=self.sample_period),
-            'target': elec[self.target_appliance].power_series_all_data(
-                sample_period=self.sample_period).fillna(0)
+            'target': target
         }
         gc.collect()
 
@@ -974,6 +965,63 @@ class RandomSegmentsInMemory(RandomSegments):
         pad_width = self.seq_length - len(data)
         data = np.pad(data, (0, pad_width), 'constant')
         return data
+
+
+class SameLocation(RandomSegments):
+    def _init_data(self):
+        """
+        * Load all activations for target with nice sized border
+        * Load all mains data into memory
+        """
+        self._load_activations()
+        gc.collect()
+        self._load_mains()
+        gc.collect()
+
+    def _gen_single_example(self, validation=False):
+        """
+        * pick building at random
+        * pick an activation at random
+        * data is that activation, padded at the end, plus mains at same time.
+        """
+        buildings = (self.validation_buildings if validation
+                     else self.train_buildings)
+        building_i = self.rng.choice(buildings, 1)[0]
+        activation = self.rng.choice(self.activations[building_i], 1)[0]
+        y = activation.values[:self.seq_length]
+        n_zeros_to_pad = self.seq_length - len(y)
+        y = np.pad(y, (0, n_zeros_to_pad), 'constant')
+
+        # get mains
+        mains = self.mains[building_i]
+        start = activation.index[0]
+        end = start + timedelta(
+            seconds=(self.seq_length * self.sample_period) - 1)
+        X = mains[start:end].values
+        return X, y
+
+    def _load_activations(self):
+        activations = OrderedDict()
+        for building_i in self.get_all_buildings():
+            elec = self.dataset.buildings[building_i].elec
+            meter = elec[self.target_appliance]
+            activation_series = meter.activation_series(border=50)
+            activations[building_i] = _preprocess_activations(
+                activation_series)
+            print("Loaded", len(activation_series), "activations.")
+        self.activations = activations
+
+    def _load_mains(self):
+        mains = OrderedDict()
+        for building_i in self.get_all_buildings():
+            elec = self.dataset.buildings[building_i].elec
+            meter = elec.mains()
+            mains_data = meter.power_series_all_data(
+                sample_period=self.sample_period)
+            mains_data.fillna(0, inplace=True)
+            mains[building_i] = mains_data
+            print("Loaded mains data for building", building_i)
+        self.mains = mains
 
 
 def quantize(data, n_bins, all_hot=True, range=(-1, 1), length=None):
@@ -1100,6 +1148,25 @@ def unstandardise(data, std, mean, maximum=None):
     if maximum is not None:
         unstandardised_data *= maximum
     return unstandardised_data
+
+
+def _preprocess_activations(activations, max_power=None, sample_period=6,
+                            clip_appliance_power=False):
+    for i, activation in enumerate(activations):
+        # tz_convert(None) is a workaround for Pandas bug #5172
+        # (AmbiguousTimeError: Cannot infer dst time from Timestamp)
+        tz = activation.index.tz.zone
+        activation = activation.tz_convert('UTC')
+        freq = "{:d}S".format(sample_period)
+        activation = activation.resample(freq)
+        activation.fillna(method='ffill', inplace=True)
+        activation.fillna(method='bfill', inplace=True)
+        if clip_appliance_power:
+            activation = activation.clip(0, max_power)
+        activation = activation.tz_convert(tz)
+        activations[i] = floatX(activation)
+    return activations
+
 
 """
 Emacs variables

@@ -216,15 +216,25 @@ y: o but with linear for input conv, ReLU for output conv
 450: Independently standardise each input
 
 451: ignore incomplete activations
+  avg valid cost =  0.6222125888
 
 452:
 a: 451a but don't centre inputs individually
+   avg valid cost =  0.5993861556
 
 b: 451a but reduce seq length to 256
+   avg valid cost =  0.3562454283
+   Not an improvement, I don't think (possibly because
+   sequences with complete activations are rarer)
 
 c: 451a but reduced central layer to 4
+   avg valid cost =  0.8279920220
+   Bad. Appears to have just learnt an 'average' activation (with some
+   shape to it)
 
 d: 451a but reduced central layer to 8
+   avg valid cost =  0.6588124633
+   Not bad but not great.
 
 e: 451a but reduced central layer to 32
 
