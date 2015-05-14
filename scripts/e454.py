@@ -240,24 +240,28 @@ def exp_c(name):
         experiment_name=name,
         source=source
     ))
-    NUM_FILTERS = 4
     net_dict_copy['layers_config'] = [
         {
             'label': 'dense0',
             'type': DenseLayer,
-            'num_units': (SEQ_LENGTH - 3) * NUM_FILTERS,
+            'num_units': SEQ_LENGTH,
             'nonlinearity': rectify
         },
         {
             'label': 'dense1',
             'type': DenseLayer,
-            'num_units': SEQ_LENGTH - 3,
+            'num_units': SEQ_LENGTH,
             'nonlinearity': rectify
         },
         {
             'type': DenseLayer,
-            'num_units': (SEQ_LENGTH - 3) * NUM_FILTERS,
+            'num_units': SEQ_LENGTH,
             'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': SEQ_LENGTH,
+            'nonlinearity': None
         }
     ]
     net = Net(**net_dict_copy)
@@ -404,10 +408,53 @@ def exp_e(name):
     return net
 
 
+def exp_f(name):
+    global source
+    source_dict_copy = deepcopy(source_dict)
+    source = SameLocation(**source_dict_copy)
+    net_dict_copy = deepcopy(net_dict)
+    net_dict_copy.update(dict(
+        experiment_name=name,
+        source=source
+    ))
+    net_dict_copy['layers_config'] = [
+        {
+            'label': 'dense0',
+            'type': DenseLayer,
+            'num_units': SEQ_LENGTH,
+            'nonlinearity': rectify
+        },
+        {
+            'label': 'dense0',
+            'type': DenseLayer,
+            'num_units': SEQ_LENGTH * 4,
+            'nonlinearity': rectify
+        },
+        {
+            'label': 'dense1',
+            'type': DenseLayer,
+            'num_units': SEQ_LENGTH * 4,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': SEQ_LENGTH,
+            'nonlinearity': rectify
+        },
+        {
+            'type': DenseLayer,
+            'num_units': SEQ_LENGTH,
+            'nonlinearity': None
+        }
+    ]
+    net = Net(**net_dict_copy)
+    return net
+
+
 
 
 def main():
-    EXPERIMENTS = list('abcde')
+    EXPERIMENTS = list('cf')
     for experiment in EXPERIMENTS:
         full_exp_name = NAME + experiment
         func_call = init_experiment(PATH, experiment, full_exp_name)

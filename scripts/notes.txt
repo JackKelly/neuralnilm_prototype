@@ -244,15 +244,35 @@ g: 451a but no conv
 
 453: keep activations in same location (in time)
 
-454: like 453 but offset 50% of activations and ignore those.
+454:
+a: like 453 but offset 50% of activations and ignore those.
+avg valid cost =  0.0988993222
 
 b: increase filters from 4 to 16
+avg valid cost =  0.0859923661
 
-c: no conv
+c: no conv, 3 rectify layers, all SEQ_LENGTH in size
+avg valid cost =  0.3136602640
 
 d: 16d middle layer
+avg valid cost =  0.1576996297
 
 e: 64d middle layers
+avg valid cost =  0.1260379851
+
+f: no conv, 4 rectify layers
+avg valid cost =  0.2055538595
+
+455:
+a: like 454b but change learning rate and longer seq and 8 filters
+
+b: 4 filters
+
+c: 2 filters
+
+d: 8 filters and 2 additional layers
+
+e: like d but down to 64d middle layer
 
 TODO:
 * ensure 75% of training examples include target.
