@@ -168,7 +168,12 @@ def exp_b(name):
     net_dict_copy = deepcopy(net_dict)
     net_dict_copy.update(dict(
         experiment_name=name,
-        source=source
+        source=source,
+        learning_rate_changes_by_iteration={
+            100: 1e-2,
+            1000: 1e-3,
+            5000: 1e-4
+        }
     ))
     NUM_FILTERS = 4
     net_dict_copy['layers_config'] = [
@@ -535,14 +540,14 @@ def exp_g(name):
 
 
 def main():
-    EXPERIMENTS = list('abcdefg')
+    EXPERIMENTS = list('bcdefg')
     for experiment in EXPERIMENTS:
         full_exp_name = NAME + experiment
         func_call = init_experiment(PATH, experiment, full_exp_name)
         logger = logging.getLogger(full_exp_name)
         try:
             net = eval(func_call)
-            run_experiment(net, epochs=40000)
+            run_experiment(net, epochs=10000)
         except KeyboardInterrupt:
             logger.info("KeyboardInterrupt")
             break
@@ -550,7 +555,8 @@ def main():
             logger.exception("Exception")
             # raise
         else:
-            del net.source.train_activations
+            del net.source
+            del net
             gc.collect()
         finally:
             logging.shutdown()
