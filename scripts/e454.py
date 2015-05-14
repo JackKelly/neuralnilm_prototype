@@ -414,7 +414,7 @@ def main():
         logger = logging.getLogger(full_exp_name)
         try:
             net = eval(func_call)
-            run_experiment(net, epochs=None)
+            run_experiment(net, epochs=40000)
         except KeyboardInterrupt:
             logger.info("KeyboardInterrupt")
             break
