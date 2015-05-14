@@ -987,7 +987,9 @@ class SameLocation(RandomSegments):
         buildings = (self.validation_buildings if validation
                      else self.train_buildings)
         building_i = self.rng.choice(buildings, 1)[0]
-        activation = self.rng.choice(self.activations[building_i], 1)[0]
+        activations = self.activations[building_i]
+        activation_i = self.rng.randint(low=0, high=len(activations)-1)
+        activation = activations[activation_i]
         y = activation.values[:self.seq_length]
         n_zeros_to_pad = self.seq_length - len(y)
         y = np.pad(y, (0, n_zeros_to_pad), 'constant')

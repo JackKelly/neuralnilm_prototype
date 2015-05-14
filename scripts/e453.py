@@ -155,6 +155,7 @@ def exp_a(name):
         }
     ]
     net = Net(**net_dict_copy)
+    net.load_params(2053)
     return net
 
 

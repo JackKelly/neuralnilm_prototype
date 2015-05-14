@@ -425,7 +425,7 @@ class Net(object):
         f = h5py.File(filename, mode='r')
         epoch_name = 'epoch{:06d}'.format(iteration)
         epoch_group = f[epoch_name]
-            
+
         layers = get_all_layers(self.layers[-1])
         layers.reverse()
         for layer_i, layer in enumerate(layers):
@@ -442,6 +442,7 @@ class Net(object):
                 param.set_value(data.value)
         f.close()
         self.logger.info('Done loading params from ' + filename + '.')
+
         def load_csv(key):
             filename = self.csv_filenames[key]
             data = np.genfromtxt(filename, delimiter=',')[:iteration, :]
@@ -450,9 +451,20 @@ class Net(object):
             self._write_csv_headers(key)
             with open(filename, mode='a') as fh:
                 np.savetxt(fh, data, delimiter=',')
-            return list(data[:,1])
+            return list(data[:, 1])
+
         self.training_costs = load_csv('training_costs')
         self.validation_costs = load_csv('validation_costs')
+
+        # set learning rate
+        if self.learning_rate_changes_by_iteration:
+            keys = self.learning_rate_changes_by_iteration.keys()
+            keys.sort(reverse=True)
+            for key in keys:
+                if key < iteration:
+                    self.learning_rate = (
+                        self.learning_rate_changes_by_iteration[key])
+                    break
 
     def save_activations(self):
         if not self.do_save_activations:
