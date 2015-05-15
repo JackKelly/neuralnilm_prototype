@@ -359,8 +359,12 @@ BUG: something weird with alignment of validation data.
 not working well.  washer in house 5 is quite odd!
 
 475: train and validate on all 5 buildings
-bulding 4's washing machine is odd.  ignoring
+building 4's washing machine is odd (because NILMTK was taking min of
+all appliances per meter)
 
 476: train and validate on 1,2,3,5
 
 477: 476 but take out additional two dense layers
+
+478: divide n_seq_per_batch / len(validation_buildings) when throwing
+away from data.  Longer seq.  Use house 4.

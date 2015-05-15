@@ -1038,7 +1038,8 @@ class SameLocation(RandomSegments):
         # pick an activation
         activations = self.activations[building_i]
         if set(self.validation_buildings) == set(self.train_buildings):
-            n_validation_activations = self.n_seq_per_batch
+            n_validation_activations = (
+                self.n_seq_per_batch // len(self.validation_buildings))
             if validation:
                 activations = activations[:n_validation_activations]
             else:
