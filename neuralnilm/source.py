@@ -994,6 +994,12 @@ class SameLocation(RandomSegments):
                      else self.train_buildings)
         building_i = self.rng.choice(buildings, 1)[0]
         activations = self.activations[building_i]
+        if set(self.validation_buildings) == set(self.train_buildings):
+            n_validation_activations = self.n_seq_per_batch
+            if validation:
+                activations = activations[n_validation_activations:]
+            else:
+                activations = activations[:n_validation_activations]
         activation_i = self.rng.randint(low=0, high=len(activations)-1)
         activation = activations[activation_i]
         y = activation.values
