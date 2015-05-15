@@ -368,3 +368,6 @@ all appliances per meter)
 
 478: divide n_seq_per_batch / len(validation_buildings) when throwing
 away from data.  Longer seq.  Use house 4.
+
+479: don't offset and ignore some activations. Also don't
+independently center inputs.
