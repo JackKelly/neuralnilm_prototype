@@ -36,7 +36,7 @@ def init_experiment(base_path, experiment, full_exp_name):
     logger.info("***********************************")
     logger.info("Preparing " + full_exp_name + "...")
     return func_call
-    
+
 
 def run_experiment(net, epochs):
     net.print_net()

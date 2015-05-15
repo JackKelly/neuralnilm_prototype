@@ -965,7 +965,10 @@ def exp_l(name):
 def exp_m(name):
     global source
     source_dict_copy = deepcopy(source_dict)
-    source_dict_copy['target_appliance'] = 'washer dryer'
+    source_dict_copy.update(dict(
+        logger=logging.getLogger(name),
+        target_appliance='washer dryer'
+    ))
     source = SameLocation(**source_dict_copy)
     net_dict_copy = deepcopy(net_dict)
     net_dict_copy.update(dict(

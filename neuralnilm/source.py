@@ -11,6 +11,7 @@ from lasagne.utils import floatX
 from warnings import warn
 import gc
 from nilmtk.electric import activation_series_for_chunk
+import logging
 
 
 SECS_PER_DAY = 60 * 60 * 24
@@ -18,6 +19,7 @@ SECS_PER_DAY = 60 * 60 * 24
 
 class Source(object):
     def __init__(self, seq_length, n_seq_per_batch, n_inputs, n_outputs,
+                 logger=None,
                  X_processing_func=lambda X: X,
                  y_processing_func=lambda y: y,
                  reshape_target_to_2D=False,
@@ -40,6 +42,14 @@ class Source(object):
         ----------
         clock_type : {'one_hot', 'ramp'}
         """
+        if logger is None:
+            self.logger = logging.getLogger(__name__)
+            self.logger.setLevel(logging.DEBUG)
+            if not self.logger.handlers:
+                self.logger.addHandler(logging.StreamHandler(stdout))
+        else:
+            self.logger = logger
+
         self.seq_length = seq_length
         self.n_seq_per_batch = n_seq_per_batch
         self.n_inputs = n_inputs
@@ -66,6 +76,8 @@ class Source(object):
         self.standardise_input = standardise_input
         self.standardise_targets = standardise_targets
         self.unit_variance_targets = unit_variance_targets
+
+        self._init_data()
         self._initialise_standardisation()
 
         if 'lag' in self.__dict__:
@@ -74,6 +86,9 @@ class Source(object):
         self.clock_type = clock_type
         self.two_pass = two_pass
 
+    def _init_data():
+        pass
+        
     def start(self):
         if self._thread is not None:
             return
@@ -120,6 +135,11 @@ class Source(object):
                 length = self.seq_length
             y = y.reshape(int(self.n_seq_per_batch * length), self.n_outputs)
             self.target_stats = {'mean': y.mean(axis=0), 'std': y.std(axis=0)}
+
+        np.save('target_stats_mean', self.target_stats['mean'])
+        np.save('target_stats_std', self.target_stats['std'])
+        np.save('input_stats_mean', self.input_stats['mean'])
+        np.save('input_stats_std', self.input_stats['std'])
 
     def stop(self):
         self.empty_queue()
@@ -435,7 +455,7 @@ class RealApplianceSource(Source):
         self.ensure_all_appliances_represented = (
             ensure_all_appliances_represented)
 
-        print("Loading training activations...")
+        self.logger.info("Loading training activations...")
         if on_power_thresholds is None:
             on_power_thresholds = [None] * len(self.appliances)
         if min_on_durations is None:
@@ -447,7 +467,7 @@ class RealApplianceSource(Source):
         if train_buildings == validation_buildings:
             self.validation_activations = self.train_activations
         else:
-            print("\nLoading validation activations...")
+            self.logger.info("Loading validation activations...")
             self.validation_activations = self._load_activations(
                 validation_buildings, min_on_durations, min_off_durations,
                 on_power_thresholds)
@@ -463,7 +483,7 @@ class RealApplianceSource(Source):
             **kwargs
         )
         assert not (self.input_padding and self.random_window)
-        print("\nDone loading activations.")
+        self.logger.info("Done loading activations.")
 
     def get_labels(self):
         return self.train_activations.keys()
@@ -478,9 +498,9 @@ class RealApplianceSource(Source):
                 appliance = self.appliances[appliance_i]
                 if isinstance(appliance, list):
                     appliance = appliance[0]
-                print("  Loading activations for", appliance,
-                      "from building", building_i, end="... ")
-                stdout.flush()
+                self.logger.info(
+                    "  Loading activations for {} from building {}..."
+                    .format(appliance, building_i))
                 activation_series = meter.activation_series(
                     on_power_threshold=on_power_thresholds[appliance_i],
                     min_on_duration=min_on_durations[appliance_i],
@@ -490,7 +510,8 @@ class RealApplianceSource(Source):
                     max_power=self.max_appliance_powers[appliance],
                     sample_period=self.sample_period,
                     clip_appliance_power=self.clip_appliance_power)
-                print("Loaded", len(activation_series), "activations.")
+                self.logger.info(
+                    "Loaded {:d} activations.".format(len(activation_series)))
         return activations
 
     def _gen_single_example(self, validation=False, appliances=None):
@@ -686,7 +707,8 @@ class NILMTKSource(Source):
         min_duration_secs = self.sample_period * self.seq_length
         min_duration = timedelta(seconds=min_duration_secs)
         for building_i in self._all_buildings():
-            print("init good sections for building", building_i)
+            self.logger.info(
+                "init good sections for building {}".format(building_i))
             mains = self.dataset.buildings[building_i].elec.mains()
             self.good_sections[building_i] = [
                 section for section in mains.good_sections()
@@ -821,12 +843,12 @@ class NILMTKSourceOld(Source):
                     X[seq_i, :, :] = X_one_seq.reshape(self.seq_length, 1)
                     y[seq_i, :, :] = y_one_seq.reshape(self.seq_length, 1)
                 except ValueError as e:
-                    print(e)
-                    print("Skipping", start)
+                    self.logger.info(e)
+                    self.logger.info("Skipping {}".format(start))
                 else:
                     seq_i += 1
             else:
-                print("Skipping", start)
+                self.logger.info("Skipping {}".format(start))
         return X, y
 
     def _gen_data(self, *args, **kwargs):
@@ -859,7 +881,6 @@ class RandomSegments(Source):
         self.validation_buildings = validation_buildings
         self.sample_period = sample_period
         self.ignore_incomplete = ignore_incomplete
-        self._init_data()
         super(RandomSegments, self).__init__(n_outputs=1, n_inputs=1, **kwargs)
 
     def _init_data(self):
@@ -990,9 +1011,14 @@ class SameLocation(RandomSegments):
         * pick an activation at random
         * data is that activation, padded at the end, plus mains at same time.
         """
+        N_LEAD_IN = 50  # number of samples to lead in with
+
+        # pick a building
         buildings = (self.validation_buildings if validation
                      else self.train_buildings)
         building_i = self.rng.choice(buildings, 1)[0]
+
+        # pick an activation
         activations = self.activations[building_i]
         if set(self.validation_buildings) == set(self.train_buildings):
             n_validation_activations = self.n_seq_per_batch
@@ -1002,11 +1028,11 @@ class SameLocation(RandomSegments):
                 activations = activations[:n_validation_activations]
         activation_i = self.rng.randint(low=0, high=len(activations)-1)
         activation = activations[activation_i]
-        y = activation.values
+        y = np.pad(activation.values, (N_LEAD_IN, 0), 'constant')
 
         # random offset (number of samples)
         if self.rng.binomial(n=1, p=self.offset_probability):
-            offset = self.rng.randint(low=1, high=50)
+            offset = self.rng.randint(low=1, high=N_LEAD_IN)
             if self.rng.binomial(n=1, p=0.5):
                 # shift backwards
                 y = y[offset:]
@@ -1020,7 +1046,7 @@ class SameLocation(RandomSegments):
         else:
             offset = 0
 
-        # clip or pad to get seq to exactly self.seq_length samples
+        # clip or pad to get seq length to be exactly self.seq_length samples
         def clip_or_pad(data):
             data = data[:self.seq_length]
             n_zeros_to_pad = self.seq_length - len(data)
@@ -1031,7 +1057,8 @@ class SameLocation(RandomSegments):
 
         # get mains
         mains = self.mains[building_i]
-        start = activation.index[0]
+        start = activation.index[0] - timedelta(
+            seconds=N_LEAD_IN * self.sample_period)
         if offset:
             offset_timedelta = timedelta(seconds=offset * self.sample_period)
             if offset_direction == 'backwards':
@@ -1050,10 +1077,11 @@ class SameLocation(RandomSegments):
         for building_i in self.get_all_buildings():
             elec = self.dataset.buildings[building_i].elec
             meter = elec[self.target_appliance]
-            activation_series = meter.activation_series(border=50)
+            activation_series = meter.activation_series()
             activations[building_i] = _preprocess_activations(
                 activation_series)
-            print("Loaded", len(activation_series), "activations.")
+            self.logger.info(
+                "Loaded {:d} activations.".format(len(activation_series)))
         self.activations = activations
         gc.collect()
 
@@ -1066,7 +1094,8 @@ class SameLocation(RandomSegments):
                 sample_period=self.sample_period)
             mains_data.fillna(0, inplace=True)
             mains[building_i] = mains_data
-            print("Loaded mains data for building", building_i)
+            self.logger.info(
+                "Loaded mains data for building {:d}.".format(building_i))
         self.mains = mains
         gc.collect()
 
@@ -1211,7 +1240,7 @@ def _preprocess_activations(activations, max_power=None, sample_period=6,
         if clip_appliance_power:
             activation = activation.clip(0, max_power)
         activation = activation.tz_convert(tz)
-        activations[i] = floatX(activation)
+        activations[i] = activation.astype(np.float32)
     return activations
 
 

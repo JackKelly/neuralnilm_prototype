@@ -314,3 +314,6 @@ not so good.  But it's quite a small signal
 m: washer dryer
 not doing a great job but training data is a bit duff:
 TODO: need to set min_on_duration and min_off_duration
+
+456: new code. Use different data for validation.  Better treatment of
+min_off_duration and min_on_duration. SEQ_LENGTH = 1200.
