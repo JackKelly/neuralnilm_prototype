@@ -982,9 +982,7 @@ class SameLocation(RandomSegments):
         * Load all mains data into memory
         """
         self._load_activations()
-        gc.collect()
         self._load_mains()
-        gc.collect()
 
     def _gen_single_example(self, validation=False):
         """
@@ -1051,6 +1049,7 @@ class SameLocation(RandomSegments):
                 activation_series)
             print("Loaded", len(activation_series), "activations.")
         self.activations = activations
+        gc.collect()
 
     def _load_mains(self):
         mains = OrderedDict()
@@ -1063,6 +1062,7 @@ class SameLocation(RandomSegments):
             mains[building_i] = mains_data
             print("Loaded mains data for building", building_i)
         self.mains = mains
+        gc.collect()
 
 
 def quantize(data, n_bins, all_hot=True, range=(-1, 1), length=None):
