@@ -1034,7 +1034,7 @@ def exp_m(name):
 
 
 def main():
-    EXPERIMENTS = list('abcdefghijklmn')
+    EXPERIMENTS = list('abcdefghijklm')
     for experiment in EXPERIMENTS:
         full_exp_name = NAME + experiment
         func_call = init_experiment(PATH, experiment, full_exp_name)

@@ -265,15 +265,52 @@ avg valid cost =  0.2055538595
 
 455:
 a: like 454b but change learning rate and longer seq and 8 filters
+avg valid cost =  0.2308402061
+Does a pretty decent job. false positives: 19 and 24
 
 b: 4 filters
+avg valid cost =  0.2294353545
 
 c: 2 filters
+avg valid cost =  0.2682644725
 
 d: 8 filters and 2 additional layers
+avg valid cost =  0.2024637163
 
 e: like d but down to 64d middle layer
+avg valid cost =  0.1990027875
+Dose a nice job also. Still some false positives, esp 19 and 24
 
-TODO:
-* ensure 75% of training examples include target.
-* use same scaling factor for target and input
+f-m: different appliances
+
+f: coffee maker
+doing a pretty stunning job.
+TODO: Perhaps need to set min_on_duration and min_off_duration?  Although I'm not sure
+the MSc students will have done that.
+
+g: dish washer
+some oddly aligned data, e.g. 21
+TODO: set min_off_duration
+
+h: hair dryer
+TODO: set min_off_duration
+
+i: kettle
+really nice
+
+j: oven
+very nice
+
+k: toaster
+big false positives: 1, 11
+TODO: min_off_duration and on_power_threshold (to ignore other things
+plugged in)
+very nice
+
+l: light (kitchen lights)
+also some odd alignment issues.  e.g. 6
+not so good.  But it's quite a small signal
+
+m: washer dryer
+not doing a great job but training data is a bit duff:
+TODO: need to set min_on_duration and min_off_duration
