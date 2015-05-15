@@ -317,3 +317,50 @@ TODO: need to set min_on_duration and min_off_duration
 
 456: new code. Use different data for validation.  Better treatment of
 min_off_duration and min_on_duration. SEQ_LENGTH = 1200.
+
+457: fridge seq_length = 512. middle layer = 16d
+
+458: don't offset targets. don't ignore any targets
+
+459: stop before we overfit! (but do so in a rather naive way)
+
+461: independently centre inputs
+
+462: dropna for mains.  And ignore offset activations.
+
+463: smaller dense0 and reduce num_filters to 4
+Definitely reduces over fitting ;)
+
+464: like 463 but with dropout after every dense layer.
+
+465: exactly same as 463 except fixed bug where we'd only use the
+first 64 activations for training!!!
+
+466: back to large dense0 and |middle layer| = seq_length
+
+467: adding 2 more dense layers, drop down to 32d in middle
+
+468: train on houses 1,2,4. Validate on 5.
+avg valid cost =  0.3297388554
+
+469: same as 468 but |middle layer| = seq_length again
+avg valid cost =  0.3469952643 
+
+470: washer dryer. 4 filters. |middle layer| = 128
+BUG: something weird with alignment of validation data.
+
+471: same as 470 but only my house
+
+472: same as 471 but high min_on_duration and min_off_duration for washer.
+
+473: same as 472 but halve seq length
+
+474: same as 473 but use houses 1,2,3,4 for train and 5 for validation
+not working well.  washer in house 5 is quite odd!
+
+475: train and validate on all 5 buildings
+bulding 4's washing machine is odd.  ignoring
+
+476: train and validate on 1,2,3,5
+
+477: 476 but take out additional two dense layers

@@ -169,12 +169,15 @@ class Net(object):
 
             if layer_label is not None:
                 self.layer_labels[layer_label] = layer
-            
 
         # Reshape output if necessary...
-        if (self.layers[-1].get_output_shape() != self.output_shape and 
+        if (self.layers[-1].get_output_shape() != self.output_shape and
             layer_type != MixtureDensityLayer):
             self.layers.append(ReshapeLayer(self.layers[-1], self.output_shape))
+
+        self.logger.info("Total parameters = {}".format(
+            sum([p.get_value().size for p in
+                 lasagne.layers.get_all_params(self.layers[-1])])))
 
     def print_net(self):
         layers = get_all_layers(self.layers[-1])

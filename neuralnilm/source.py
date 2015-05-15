@@ -992,9 +992,13 @@ class SameLocation(RandomSegments):
     def __init__(self,
                  offset_probability=0,
                  ignore_offset_activations=False,
+                 clip_appliance_power=False,
+                 max_appliance_power=1000,
                  *args, **kwargs):
         self.offset_probability = offset_probability
         self.ignore_offset_activations = ignore_offset_activations
+        self.clip_appliance_power = clip_appliance_power
+        self.max_appliance_power = max_appliance_power
         super(SameLocation, self).__init__(*args, **kwargs)
 
     def _init_data(self):
@@ -1006,6 +1010,19 @@ class SameLocation(RandomSegments):
         self._load_mains()
 
     def _gen_single_example(self, validation=False):
+        N_RETRIES = 50
+        for retry in range(N_RETRIES):
+            X, y = self._gen_single_example_(validation)
+            if X is None:
+                continue
+            if len(X) == self.seq_length:
+                return X, y
+        if X is None:
+            raise RuntimeError("X is None")
+        else:
+            raise RuntimeError("X has wrong length: {}".format(len(X)))
+
+    def _gen_single_example_(self, validation=False):
         """
         * pick building at random
         * pick an activation at random
@@ -1023,9 +1040,11 @@ class SameLocation(RandomSegments):
         if set(self.validation_buildings) == set(self.train_buildings):
             n_validation_activations = self.n_seq_per_batch
             if validation:
-                activations = activations[n_validation_activations:]
-            else:
                 activations = activations[:n_validation_activations]
+            else:
+                activations = activations[n_validation_activations:]
+        if len(activations) == 0:
+            return None, None
         activation_i = self.rng.randint(low=0, high=len(activations)-1)
         activation = activations[activation_i]
         y = np.pad(activation.values, (N_LEAD_IN, 0), 'constant')
@@ -1069,19 +1088,39 @@ class SameLocation(RandomSegments):
         end = start + timedelta(
             seconds=(self.seq_length * self.sample_period) - 1)
         X = mains[start:end].values
-        X = clip_or_pad(X)
         return X, y
 
     def _load_activations(self):
         activations = OrderedDict()
         for building_i in self.get_all_buildings():
             elec = self.dataset.buildings[building_i].elec
-            meter = elec[self.target_appliance]
-            activation_series = meter.activation_series()
+            if isinstance(self.target_appliance, list):
+                for app in self.target_appliance:
+                    try:
+                        meter = elec[app]
+                    except KeyError:
+                        continue
+                    else:
+                        target_app = app
+                        break
+                else:
+                    activations[building_i] = []
+                    self.logger.info(
+                        "Building {} has no {}".format(building_i, app))
+                    continue
+            else:
+                meter = elec[self.target_appliance]
+                target_app = self.target_appliance
+
+            activation_series = meter.activation_series(
+                on_power_threshold=40)
             activations[building_i] = _preprocess_activations(
-                activation_series)
+                activation_series,
+                max_power=self.max_appliance_power,
+                clip_appliance_power=self.clip_appliance_power)
             self.logger.info(
-                "Loaded {:d} activations.".format(len(activation_series)))
+                "Loaded {:d} {:s} activations from house {:d}.".
+                format(len(activation_series), target_app, building_i))
         self.activations = activations
         gc.collect()
 
@@ -1092,7 +1131,7 @@ class SameLocation(RandomSegments):
             meter = elec.mains()
             mains_data = meter.power_series_all_data(
                 sample_period=self.sample_period)
-            mains_data.fillna(0, inplace=True)
+            mains_data = mains_data.dropna()
             mains[building_i] = mains_data
             self.logger.info(
                 "Loaded mains data for building {:d}.".format(building_i))
