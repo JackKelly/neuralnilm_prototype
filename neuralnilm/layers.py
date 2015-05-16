@@ -5,26 +5,25 @@ import theano.tensor as T
 import numpy as np
 
 from lasagne.layers import (Layer, LSTMLayer, RecurrentLayer, ElemwiseSumLayer,
-                            DimshuffleLayer, Conv1DLayer, DenseLayer)
+                            Conv1DLayer, DenseLayer)
 from lasagne.layers.conv import conv_output_length
 from lasagne import nonlinearities
 from lasagne import init
-from lasagne.utils import floatX
 
 from neuralnilm.utils import remove_nones
 
-            
+
 def BLSTMLayer(*args, **kwargs):
     """Configures forward and backwards LSTM layers to create a
     bidirectional LSTM.
 
     If learn_init=True then you can't have multiple
-    layers of LSTM cells.  
+    layers of LSTM cells.
     See https://github.com/craffel/nntools/issues/11
     """
     return BidirectionalLayer(LSTMLayer, *args, **kwargs)
 
-          
+
 def BidirectionalRecurrentLayer(*args, **kwargs):
     """Configures forward and backwards RecurrentLayers to create a
     bidirectional recurrent layer."""
@@ -39,7 +38,7 @@ def BidirectionalLayer(layer_class, *args, **kwargs):
 
 
 class MixtureDensityLayer(Layer):
-    """Mixture density network output layer [#bishop1994]. 
+    """Mixture density network output layer [#bishop1994].
 
     MDNs are trained to minimise the negative log likelihood of its parameters
     given the data.  This can be done using, for example, SGD.
@@ -49,15 +48,15 @@ class MixtureDensityLayer(Layer):
     * github.com/aalmah/ift6266amjad/blob/master/experiments/mdn.py
 
     :references:
-        .. [#bishop1994] Christopher Bishop. "Mixture density networks". 
-           Neural Computing Research Group, Aston University. 
+        .. [#bishop1994] Christopher Bishop. "Mixture density networks".
+           Neural Computing Research Group, Aston University.
            Tech. Rep. NCRG/94/004. (1994)
     """
 
-    def __init__(self, incomming, num_units, 
+    def __init__(self, incomming, num_units,
                  num_components=2,
-                 W_mu=None, 
-                 W_sigma=None, 
+                 W_mu=None,
+                 W_sigma=None,
                  W_mixing=None,
                  b_mu=init.Constant(0.),
                  b_sigma=init.Constant(0.),
@@ -66,8 +65,7 @@ class MixtureDensityLayer(Layer):
                  nonlinearity_mu=nonlinearities.identity,
                  nonlinearity_sigma=T.nnet.softplus,
                  nonlinearity_mixing=T.nnet.softmax,
-                 **kwargs
-             ):
+                 **kwargs):
         """
         :parameters:
             - num_units : int
@@ -80,7 +78,7 @@ class MixtureDensityLayer(Layer):
                 The nonlinearity that is applied to the layer's mu activations.
                 If None is provided, the layer will be linear.
 
-            - W_mu, W_sigma, W_mixing, b_mu, b_sigma, b_mixing : 
+            - W_mu, W_sigma, W_mixing, b_mu, b_sigma, b_mixing :
                 Theano shared variable, numpy array or callable
         """
         super(MixtureDensityLayer, self).__init__(incomming, **kwargs)
@@ -105,7 +103,7 @@ class MixtureDensityLayer(Layer):
             W_mixing = None
             b_mixing = None
             self.mixing_all_ones = T.constant(
-                np.ones(shape=self.param_output_shape, 
+                np.ones(shape=self.param_output_shape,
                         dtype=theano.config.floatX))
         elif W_mixing is None:
             W_mixing = init.Uniform(init_value)
@@ -115,7 +113,7 @@ class MixtureDensityLayer(Layer):
                 return None
             else:
                 return self.create_param(param, *args, **kwargs)
-    
+
         # weights
         weight_shape = (num_inputs, num_units * num_components)
         self.W_mu = create_param(W_mu, weight_shape, name='W_mu')
@@ -132,10 +130,10 @@ class MixtureDensityLayer(Layer):
         """
         :returns:
             A tensor.  The dimensions are:
-            1. batch_size 
+            1. batch_size
             2. num_units
             3. number of mixture components
-            4. The last dimension always has exactly 3 elements: 
+            4. The last dimension always has exactly 3 elements:
                1) mu, 2) sigma, 3) mixing.
         """
         if input.ndim > 2:
@@ -209,12 +207,12 @@ class DeConv1DLayer(Conv1DLayer):
         #         self.shared_weights = True
 
         #     kwargs['W'] = W
-            
-        # self.shared_weights = (False if shared_weights is None 
+
+        # self.shared_weights = (False if shared_weights is None
         #                        else shared_weights)
 
         super(DeConv1DLayer, self).__init__(
-            incomming, num_filters=num_output_channels, 
+            incomming, num_filters=num_output_channels,
             filter_length=filter_length, border_mode=border_mode, **kwargs)
 
     def get_W_shape(self):
@@ -237,6 +235,7 @@ class DeConv1DLayer(Conv1DLayer):
         if not self.shared_biases:
             params.extend(self.get_bias_params())
         return params
+
 
 class SharedWeightsDenseLayer(DenseLayer):
     def get_params(self):
