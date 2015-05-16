@@ -314,21 +314,24 @@ class PolygonOutputLayer(Layer):
             time_output = forward_pass('time')
 
             # add to computational graph
-            scale_output = scale_output + (0.1 * time_output)
+            scale_output += 0.1 * time_output
 
             # TODO handle batches
-            batch_i = 0
-            segments = []
-            for segment_i in range(self.num_units):
-                segment_length = (
-                    self.seq_length * time_output[batch_i, segment_i])
-                segment_length = segment_length.round().astype('int32')
-                segment = scale_output[batch_i, segment_i].repeat(
-                    repeats=segment_length)
-                segments.append(segment)
+            batches = []
+            for batch_i in range(1):
+                segments = []
+                for segment_i in range(self.num_units):
+                    segment_length = (
+                        self.seq_length * time_output[batch_i, segment_i])
+                    segment_length = segment_length.round().astype('int32')
+                    segment = scale_output[batch_i, segment_i].repeat(
+                        repeats=segment_length)
+                    segments.append(segment)
 
-            output = T.concatenate(segments)[np.newaxis, :]
+                batch_output = T.concatenate(segments)[np.newaxis, :self.seq_length]
+                batches.append(batch_output)
 
+            output = T.concatenate(batches, axis=0)
         return output
 
     def get_params(self):

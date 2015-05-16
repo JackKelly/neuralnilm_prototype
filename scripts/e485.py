@@ -40,9 +40,9 @@ import gc
 NAME = os.path.splitext(os.path.split(__main__.__file__)[1])[0]
 #PATH = "/homes/dk3810/workspace/python/neuralnilm/figures"
 PATH = "/data/dk3810/figures"
-SAVE_PLOT_INTERVAL = 1000
+SAVE_PLOT_INTERVAL = 5000
 
-N_SEQ_PER_BATCH = 2
+N_SEQ_PER_BATCH = 1
 
 source_dict = dict(
     filename='/data/dk3810/ukdale.h5',
@@ -160,6 +160,6 @@ if __name__ == "__main__":
 """
 Emacs variables
 Local Variables:
-compile-command: "cp /home/jack/workspace/python/neuralnilm/scripts/e484.py /mnt/sshfs/imperial/workspace/python/neuralnilm/scripts/"
+compile-command: "cp /home/jack/workspace/python/neuralnilm/scripts/e485.py /mnt/sshfs/imperial/workspace/python/neuralnilm/scripts/"
 End:
 """
