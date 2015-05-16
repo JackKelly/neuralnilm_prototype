@@ -315,7 +315,7 @@ class PolygonOutputLayer(Layer):
 
             # add to computational graph
             last_scale = scale_output[:, -1]
-            scale_output = scale_output[:, :-1] + (0 * time_output)
+            scale_output = scale_output[:, :-1] + (0.1 * time_output)
 
             # TODO handle batches
             batch_i = 0
@@ -326,51 +326,17 @@ class PolygonOutputLayer(Layer):
                     remaining_length * time_output[batch_i, segment_i])
                 segment_length = segment_length.astype('int32')
                 segment = scale_output[batch_i, segment_i].repeat(
-                    repeats=segment_length)
+                    repeats=self.seq_length)[:segment_length]
                 segments.append(segment)
                 remaining_length -= segment_length
 
             # Add last segment
-            segment = last_scale[batch_i].repeat(repeats=remaining_length)
+            segment = last_scale[batch_i].repeat(repeats=self.seq_length)[:remaining_length]
             segments.append(segment)
 
             output = T.concatenate(segments)[np.newaxis, :]
 
-            # add W_time and b_time to compute graph
-            # output += 0 * self.W_time.T
-            # if self.b_time is not None:
-            #     output += 0 * self.b_time.dimshuffle(0, 'x')
-
         return output
-    """
-
-            def step(time, scale, prev_concat=None):
-                if prev_concat is None:
-                    remaining_length = self.seq_length
-                else:
-                    remaining_length = self.seq_length - prev_concat.shape[0]
-                segment_length = (remaining_length * time[batch_i]).astype('int32')
-                segment = scale.repeat(repeats=segment_length)
-                if prev_concat is None:
-                    return segment
-                else:
-                    return T.concatenate((prev_concat, segment))
-
-            output = theano.scan(
-                step, sequences=(time_output, scale_output[:-1]))[0]
-
-            remaining_length = self.seq_length - output.shape[1]
-            # TODO might need to check if > 0
-            segment = scale_output[-1].repeat(repeats=remaining_length)[np.newaxis, :]
-            output = T.concatenate((output, segment), axis=1)
-
-            # add W_time and b_time to compute graph
-            output += 0 * self.W_time.T
-            if self.b_time is not None:
-                output += 0 * self.b_time.dimshuffle(0, 'x')
-
-        return output
-    """
 
     def get_params(self):
         weight_params = remove_nones(self.W_scale, self.W_time)
