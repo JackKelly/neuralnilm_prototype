@@ -294,16 +294,35 @@ class PolygonOutputLayer(Layer):
             # batch of feature vectors.
             input = input.flatten(2)
 
-        scale_activation = T.dot(input, self.W_scale)
-        if self.b_scale is not None:
-            scale_activation += self.b_scale.dimshuffle('x', 0)
-        scale_output = self.nonlinearity_scale(scale_activation)
+        def forward_pass(param):
+            W = getattr(self, 'W_' + param)
+            b = getattr(self, 'b_' + param)
+            nonlinearity = getattr(self, 'nonlinearity_' + param)
+            activation = T.dot(input, W)
+            if b is not None:
+                activation += b.dimshuffle('x', 0)
+            output = nonlinearity(activation)
+            output.name = param
+            return output
+
+        scale_output = forward_pass('scale')[:, :, np.newaxis]
 
         if self.num_units == 1:
-            scale_output = scale_output.repeat(repeats=self.seq_length, axis=1)
-            return scale_output[:, :, np.newaxis]
+            output = scale_output.repeat(repeats=self.seq_length, axis=1)
         else:
-            raise NotImplementedError()
+            time_output = forward_pass('time')
+            # TODO handle batches
+            batch_i = 0
+            segments = []
+            remaining_length = self.seq_length
+            for segment_i in range(self.num_units):
+                segment_length = remaining_length * time_output[batch_i, segment_i]
+                segment = scale_output.repeat(repeats=segment_length.eval(), axis=1)
+                segments.append(segment)
+                remaining_length -= segment_length
+            output = T.concatenate(segments, axis=1)
+
+        return output
 
     def get_params(self):
         weight_params = remove_nones(self.W_scale, self.W_time)
