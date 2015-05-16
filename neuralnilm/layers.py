@@ -311,11 +311,38 @@ class PolygonOutputLayer(Layer):
             output = scale_output.repeat(repeats=self.seq_length, axis=1)
         else:
             # We want scan to iterate over num_units
-            time_output = forward_pass('time').dimshuffle(1, 0)
-            scale_output = scale_output.dimshuffle(1, 0)
+            time_output = forward_pass('time')
 
-            # TODO handle batches            
+            # add to computational graph
+            last_scale = scale_output[:, -1]
+            scale_output = scale_output[:, :-1] + (0 * time_output)
+
+            # TODO handle batches
             batch_i = 0
+            segments = []
+            remaining_length = self.seq_length
+            for segment_i in range(self.num_units-1):
+                segment_length = (
+                    remaining_length * time_output[batch_i, segment_i])
+                segment_length = segment_length.astype('int32')
+                segment = scale_output[batch_i, segment_i].repeat(
+                    repeats=segment_length)
+                segments.append(segment)
+                remaining_length -= segment_length
+
+            # Add last segment
+            segment = last_scale[batch_i].repeat(repeats=remaining_length)
+            segments.append(segment)
+
+            output = T.concatenate(segments)[np.newaxis, :]
+
+            # add W_time and b_time to compute graph
+            # output += 0 * self.W_time.T
+            # if self.b_time is not None:
+            #     output += 0 * self.b_time.dimshuffle(0, 'x')
+
+        return output
+    """
 
             def step(time, scale, prev_concat=None):
                 if prev_concat is None:
@@ -343,6 +370,7 @@ class PolygonOutputLayer(Layer):
                 output += 0 * self.b_time.dimshuffle(0, 'x')
 
         return output
+    """
 
     def get_params(self):
         weight_params = remove_nones(self.W_scale, self.W_time)
