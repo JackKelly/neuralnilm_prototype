@@ -17,15 +17,15 @@ theano.config.compute_test_value = 'raise'
 import lasagne
 from lasagne.layers import (InputLayer, LSTMLayer, ReshapeLayer, Layer,
                             ConcatLayer, ElemwiseSumLayer, DenseLayer,
-                            get_all_layers, Conv1DLayer, FeaturePoolLayer, 
-                            RecurrentLayer)
+                            get_all_layers, Conv1DLayer, FeaturePoolLayer,
+                            RecurrentLayer, DimshuffleLayer)
 from lasagne.nonlinearities import sigmoid, rectify
 from lasagne.utils import floatX
 from lasagne.updates import nesterov_momentum
 from lasagne.layers.batch_norm import batch_norm
 
 from .source import quantize
-from .layers import BLSTMLayer, DimshuffleLayer, MixtureDensityLayer, BidirectionalRecurrentLayer
+from .layers import BLSTMLayer, MixtureDensityLayer, BidirectionalRecurrentLayer
 from .utils import sfloatX, none_to_dict, ndim_tensor
 from .plot import Plotter
 

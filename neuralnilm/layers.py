@@ -240,3 +240,84 @@ class DeConv1DLayer(Conv1DLayer):
 class SharedWeightsDenseLayer(DenseLayer):
     def get_params(self):
         return self.get_bias_params()
+
+
+class PolygonOutputLayer(Layer):
+    def __init__(self, incomming, num_units, seq_length,
+                 W_scale=init.Uniform(),
+                 W_time=init.Uniform(),
+                 b_scale=init.Constant(0.),
+                 b_time=init.Constant(0.),
+                 nonlinearity_scale=nonlinearities.identity,
+                 nonlinearity_time=nonlinearities.sigmoid,
+                 **kwargs):
+        """
+        :parameters:
+            - num_units : int
+                Number of segments the layer can represent.
+
+            - seq_length : int
+                Number of segments the layer can represent.
+
+            - nonlinearity_scale, nonlinearity_time : callable or None
+
+            - W_scale, W_time, b_scale, b_time :
+                Theano shared variable, numpy array or callable
+        """
+        super(PolygonOutputLayer, self).__init__(incomming, **kwargs)
+        self.num_units = num_units
+        self.seq_length = seq_length
+        self.nonlinearity_scale = nonlinearity_scale
+        self.nonlinearity_time = nonlinearity_time
+
+        # params
+        num_inputs = int(np.prod(self.input_shape[1:]))
+        self.W_scale = self.create_param(
+            W_scale, (num_inputs, num_units), name='W_scale')
+        self.b_scale = (self.create_param(
+            b_scale, (num_units, ), name='b_scale')
+            if b_scale is not None else None)
+
+        if num_units > 1:
+            self.W_time = self.create_param(
+                W_time, (num_inputs, num_units-1), name='W_time')
+            self.b_time = (self.create_param(
+                b_time, (num_units-1, ), name='b_time')
+                if b_time is not None else None)
+        else:
+            self.W_time = None
+            self.b_time = None
+
+    def get_output_for(self, input, *args, **kwargs):
+        if input.ndim > 2:
+            # if the input has more than two dimensions, flatten it into a
+            # batch of feature vectors.
+            input = input.flatten(2)
+
+        scale_activation = T.dot(input, self.W_scale)
+        if self.b_scale is not None:
+            scale_activation += self.b_scale.dimshuffle('x', 0)
+        scale_output = self.nonlinearity_scale(scale_activation)
+
+        if self.num_units == 1:
+            scale_output = scale_output.repeat(repeats=self.seq_length, axis=1)
+            return scale_output[:, :, np.newaxis]
+        else:
+            raise NotImplementedError()
+
+    def get_params(self):
+        weight_params = remove_nones(self.W_scale, self.W_time)
+        return weight_params + self.get_bias_params()
+
+    def get_bias_params(self):
+        return remove_nones(self.b_scale, self.b_time)
+
+    def get_output_shape_for(self, input_shape):
+        return (input_shape[0], self.seq_length, 1)
+
+"""
+Emacs variables
+Local Variables:
+compile-command: "cp /home/jack/workspace/python/neuralnilm/neuralnilm/layers.py /mnt/sshfs/imperial/workspace/python/neuralnilm/neuralnilm/"
+End:
+"""
