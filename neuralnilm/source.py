@@ -886,35 +886,61 @@ class RandomSegments(Source):
     def _init_data(self):
         """Overridden by sub-classes."""
         self.good_sections = {}
+        seq_duration_secs = self.seq_length * self.sample_period
         for building_i in self.get_all_buildings():
             elec = self.dataset.buildings[building_i].elec
-            self.good_sections[building_i] = elec.mains().good_sections()
+            good_sections = []
+            for good_section in elec.mains().good_sections():
+                section_duration = good_section.timedelta.total_seconds()
+                if section_duration >= seq_duration_secs:
+                    good_sections.append(good_section)
+
+            if len(good_sections) > 0:
+                self.good_sections[building_i] = good_sections
+            else:
+                self.logger.info(
+                    "Building {} has no good sections in window."
+                    .format(building_i))
+                self._remove_building(building_i)
+
+    def _remove_building(self, building_i):
+        def remove(lst):
+            try:
+                lst.remove(building_i)
+            except ValueError:
+                pass
+        self.logger.info(
+            "Removing building {} from validation_buildings and"
+            " train_buildings.".format(building_i))
+        remove(self.validation_buildings)
+        remove(self.train_buildings)
 
     def get_all_buildings(self):
         return list(set(self.train_buildings + self.validation_buildings))
 
     def _gen_single_example(self, validation=False):
-        """
-        * choose building at random.
-        * choose start date at random (from self.window) and add seq_length
-        * load from building (no resampling). If it contains less than
-          expected samples then chose another chunk (up to a number of retries)
-        * load data from target appliance.  Fill with zeros
-        """
+        # Select a building
         buildings = (self.validation_buildings if validation
                      else self.train_buildings)
         building_i = self.rng.choice(buildings, 1)[0]
+
+        # Select a good section from building
         good_sections = self.good_sections[building_i]
-        seq_duration_secs = self.seq_length * self.sample_period
-        N_RETRIES = 100
-        for retry in range(N_RETRIES):
-            good_section = self.rng.choice(good_sections, 1)[0]
-            max_start_offset_secs = (good_section.timedelta.total_seconds() -
-                                     seq_duration_secs)
-            if max_start_offset_secs > 0:
-                break
+        if set(self.train_buildings) == set(self.validation_buildings):
+            if validation:
+                good_sections = good_sections[-1:]
+            else:
+                good_sections = good_sections[:-1]
+        if len(good_sections) > 1:
+            good_section_i = self.rng.randint(low=0, high=len(good_sections)-1)
         else:
-            raise RuntimeError("Cannot find long enough good section!")
+            good_section_i = 0
+        good_section = good_sections[good_section_i]
+
+        # Select a time window from within good section
+        seq_duration_secs = self.seq_length * self.sample_period
+        max_start_offset_secs = (good_section.timedelta.total_seconds() -
+                                 seq_duration_secs)
         offset = timedelta(seconds=self.rng.randint(0, max_start_offset_secs))
         start = good_section.start + offset
         end = start + timedelta(seconds=seq_duration_secs)
@@ -944,8 +970,13 @@ class RandomSegments(Source):
     def _gen_data(self, validation=False):
         X = np.zeros(self.input_shape(), dtype=np.float32)
         y = np.zeros(self.output_shape(), dtype=np.float32)
+        N_RETRIES = 10
         for i in range(self.n_seq_per_batch):
-            X[i, :, 0], y[i, :, 0] = self._gen_single_example(validation)
+            for retry in range(N_RETRIES):
+                single_X, single_y = self._gen_single_example(validation)
+                if single_X is not None and single_y is not None:
+                    X[i, :, 0], y[i, :, 0] = single_X, single_y
+                    break
         return X, y
 
     def get_labels(self):
@@ -962,24 +993,41 @@ class RandomSegments(Source):
 
 class RandomSegmentsInMemory(RandomSegments):
     def _init_data(self):
-        super(RandomSegmentsInMemory, self)._init_data(self)
-        if len(self.get_all_buildings()) > 1:
-            raise RuntimeError("Cannot use more than one building with"
-                               " RandomSegmentsInMemory")
-        building_i = self.train_buildings[0]
-        elec = self.dataset.buildings[building_i].elec
-        target = elec[self.target_appliance].power_series_all_data(
-            sample_period=self.sample_period)
-        target.fillna(0, inplace=True)
-        self.data = {
-            'mains': elec.mains().power_series_all_data(
-                sample_period=self.sample_period),
-            'target': target
-        }
-        gc.collect()
+        super(RandomSegmentsInMemory, self)._init_data()
+        self.data = OrderedDict()
+        for building_i in self.get_all_buildings():
+            elec = self.dataset.buildings[building_i].elec
+            try:
+                meter, target_app = get_meter_for_appliance(
+                    elec, self.target_appliance)
+            except KeyError:
+                self.logger.info(
+                    "Building {} has no {}"
+                    .format(building_i, self.target_appliance))
+                self._remove_building(building_i)
+                continue
+            target = meter.power_series_all_data(
+                sample_period=self.sample_period)
+            if target is None:
+                self.logger.info(
+                    "Building {} has no target data in time window."
+                    .format(building_i))
+                self._remove_building(building_i)
+            else:
+                target.fillna(0, inplace=True)
+                self.data[building_i] = {
+                    'mains': elec.mains().power_series_all_data(
+                        sample_period=self.sample_period).dropna(),
+                    'target': target
+                }
+            gc.collect()
 
     def _load_data(self, mains_or_target, building_i, timeframe):
-        data = self.data[mains_or_target][timeframe.start:timeframe.end]
+        try:
+            building_data = self.data[building_i]
+        except KeyError:
+            return
+        data = building_data[mains_or_target][timeframe.start:timeframe.end]
         if mains_or_target == 'target' and self.ignore_incomplete:
             data = self._remove_incomplete(data)
         data = data.values[:self.seq_length]
@@ -1095,24 +1143,14 @@ class SameLocation(RandomSegments):
         activations = OrderedDict()
         for building_i in self.get_all_buildings():
             elec = self.dataset.buildings[building_i].elec
-            if isinstance(self.target_appliance, list):
-                for app in self.target_appliance:
-                    try:
-                        meter = elec[app]
-                    except KeyError:
-                        continue
-                    else:
-                        target_app = app
-                        break
-                else:
-                    activations[building_i] = []
-                    self.logger.info(
-                        "Building {} has no {}".format(building_i, app))
-                    continue
-            else:
-                meter = elec[self.target_appliance]
-                target_app = self.target_appliance
-
+            try:
+                meter, target_app = get_meter_for_appliance(
+                    elec, self.target_appliance)
+            except KeyError:
+                self.logger.info(
+                    "Building {} has no {}"
+                    .format(building_i, self.target_appliance))
+                continue
             activation_series = meter.activation_series(
                 on_power_threshold=40)
             activations[building_i] = _preprocess_activations(
@@ -1122,8 +1160,8 @@ class SameLocation(RandomSegments):
             self.logger.info(
                 "Loaded {:d} {:s} activations from house {:d}.".
                 format(len(activation_series), target_app, building_i))
+            gc.collect()
         self.activations = activations
-        gc.collect()
 
     def _load_mains(self):
         mains = OrderedDict()
@@ -1136,8 +1174,8 @@ class SameLocation(RandomSegments):
             mains[building_i] = mains_data
             self.logger.info(
                 "Loaded mains data for building {:d}.".format(building_i))
+            gc.collect()
         self.mains = mains
-        gc.collect()
 
 
 def quantize(data, n_bins, all_hot=True, range=(-1, 1), length=None):
@@ -1257,6 +1295,25 @@ def get_meters_for_appliances(elec, appliances):
                   elec.building())
             continue
     return meters
+
+
+def get_meter_for_appliance(elec, target_appliance):
+    if isinstance(target_appliance, list):
+        for app in target_appliance:
+            try:
+                meter = elec[app]
+            except KeyError:
+                continue
+            else:
+                target_app = app
+                break
+        else:
+            raise KeyError()
+    else:
+        meter = elec[target_appliance]
+        target_app = target_appliance
+
+    return meter, target_app
 
 
 def unstandardise(data, std, mean, maximum=None):

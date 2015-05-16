@@ -209,6 +209,8 @@ y: o but with linear for input conv, ReLU for output conv
    learnt in 446o).  doesn't work too well.  Lots of false positives.
    Hence next thing to do will be to train on real data.
 
+################### RandomSegments ########################
+
 448: train on real data!
 
 449: Reduce seq length to 512 and use RandomSegmentsInMemory
@@ -241,6 +243,8 @@ e: 451a but reduced central layer to 32
 f: 451a but reduce number of layers
 
 g: 451a but no conv
+
+############################# SameLocation ##############################
 
 453: keep activations in same location (in time)
 
@@ -371,3 +375,10 @@ away from data.  Longer seq.  Use house 4.
 
 479: don't offset and ignore some activations. Also don't
 independently center inputs.
+
+################### RandomSegmentsInMemory ########################
+
+480: RandomSegmentsInMemory, fridge, include incomplete activations
+
+481: Increase learning rate to 1e-1. Independently centre inputs. And
+use separate data for validation.
