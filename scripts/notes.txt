@@ -382,3 +382,5 @@ independently center inputs.
 
 481: Increase learning rate to 1e-1. Independently centre inputs. And
 use separate data for validation.
+
+482: reduce SEQ_LENGTH from 800 to 512
