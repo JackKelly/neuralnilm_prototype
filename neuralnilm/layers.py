@@ -249,7 +249,7 @@ class PolygonOutputLayer(Layer):
                  b_scale=init.Constant(0.),
                  b_time=init.Constant(0.),
                  nonlinearity_scale=nonlinearities.identity,
-                 nonlinearity_time=nonlinearities.sigmoid,
+                 nonlinearity_time=nonlinearities.softmax,
                  **kwargs):
         """
         :parameters:
@@ -280,9 +280,9 @@ class PolygonOutputLayer(Layer):
 
         if num_units > 1:
             self.W_time = self.create_param(
-                W_time, (num_inputs, num_units-1), name='W_time')
+                W_time, (num_inputs, num_units), name='W_time')
             self.b_time = (self.create_param(
-                b_time, (num_units-1, ), name='b_time')
+                b_time, (num_units, ), name='b_time')
                 if b_time is not None else None)
         else:
             self.W_time = None
@@ -314,25 +314,18 @@ class PolygonOutputLayer(Layer):
             time_output = forward_pass('time')
 
             # add to computational graph
-            last_scale = scale_output[:, -1]
-            scale_output = scale_output[:, :-1] + (0.1 * time_output)
+            scale_output = scale_output + (0.1 * time_output)
 
             # TODO handle batches
             batch_i = 0
             segments = []
-            remaining_length = self.seq_length
-            for segment_i in range(self.num_units-1):
+            for segment_i in range(self.num_units):
                 segment_length = (
-                    remaining_length * time_output[batch_i, segment_i])
-                segment_length = segment_length.astype('int32')
+                    self.seq_length * time_output[batch_i, segment_i])
+                segment_length = segment_length.round().astype('int32')
                 segment = scale_output[batch_i, segment_i].repeat(
-                    repeats=self.seq_length)[:segment_length]
+                    repeats=segment_length)
                 segments.append(segment)
-                remaining_length -= segment_length
-
-            # Add last segment
-            segment = last_scale[batch_i].repeat(repeats=self.seq_length)[:remaining_length]
-            segments.append(segment)
 
             output = T.concatenate(segments)[np.newaxis, :]
 

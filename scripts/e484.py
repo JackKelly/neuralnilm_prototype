@@ -72,7 +72,7 @@ net_dict = dict(
 #    updates_func=momentum,
     updates_func=clipped_nesterov_momentum,
     updates_kwargs={'clip_range': (0, 10)},
-    learning_rate=1e-7,
+    learning_rate=1e-9,
     learning_rate_changes_by_iteration={
         # 1000: 1e-4,
         # 5000: 1e-5
