@@ -42,7 +42,7 @@ NAME = os.path.splitext(os.path.split(__main__.__file__)[1])[0]
 PATH = "/data/dk3810/figures"
 SAVE_PLOT_INTERVAL = 1000
 
-N_SEQ_PER_BATCH = 4
+N_SEQ_PER_BATCH = 1
 
 source_dict = dict(
     filename='/data/dk3810/ukdale.h5',
@@ -108,6 +108,10 @@ def exp_a(name, target_appliance, seq_length):
             'type': PolygonOutputLayer,
             'num_units': 2,
             'seq_length': seq_length
+        },
+        {
+            'type': ReshapeLayer,
+            'shape': source.output_shape()
         }
     ]
     net = Net(**net_dict_copy)

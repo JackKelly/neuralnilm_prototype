@@ -305,22 +305,42 @@ class PolygonOutputLayer(Layer):
             output.name = param
             return output
 
-        scale_output = forward_pass('scale')[:, :, np.newaxis]
+        scale_output = forward_pass('scale')
 
         if self.num_units == 1:
             output = scale_output.repeat(repeats=self.seq_length, axis=1)
         else:
-            time_output = forward_pass('time')
-            # TODO handle batches
+            # We want scan to iterate over num_units
+            time_output = forward_pass('time').dimshuffle(1, 0)
+            scale_output = scale_output.dimshuffle(1, 0)
+
+            # TODO handle batches            
             batch_i = 0
-            segments = []
-            remaining_length = self.seq_length
-            for segment_i in range(self.num_units):
-                segment_length = remaining_length * time_output[batch_i, segment_i]
-                segment = scale_output.repeat(repeats=segment_length.eval(), axis=1)
-                segments.append(segment)
-                remaining_length -= segment_length
-            output = T.concatenate(segments, axis=1)
+
+            def step(time, scale, prev_concat=None):
+                if prev_concat is None:
+                    remaining_length = self.seq_length
+                else:
+                    remaining_length = self.seq_length - prev_concat.shape[0]
+                segment_length = (remaining_length * time[batch_i]).astype('int32')
+                segment = scale.repeat(repeats=segment_length)
+                if prev_concat is None:
+                    return segment
+                else:
+                    return T.concatenate((prev_concat, segment))
+
+            output = theano.scan(
+                step, sequences=(time_output, scale_output[:-1]))[0]
+
+            remaining_length = self.seq_length - output.shape[1]
+            # TODO might need to check if > 0
+            segment = scale_output[-1].repeat(repeats=remaining_length)[np.newaxis, :]
+            output = T.concatenate((output, segment), axis=1)
+
+            # add W_time and b_time to compute graph
+            output += 0 * self.W_time.T
+            if self.b_time is not None:
+                output += 0 * self.b_time.dimshuffle(0, 'x')
 
         return output
 
@@ -332,7 +352,7 @@ class PolygonOutputLayer(Layer):
         return remove_nones(self.b_scale, self.b_time)
 
     def get_output_shape_for(self, input_shape):
-        return (input_shape[0], self.seq_length, 1)
+        return (input_shape[0], self.seq_length)
 
 """
 Emacs variables
