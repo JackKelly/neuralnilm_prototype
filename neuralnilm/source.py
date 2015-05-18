@@ -36,7 +36,8 @@ class Source(object):
                  random_window=0,
                  clock_period=None,
                  clock_type=None,
-                 two_pass=False):
+                 two_pass=False,
+                 subsample_target=1):
         """
         Parameters
         ----------
@@ -65,6 +66,15 @@ class Source(object):
         self.output_central_value = output_central_value
         self.classification = classification
         self.random_window = random_window
+        self.subsample_target = subsample_target
+
+        if self.seq_length % self.subsample_target:
+            raise RuntimeError(
+                "subsample_target must exactly divide seq_length.")
+
+        if self.subsample_target == 0:
+            raise RuntimeError("subsample_target must not be 0.")
+
         if self.random_window and self.subsample_target:
             if self.random_window % self.subsample_target:
                 raise RuntimeError(
@@ -88,7 +98,7 @@ class Source(object):
 
     def _init_data():
         pass
-        
+
     def start(self):
         if self._thread is not None:
             return
@@ -129,11 +139,8 @@ class Source(object):
                 self.skip_probability_for_first_appliance = (
                     skip_prob_for_first_appliance)
 
-            if 'subsample_target' in self.__dict__:
-                length = self.seq_length / self.subsample_target
-            else:
-                length = self.seq_length
-            y = y.reshape(int(self.n_seq_per_batch * length), self.n_outputs)
+            y = y.reshape(self.n_seq_per_batch * self.seq_length,
+                          self.n_outputs)
             self.target_stats = {'mean': y.mean(axis=0), 'std': y.std(axis=0)}
 
         np.save('target_stats_mean', self.target_stats['mean'])
@@ -159,6 +166,11 @@ class Source(object):
         return self._process_data(X, y)
 
     def _process_data(self, X, y):
+        if self.subsample_target > 1:
+            y = y.reshape(self.n_seq_per_batch, -1,
+                          self.subsample_target, self.n_outputs)
+            y = y.mean(axis=2)
+
         def _standardise(n, stats, data):
             for i in range(n):
                 mean = stats['mean'][i]
@@ -276,6 +288,8 @@ class Source(object):
             seq_length = self.random_window
         if self.two_pass:
             seq_length *= 2
+        if self.subsample_target > 1:
+            seq_length = seq_length // self.subsample_target
 
         if self.reshape_target_to_2D:
             return (n_seq_per_batch * seq_length, n_outputs)
@@ -372,7 +386,6 @@ class RealApplianceSource(Source):
                  output_one_appliance=True,
                  sample_period=6,
                  boolean_targets=False,
-                 subsample_target=1,
                  input_padding=0,
                  skip_probability=0,
                  skip_probability_for_first_appliance=None,
@@ -431,7 +444,6 @@ class RealApplianceSource(Source):
         self.output_one_appliance = output_one_appliance
         self.sample_period = sample_period
         self.boolean_targets = boolean_targets
-        self.subsample_target = subsample_target
         self.skip_probability = skip_probability
         if skip_probability_for_first_appliance is None:
             self.skip_probability_for_first_appliance = skip_probability
@@ -596,30 +608,12 @@ class RealApplianceSource(Source):
             feature_i = int(self.include_power)
             X[:-1, feature_i] = fdiff
 
-        if self.subsample_target > 1:
-            shape = (int(self.seq_length / self.subsample_target),
-                     self.n_outputs)
-            subsampled_y = np.empty(shape=shape, dtype=np.float32)
-            for output_i in range(self.n_outputs):
-                subsampled_y[:, output_i] = np.mean(
-                    y[:, output_i].reshape(-1, self.subsample_target), axis=-1)
-            y = subsampled_y
-
         return X, y
 
     def input_shape(self):
         return (self.n_seq_per_batch,
                 self.seq_length + self.input_padding,
                 self.n_inputs)
-
-    def output_shape(self):
-        if self.seq_length % self.subsample_target:
-            raise RuntimeError(
-                "subsample_target must exactly divide seq_length.")
-        return (
-            self.n_seq_per_batch,
-            int(self.seq_length / self.subsample_target),
-            self.n_outputs)
 
     def inside_padding(self):
         start = self.input_padding // 2
@@ -871,6 +865,7 @@ class RandomSegments(Source):
                  window=(None, None),
                  sample_period=6,
                  ignore_incomplete=False,
+                 on_power_threshold=50,
                  **kwargs):
         self.dataset = DataSet(filename)
         self.dataset.set_window(*window)
@@ -881,6 +876,7 @@ class RandomSegments(Source):
         self.validation_buildings = validation_buildings
         self.sample_period = sample_period
         self.ignore_incomplete = ignore_incomplete
+        self.on_power_threshold = on_power_threshold
         super(RandomSegments, self).__init__(n_outputs=1, n_inputs=1, **kwargs)
 
     def _init_data(self):
@@ -983,7 +979,8 @@ class RandomSegments(Source):
         return [self.target_appliance]
 
     def _remove_incomplete(self, data):
-        activations = activation_series_for_chunk(data)
+        activations = activation_series_for_chunk(
+            data, on_power_threshold=self.on_power_threshold)
         new_data = pd.Series(0, index=data.index)
         for activation in activations:
             if activation is not None:
@@ -1023,6 +1020,7 @@ class RandomSegmentsInMemory(RandomSegments):
             gc.collect()
 
     def _load_data(self, mains_or_target, building_i, timeframe):
+        print(building_i, timeframe)
         try:
             building_data = self.data[building_i]
         except KeyError:

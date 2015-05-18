@@ -376,6 +376,13 @@ away from data.  Longer seq.  Use house 4.
 479: don't offset and ignore some activations. Also don't
 independently center inputs.
 
+----- some conclusions --------------
+Using SameLocation works pretty well for appliances with an obvious
+start (like fridges) but not so well for appliances without obvious
+starts (like washing machines).  So will tinker with
+RandomSegmentsInMemory.
+
+
 ################### RandomSegmentsInMemory ########################
 
 480: RandomSegmentsInMemory, fridge, include incomplete activations
@@ -384,3 +391,25 @@ independently center inputs.
 use separate data for validation.
 
 482: reduce SEQ_LENGTH from 800 to 512
+
+################# PolygonOutputLayer #######################
+
+483 : successfully use PolygonOutputLayer with 1 segment.
+
+484, 485: attempting (and failing) to get PolygonOutputLayer to work
+with multiple segments
+
+############# Downsampled output ###########################
+
+486: based on 482.  Subsample target 8x. Manually changed LR to 0.01
+
+487: like 486 but ignore incomplete. And change learning rate to 0.01
+Hmm, some problems with training examples.  There are some fridges
+missing in the target!
+
+488: (i think I've) fixed problem where some fridges were
+absent. Ignore Freezer in house 4.  Also set on_power_threshold for
+ignore chunks... hmm, no, some fridges are still missing!  Need to
+analyse outputs some more.  I suspect I need to intersect mains good
+sections with appliance good sections... or just don't drop NA and
+throw away all target sequences with any NAs???
