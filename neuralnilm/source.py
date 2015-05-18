@@ -11,6 +11,7 @@ from lasagne.utils import floatX
 from warnings import warn
 import gc
 from nilmtk.electric import activation_series_for_chunk
+from nilmtk.timeframegroup import TimeFrameGroup
 import logging
 
 
@@ -129,13 +130,15 @@ class Source(object):
             # Get targets.  Temporarily turn off skip probability
             if 'skip_probability' in self.__dict__:
                 skip_prob = self.skip_probability
+                self.skip_probability = 0
+            if 'skip_probability_for_first_appliance' in self.__dict__:
                 skip_prob_for_first_appliance = (
                     self.skip_probability_for_first_appliance)
-                self.skip_probability = 0
                 self.skip_probability_for_first_appliance = 0
             X, y = self._gen_data()
             if 'skip_probability' in self.__dict__:
                 self.skip_probability = skip_prob
+            if 'skip_probability_for_first_appliance' in self.__dict__:
                 self.skip_probability_for_first_appliance = (
                     skip_prob_for_first_appliance)
 
@@ -932,6 +935,14 @@ class RandomSegments(Source):
 
         # Select a good section from building
         good_sections = self.good_sections[building_i]
+        timeframe = self._select_section_and_time_and_load(
+            validation, good_sections)
+        mains = self._load_data('mains', building_i, timeframe)
+        appliance = self._load_data('target', building_i, timeframe)
+        return mains, appliance
+
+    def _select_section_and_time_and_load(self, validation, good_sections):
+
         if set(self.train_buildings) == set(self.validation_buildings):
             if validation:
                 good_sections = good_sections[-1:]
@@ -951,9 +962,7 @@ class RandomSegments(Source):
         start = good_section.start + offset
         end = start + timedelta(seconds=seq_duration_secs)
         timeframe = TimeFrame(start, end)
-        mains = self._load_data('mains', building_i, timeframe)
-        appliance = self._load_data('target', building_i, timeframe)
-        return mains, appliance
+        return timeframe
 
     def _load_data(self, mains_or_target, building_i, timeframe):
         elec = self.dataset.buildings[building_i].elec
@@ -1049,11 +1058,13 @@ class SameLocation(RandomSegments):
                  ignore_offset_activations=False,
                  clip_appliance_power=False,
                  max_appliance_power=1000,
+                 skip_probability=0,
                  *args, **kwargs):
         self.offset_probability = offset_probability
         self.ignore_offset_activations = ignore_offset_activations
         self.clip_appliance_power = clip_appliance_power
         self.max_appliance_power = max_appliance_power
+        self.skip_probability = skip_probability
         super(SameLocation, self).__init__(*args, **kwargs)
 
     def _init_data(self):
@@ -1063,6 +1074,26 @@ class SameLocation(RandomSegments):
         """
         self._load_activations()
         self._load_mains()
+        if self.skip_probability:
+            self._load_sections_without_target()
+
+    def _load_sections_without_target(self):
+        self.sections_without_target = {}
+        for building_i in self.get_all_buildings():
+            sections_without_target = TimeFrameGroup()
+            prev_end = self.mains[building_i].index[0]
+            for activation in self.activations[building_i]:
+                sections_without_target.append(
+                    TimeFrame(prev_end, activation.index[0]))
+                prev_end = activation.index[-1]
+            sections_without_target.append(
+                TimeFrame(prev_end, self.mains[building_i].index[-1]))
+            sections_without_target = (
+                sections_without_target.remove_shorter_than(
+                    self.seq_length * self.sample_period))
+            if len(sections_without_target) > 0:
+                self.sections_without_target[building_i] = (
+                    sections_without_target)
 
     def _gen_single_example(self, validation=False):
         N_RETRIES = 50
@@ -1103,6 +1134,10 @@ class SameLocation(RandomSegments):
             return None, None
         activation_i = self.rng.randint(low=0, high=len(activations)-1)
         activation = activations[activation_i]
+
+        if self.rng.binomial(n=1, p=self.skip_probability):
+            return self._seq_without_target(building_i, validation)
+
         y = np.pad(activation.values, (N_LEAD_IN, 0), 'constant')
 
         # random offset (number of samples)
@@ -1144,6 +1179,19 @@ class SameLocation(RandomSegments):
         end = start + timedelta(
             seconds=(self.seq_length * self.sample_period) - 1)
         X = mains[start:end].values
+        return X, y
+
+    def _seq_without_target(self, building_i, validation):
+        try:
+            sections_without_target = self.sections_without_target[building_i]
+        except KeyError:
+            return None, None
+
+        timeframe = self._select_section_and_time_and_load(
+            validation, sections_without_target)
+
+        y = np.zeros(self.seq_length, dtype=np.float32)
+        X = self.mains[building_i][timeframe.start:timeframe.end]
         return X, y
 
     def _load_activations(self):

@@ -415,3 +415,14 @@ sections with appliance good sections... or just don't drop NA and
 throw away all target sequences with any NAs???
 
 489: Another attempt to fix problem where some fridges not present.
+best valid cost =  0.5164197683 at iteration  3080
+avg valid cost =  0.5195092559
+
+490: No final conv layer
+Doesn't work quite as well as having conv layer at end
+
+491: 489 but with washer dryer.
+
+492: don't ignore incomplete
+
+493: Use SameLocation. skip_probability=0.5.  offset_prob=1.
