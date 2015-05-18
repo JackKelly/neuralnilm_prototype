@@ -434,5 +434,9 @@ have the target in them!
 allow_incomplete=True, include_all=True.
 Some prelim thoughts: it does seem to prefer it if activations are
 always towards the start of the sequence (perhaps not surprisingly).
+a: avg valid cost =  0.2822513580
 
 496: 495 but don't independently centre inputs
+a: avg valid cost =  0.2852075994
+
+497: independently centre inputs, don't offset, do include all.
