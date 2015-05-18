@@ -434,3 +434,5 @@ have the target in them!
 allow_incomplete=True, include_all=True.
 Some prelim thoughts: it does seem to prefer it if activations are
 always towards the start of the sequence (perhaps not surprisingly).
+
+496: 495 but don't independently centre inputs
