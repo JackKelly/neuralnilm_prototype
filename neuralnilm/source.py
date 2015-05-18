@@ -1013,7 +1013,6 @@ class RandomSegmentsInMemory(RandomSegments):
                     .format(building_i, self.target_appliance))
                 self._remove_building(building_i)
                 continue
-            good_sections = self.good_sections[building_i]
             target = meter.power_series_all_data(
                 sample_period=self.sample_period)
             if target is None:
@@ -1031,7 +1030,6 @@ class RandomSegmentsInMemory(RandomSegments):
             gc.collect()
 
     def _load_data(self, mains_or_target, building_i, timeframe):
-        print(building_i, timeframe)
         try:
             building_data = self.data[building_i]
         except KeyError:
