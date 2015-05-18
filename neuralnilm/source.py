@@ -885,6 +885,7 @@ class RandomSegments(Source):
     def _init_data(self):
         """Overridden by sub-classes."""
         self.good_sections = {}
+        self.mains_good_sections = {}
         seq_duration_secs = self.seq_length * self.sample_period
         for building_i in self.get_all_buildings():
             elec = self.dataset.buildings[building_i].elec
@@ -898,6 +899,7 @@ class RandomSegments(Source):
                 self._remove_building(building_i)
                 continue
             mains_good_sections = elec.mains().good_sections()
+            self.mains_good_sections[building_i] = mains_good_sections
             target_good_sections = target_meter.good_sections()
             good_sections = mains_good_sections.intersection(
                 target_good_sections)
@@ -1088,6 +1090,8 @@ class SameLocation(RandomSegments):
                 prev_end = activation.index[-1]
             sections_without_target.append(
                 TimeFrame(prev_end, self.mains[building_i].index[-1]))
+            sections_without_target = sections_without_target.intersection(
+                self.mains_good_sections[building_i])
             sections_without_target = (
                 sections_without_target.remove_shorter_than(
                     self.seq_length * self.sample_period))
@@ -1205,6 +1209,7 @@ class SameLocation(RandomSegments):
                 self.logger.info(
                     "Building {} has no {}"
                     .format(building_i, self.target_appliance))
+                self._remove_building(building_i)
                 continue
             activation_series = meter.activation_series(
                 on_power_threshold=40)

@@ -426,3 +426,6 @@ Doesn't work quite as well as having conv layer at end
 492: don't ignore incomplete
 
 493: Use SameLocation. skip_probability=0.5.  offset_prob=1.
+
+494: 493 but fixed bug where some seq without target might actually
+have the target in them!
