@@ -57,8 +57,10 @@ source_dict = dict(
     standardise_targets=True,
     independently_center_inputs=True,
     subsample_target=8,
-    ignore_incomplete=False,
-    skip_probability=0.5,
+    ignore_incomplete=True,
+    allow_incomplete=True,
+    include_all=True,
+    skip_probability=0.25,
     offset_probability=1
     # ignore_offset_activations=True
 )
@@ -206,6 +208,6 @@ if __name__ == "__main__":
 """
 Emacs variables
 Local Variables:
-compile-command: "cp /home/jack/workspace/python/neuralnilm/scripts/e494.py /mnt/sshfs/imperial/workspace/python/neuralnilm/scripts/"
+compile-command: "cp /home/jack/workspace/python/neuralnilm/scripts/e495.py /mnt/sshfs/imperial/workspace/python/neuralnilm/scripts/"
 End:
 """

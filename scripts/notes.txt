@@ -429,3 +429,8 @@ Doesn't work quite as well as having conv layer at end
 
 494: 493 but fixed bug where some seq without target might actually
 have the target in them!
+
+495: test on all appliances. ignore_incomplete=True,
+allow_incomplete=True, include_all=True.
+Some prelim thoughts: it does seem to prefer it if activations are
+always towards the start of the sequence (perhaps not surprisingly).

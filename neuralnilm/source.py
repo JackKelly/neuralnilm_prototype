@@ -885,7 +885,6 @@ class RandomSegments(Source):
     def _init_data(self):
         """Overridden by sub-classes."""
         self.good_sections = {}
-        self.mains_good_sections = {}
         seq_duration_secs = self.seq_length * self.sample_period
         for building_i in self.get_all_buildings():
             elec = self.dataset.buildings[building_i].elec
@@ -899,7 +898,6 @@ class RandomSegments(Source):
                 self._remove_building(building_i)
                 continue
             mains_good_sections = elec.mains().good_sections()
-            self.mains_good_sections[building_i] = mains_good_sections
             target_good_sections = target_meter.good_sections()
             good_sections = mains_good_sections.intersection(
                 target_good_sections)
@@ -944,7 +942,6 @@ class RandomSegments(Source):
         return mains, appliance
 
     def _select_section_and_time_and_load(self, validation, good_sections):
-
         if set(self.train_buildings) == set(self.validation_buildings):
             if validation:
                 good_sections = good_sections[-1:]
@@ -960,7 +957,11 @@ class RandomSegments(Source):
         seq_duration_secs = self.seq_length * self.sample_period
         max_start_offset_secs = (good_section.timedelta.total_seconds() -
                                  seq_duration_secs)
-        offset = timedelta(seconds=self.rng.randint(0, max_start_offset_secs))
+        if max_start_offset_secs > 0:
+            offset_secs = self.rng.randint(0, max_start_offset_secs)
+        else:
+            offset_secs = 0
+        offset = timedelta(seconds=offset_secs)
         start = good_section.start + offset
         end = start + timedelta(seconds=seq_duration_secs)
         timeframe = TimeFrame(start, end)
@@ -1061,12 +1062,18 @@ class SameLocation(RandomSegments):
                  clip_appliance_power=False,
                  max_appliance_power=1000,
                  skip_probability=0,
+                 allow_incomplete=False,
+                 ignore_incomplete=False,
+                 include_all=False,
                  *args, **kwargs):
         self.offset_probability = offset_probability
         self.ignore_offset_activations = ignore_offset_activations
         self.clip_appliance_power = clip_appliance_power
         self.max_appliance_power = max_appliance_power
         self.skip_probability = skip_probability
+        self.allow_incomplete = allow_incomplete
+        self.include_all = include_all
+        kwargs['ignore_incomplete'] = ignore_incomplete
         super(SameLocation, self).__init__(*args, **kwargs)
 
     def _init_data(self):
@@ -1091,7 +1098,7 @@ class SameLocation(RandomSegments):
             sections_without_target.append(
                 TimeFrame(prev_end, self.mains[building_i].index[-1]))
             sections_without_target = sections_without_target.intersection(
-                self.mains_good_sections[building_i])
+                self.target_good_sections[building_i])
             sections_without_target = (
                 sections_without_target.remove_shorter_than(
                     self.seq_length * self.sample_period))
@@ -1144,19 +1151,41 @@ class SameLocation(RandomSegments):
 
         y = np.pad(activation.values, (N_LEAD_IN, 0), 'constant')
 
+        def zeros():
+            return np.zeros(self.seq_length, dtype=np.float32)
+
         # random offset (number of samples)
         if self.rng.binomial(n=1, p=self.offset_probability):
-            offset = self.rng.randint(low=1, high=N_LEAD_IN)
             if self.rng.binomial(n=1, p=0.5):
                 # shift backwards
-                y = y[offset:]
+                if self.allow_incomplete:
+                    max_offset = N_LEAD_IN + len(activation)
+                else:
+                    max_offset = N_LEAD_IN
+                offset = self.rng.randint(low=1, high=max_offset)
+                if self.ignore_incomplete and offset >= N_LEAD_IN:
+                    y = zeros()
+                else:
+                    y = y[offset:]
                 offset_direction = 'backwards'
             else:
                 # shift forwards
-                y = np.pad(y, (offset, 0), 'constant')
+                if self.allow_incomplete:
+                    max_offset = self.seq_length - N_LEAD_IN
+                else:
+                    max_offset = self.seq_length - N_LEAD_IN - len(activation)
+                if max_offset > 1:
+                    offset = self.rng.randint(low=1, high=max_offset)
+                else:
+                    offset = 0
+                if self.ignore_incomplete and offset >= (
+                        self.seq_length - N_LEAD_IN - len(activation)):
+                    y = zeros()
+                else:
+                    y = np.pad(y, (offset, 0), 'constant')
                 offset_direction = 'forwards'
             if self.ignore_offset_activations:
-                y = np.zeros(self.seq_length, dtype=np.float32)
+                y = zeros()
         else:
             offset = 0
 
@@ -1182,8 +1211,38 @@ class SameLocation(RandomSegments):
 
         end = start + timedelta(
             seconds=(self.seq_length * self.sample_period) - 1)
-        X = mains[start:end].values
-        return X, y
+        X = mains[start:end]
+
+        if len(X) != self.seq_length:
+            return None, None
+
+        if self.include_all:
+            y_series = pd.Series(y, index=X.index)
+            # check activations backwards
+            for i in range(activation_i-1, -1, -1):
+                other_activation = activations[i]
+                if (other_activation.index[-1] > start and
+                    (not self.ignore_incomplete or
+                     other_activation.index[0] > start)):
+                    y_series = y_series.add(
+                        other_activation[start:end], fill_value=0)
+                else:
+                    break
+
+            # check activations forwards
+            for i in range(activation_i+1, len(activations)):
+                other_activation = activations[i]
+                if (other_activation.index[0] < end and
+                    (not self.ignore_incomplete or
+                     other_activation.index[-1] < end)):
+                    y_series = y_series.add(
+                        other_activation[start:end], fill_value=0)
+                else:
+                    break
+
+            y = y_series.values
+
+        return X.values, y
 
     def _seq_without_target(self, building_i, validation):
         try:
@@ -1200,6 +1259,7 @@ class SameLocation(RandomSegments):
 
     def _load_activations(self):
         activations = OrderedDict()
+        self.target_good_sections = {}
         for building_i in self.get_all_buildings():
             elec = self.dataset.buildings[building_i].elec
             try:
@@ -1211,6 +1271,7 @@ class SameLocation(RandomSegments):
                     .format(building_i, self.target_appliance))
                 self._remove_building(building_i)
                 continue
+            self.target_good_sections[building_i] = meter.good_sections()
             activation_series = meter.activation_series(
                 on_power_threshold=40)
             activations[building_i] = _preprocess_activations(
