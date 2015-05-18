@@ -413,3 +413,5 @@ ignore chunks... hmm, no, some fridges are still missing!  Need to
 analyse outputs some more.  I suspect I need to intersect mains good
 sections with appliance good sections... or just don't drop NA and
 throw away all target sequences with any NAs???
+
+489: Another attempt to fix problem where some fridges not present.

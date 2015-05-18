@@ -885,11 +885,21 @@ class RandomSegments(Source):
         seq_duration_secs = self.seq_length * self.sample_period
         for building_i in self.get_all_buildings():
             elec = self.dataset.buildings[building_i].elec
-            good_sections = []
-            for good_section in elec.mains().good_sections():
-                section_duration = good_section.timedelta.total_seconds()
-                if section_duration >= seq_duration_secs:
-                    good_sections.append(good_section)
+            try:
+                target_meter, _ = get_meter_for_appliance(
+                    elec, self.target_appliance)
+            except KeyError:
+                self.logger.info(
+                    "Building {} has no {}"
+                    .format(building_i, self.target_appliance))
+                self._remove_building(building_i)
+                continue
+            mains_good_sections = elec.mains().good_sections()
+            target_good_sections = target_meter.good_sections()
+            good_sections = mains_good_sections.intersection(
+                target_good_sections)
+            good_sections = good_sections.remove_shorter_than(
+                seq_duration_secs)
 
             if len(good_sections) > 0:
                 self.good_sections[building_i] = good_sections
@@ -1003,6 +1013,7 @@ class RandomSegmentsInMemory(RandomSegments):
                     .format(building_i, self.target_appliance))
                 self._remove_building(building_i)
                 continue
+            good_sections = self.good_sections[building_i]
             target = meter.power_series_all_data(
                 sample_period=self.sample_period)
             if target is None:
@@ -1296,6 +1307,18 @@ def get_meters_for_appliances(elec, appliances):
 
 
 def get_meter_for_appliance(elec, target_appliance):
+    """
+    Parameters
+    ----------
+    elec : nilmtk.MeterGroup
+    target_appliance : list of strings or string
+
+    Returns
+    -------
+    meter, target_app
+    meter : nilmtk.ElecMeter or MeterGroup
+    target_app : string
+    """
     if isinstance(target_appliance, list):
         for app in target_appliance:
             try:
