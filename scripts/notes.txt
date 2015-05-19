@@ -1,11 +1,11 @@
-357:
-went back to doing regression using FF net.
 
 
 ------- RESULTS ---------
 
 
 WORKS (kind of):
+
+82: 3 appliances, nice graphs.
 
 3 appliances
 124
@@ -39,6 +39,8 @@ similar to 131c, but lots of pretraining
 
 156: not great
 
+357:
+went back to doing regression using FF net.
 
 Integration works (with no noise!): 413 
 
@@ -440,3 +442,9 @@ a: avg valid cost =  0.2822513580
 a: avg valid cost =  0.2852075994
 
 497: independently centre inputs, don't offset, do include all.
+
+i: 14 is good.  15 is good.
+
+498: don't subsample target
+
+499: shorter seq length for washing machine
