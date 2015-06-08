@@ -190,6 +190,18 @@ class CentralOutputPlotter(Plotter):
         ax.set_xticklabels(self.target_labels)
 
 
+class RectangularOutputPlotter(Plotter):
+    def _plot_network_output(self, ax, output):
+        ax.set_title('Network output')
+        data = output[self.seq_i, :, 0]
+        ax.scatter(data, [0] * len(data))
+
+    def _plot_target(self, ax, y):
+        ax.set_title('Target')
+        data = y[self.seq_i, :, 0]
+        ax.scatter(data, [0] * len(data))
+
+
 def gmm_pdf(theta, x):
     """
     Parameters
