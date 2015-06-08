@@ -22,13 +22,12 @@ from lasagne.layers import (InputLayer, LSTMLayer, ReshapeLayer, Layer,
 from lasagne.nonlinearities import sigmoid, rectify
 from lasagne.utils import floatX
 from lasagne.updates import nesterov_momentum
-from lasagne.layers.batch_norm import batch_norm
 
 from .source import quantize
 from .layers import BLSTMLayer, MixtureDensityLayer, BidirectionalRecurrentLayer
 from .utils import sfloatX, none_to_dict, ndim_tensor
 from .plot import Plotter
-
+from .batch_norm import batch_norm
 
 class ansi:
     # from dnouri/nolearn/nolearn/lasagne.py

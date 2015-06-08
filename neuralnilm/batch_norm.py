@@ -12,10 +12,11 @@ from: https://gist.github.com/f0k/f1a6bd3c8585c400c190
 """
 
 import numpy as np
-from .base import Layer
-from .. import nonlinearities
+from lasagne.layers import Layer
+from lasagne import nonlinearities
 import theano
 import theano.tensor as T
+
 
 class BatchNormLayer(Layer):
 
@@ -24,7 +25,7 @@ class BatchNormLayer(Layer):
         """
         Instantiates a layer performing batch normalization of its inputs,
         following Ioffe et al. (http://arxiv.org/abs/1502.03167).
-        
+
         @param incoming: `Layer` instance or expected input shape
         @param axes: int or tuple of int denoting the axes to normalize over;
             defaults to all axes except for the second if omitted (this will
@@ -101,10 +102,11 @@ class BatchNormLayer(Layer):
 
 def batch_norm(layer, **kwargs):
     """
-    Convenience function to apply batch normalization to a given layer's output.
-    Will steal the layer's nonlinearity if there is one (effectively introducing
-    the normalization right before the nonlinearity), and will remove the
-    layer's bias if there is one (because it would be redundant).
+    Convenience function to apply batch norm to a given layer's output.
+    Will steal the layer's nonlinearity if there is one (effectively
+    introducing the normalization right before the nonlinearity),
+    and will remove the layer's bias if there is one (because
+    it would be redundant).
 
     @param layer: The `Layer` instance to apply the normalization to; note that
         it will be irreversibly modified as specified above
