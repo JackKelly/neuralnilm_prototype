@@ -29,7 +29,7 @@ class Plotter(object):
         self.seq_i = 0
         self.plot_additional_seqs = 0
         self.net = None
-    
+
     @property
     def target_labels(self):
         return self.net.source.get_labels() if self.net is not None else []
@@ -44,7 +44,7 @@ class Plotter(object):
         validation_x = np.arange(
             0, len(self.net.training_costs), self.net.validation_interval)
         n_validations = min(len(validation_x), len(self.net.validation_costs))
-        ax.plot(validation_x[:n_validations], 
+        ax.plot(validation_x[:n_validations],
                 self.net.validation_costs[:n_validations],
                 label='Validation')
         ax.set_xlabel('Iteration')
@@ -76,7 +76,7 @@ class Plotter(object):
         self._save_or_display_fig('estimates', fig, end_string=self.seq_i)
         return fig, axes
 
-    def _save_or_display_fig(self, string, fig, 
+    def _save_or_display_fig(self, string, fig,
                              include_epochs=True, end_string=""):
         fig.tight_layout()
         if not self.save:
@@ -84,7 +84,7 @@ class Plotter(object):
             return
         end_string = str(end_string)
         filename = (
-            self.net.experiment_name + ("_" if self.net.experiment_name else "") + 
+            self.net.experiment_name + ("_" if self.net.experiment_name else "") +
             string +
             ("_{:d}epochs".format(self.net.n_iterations()) if include_epochs else "") +
             ("_" if end_string else "") + end_string +
@@ -102,7 +102,7 @@ class Plotter(object):
         ax.set_title('Target')
         ax.plot(y[self.seq_i, :, :], linewidth=self.linewidth)
         # alpha: lower = more transparent
-        ax.legend(self.target_labels, fancybox=True, 
+        ax.legend(self.target_labels, fancybox=True,
                   framealpha=0.5, prop={'size': 6})
         n = len(y[self.seq_i, :, :])
         ax.set_xlim([0, n])
@@ -150,9 +150,9 @@ class MDNPlotter(Plotter):
         mu     = output[:, :, 0]
         sigma  = output[:, :, 1]
         mixing = output[:, :, 2]
-        
+
         y_extra = max(target.ptp() * 0.2, mu.ptp() * 0.2)
-        y_lim = (min(target.min(), mu.min()) - y_extra, 
+        y_lim = (min(target.min(), mu.min()) - y_extra,
                  max(target.max(), mu.max()) + y_extra)
         x_lim = (0, self.seq_length)
         gmm_heatmap(ax, (mu, sigma, mixing), x_lim, y_lim)
@@ -187,7 +187,7 @@ class CentralOutputPlotter(Plotter):
         ax.set_title('Target')
         n_outputs = y.shape[2]
         ax.bar(range(n_outputs), y[self.seq_i, 0, :])
-        ax.set_xticklabels(self.target_labels)    
+        ax.set_xticklabels(self.target_labels)
 
 
 def gmm_pdf(theta, x):
@@ -218,7 +218,7 @@ def gmm_heatmap(ax, thetas, x_lim, y_lim, normalise=False,
     N_X = 200
     n_y = len(thetas[0])
     x_lim = (x_lim[0] - 0.5, x_lim[1] - 0.5)
-    extent = x_lim + y_lim # left, right, bottom, top
+    extent = x_lim + y_lim  # left, right, bottom, top
     x = np.linspace(y_lim[0], y_lim[1], N_X)
     img = np.zeros(shape=(N_X, n_y))
     i = 0
@@ -226,7 +226,7 @@ def gmm_heatmap(ax, thetas, x_lim, y_lim, normalise=False,
         img[:, i] = gmm_pdf((mu, sigma, mixing), x)
         if normalise:
             img[:, i] /= np.max(img[:, i])
-    ax.imshow(img, interpolation='none', extent=extent, aspect='auto', 
+    ax.imshow(img, interpolation='none', extent=extent, aspect='auto',
               origin='lower', cmap=cmap)
     return ax
 
