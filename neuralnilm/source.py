@@ -13,7 +13,7 @@ import gc
 from nilmtk.electric import activation_series_for_chunk
 from nilmtk.timeframegroup import TimeFrameGroup
 import logging
-
+from .rectangulariser import rectangularise
 
 SECS_PER_DAY = 60 * 60 * 24
 
@@ -38,7 +38,8 @@ class Source(object):
                  clock_period=None,
                  clock_type=None,
                  two_pass=False,
-                 subsample_target=1):
+                 subsample_target=1,
+                 n_rectangular_segments=None):
         """
         Parameters
         ----------
@@ -68,6 +69,7 @@ class Source(object):
         self.classification = classification
         self.random_window = random_window
         self.subsample_target = subsample_target
+        self.n_rectangular_segments = n_rectangular_segments
 
         if self.seq_length % self.subsample_target:
             raise RuntimeError(
@@ -215,6 +217,8 @@ class Source(object):
 
         X = self.X_processing_func(X)
         y = self.y_processing_func(y)
+        if self.n_rectangular_segments is not None:
+            y = rectangularise(y, n_segments=self.n_rectangular_segments)
 
         if self.classification:
             y = (y > 0).max(axis=1).reshape(
@@ -293,6 +297,9 @@ class Source(object):
             seq_length *= 2
         if self.subsample_target > 1:
             seq_length = seq_length // self.subsample_target
+        if self.n_rectangular_segments:
+            seq_length = self.n_rectangular_segments
+            n_outputs = 1
 
         if self.reshape_target_to_2D:
             return (n_seq_per_batch * seq_length, n_outputs)

@@ -39,7 +39,7 @@ def _rectangularise(data, n_segments, format='proportional'):
 def _get_changepoint(data):
     n_samples = len(data)
     best_error = sys.float_info.max
-    best_i = None
+    best_i = 0
     for i in range(2, n_samples-2):
         chunk1 = data[:i]
         chunk2 = data[i:]
