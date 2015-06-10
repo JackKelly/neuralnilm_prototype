@@ -192,13 +192,13 @@ class CentralOutputPlotter(Plotter):
 
 class RectangularOutputPlotter(Plotter):
     def _plot_network_output(self, ax, output):
-        self._plot_scatter(ax, y, 'Network output')        
+        self._plot_scatter(ax, output, 'Network output')
 
     def _plot_target(self, ax, y):
         self._plot_scatter(ax, y, 'Target')
 
     def _plot_scatter(self, ax, data, title):
-        example = data[self.seq_i, :, 0]
+        example = np.cumsum(data[self.seq_i, :, 0])
         y_values = [0] * len(example)
         ax.scatter(example, y_values)
         ax.set_xlim((0, 1))

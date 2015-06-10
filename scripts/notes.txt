@@ -452,3 +452,8 @@ i: 14 is good.  15 is good.
 ################# RectangularSource #################
 
 500: first attempt at training with RectangularSource.
+     git: c04c1f7
+
+501: reduce n_rectangular_segments to 3
+
+502: reduce n_rectangular_segments to 2, plot cumsum.

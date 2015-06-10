@@ -180,7 +180,6 @@ class Net(object):
 
     def print_net(self):
         layers = get_all_layers(self.layers[-1])
-        layers.reverse()
         for layer in layers:
             self.logger.info(str(layer))
             try:
@@ -403,7 +402,6 @@ class Net(object):
             return
             
         layers = get_all_layers(self.layers[-1])
-        layers.reverse()
         for layer_i, layer in enumerate(layers):
             params = layer.get_params()
             if not params:
@@ -434,7 +432,6 @@ class Net(object):
         epoch_group = f[epoch_name]
 
         layers = get_all_layers(self.layers[-1])
-        layers.reverse()
         for layer_i, layer in enumerate(layers):
             params = layer.get_params()
             if not params:
@@ -489,7 +486,6 @@ class Net(object):
             return
 
         layers = get_all_layers(self.layers[-1])
-        layers.reverse()
         for layer_i, layer in enumerate(layers):
             # We only care about layers with params
             if not (layer.get_params() or isinstance(layer, FeaturePoolLayer)):
