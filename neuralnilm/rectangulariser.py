@@ -8,7 +8,8 @@ def rectangularise(data, n_segments, format='proportional'):
         return _rectangularise(data, n_segments=n_segments, format=format)
     else:
         n_seq_per_batch = data.shape[0]
-        output = np.empty((n_seq_per_batch, n_segments, 1), dtype=np.float32)
+        n_features = n_segments if format == 'proportional' else n_segments - 1
+        output = np.empty((n_seq_per_batch, n_features, 1), dtype=np.float32)
         for batch_i in range(n_seq_per_batch):
             output[batch_i, :, 0] = _rectangularise(
                 data[batch_i, :, 0], n_segments=n_segments, format=format)

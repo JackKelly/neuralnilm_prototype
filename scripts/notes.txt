@@ -460,3 +460,8 @@ i: 14 is good.  15 is good.
      git: 4d191f6
 
 503: don't plot cumsum!
+     git: 80e0a2c
+
+504: n_rectangular_segments back to 3
+
+505: don't include_all

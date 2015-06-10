@@ -303,7 +303,12 @@ class Source(object):
         if self.subsample_target > 1:
             seq_length = seq_length // self.subsample_target
         if self.n_rectangular_segments:
-            seq_length = self.n_rectangular_segments
+            rectangular_format = self.rectangular_kwargs.get(
+                'format', 'proportional')
+            if rectangular_format == 'proportional':
+                seq_length = self.n_rectangular_segments
+            else:
+                seq_length = self.n_rectangular_segments - 1                
             n_outputs = 1
 
         if self.reshape_target_to_2D:
