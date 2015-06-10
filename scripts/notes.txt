@@ -465,4 +465,15 @@ i: 14 is good.  15 is good.
 504: n_rectangular_segments back to 3
 
 505: don't include_all.  And use format:'changepoints [0,1]'
-     git: 3ce778b
+     git: 219ef27
+
+TODO:
+* fix problem where it uses one segment for the spike.
+* faster!
+
+############### Start and end and mean #################
+(a simplification of RectangularSource where we just output
+the start point, end point and mean for each activation).
+
+506: First attempt with target_is_start_and_end_and_mean=True
+     git:

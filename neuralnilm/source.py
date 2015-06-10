@@ -13,7 +13,7 @@ import gc
 from nilmtk.electric import activation_series_for_chunk
 from nilmtk.timeframegroup import TimeFrameGroup
 import logging
-from .rectangulariser import rectangularise
+from .rectangulariser import rectangularise, start_and_end_and_mean
 
 SECS_PER_DAY = 60 * 60 * 24
 
@@ -40,7 +40,8 @@ class Source(object):
                  two_pass=False,
                  subsample_target=1,
                  n_rectangular_segments=None,
-                 rectangular_kwargs=None):
+                 rectangular_kwargs=None,
+                 target_is_start_and_end_and_mean=False):
         """
         Parameters
         ----------
@@ -73,6 +74,8 @@ class Source(object):
         self.n_rectangular_segments = n_rectangular_segments
         self.rectangular_kwargs = (
             {} if rectangular_kwargs is None else rectangular_kwargs)
+        self.target_is_start_and_end_and_mean = (
+            target_is_start_and_end_and_mean)
 
         if self.seq_length % self.subsample_target:
             raise RuntimeError(
@@ -225,6 +228,9 @@ class Source(object):
                 y, n_segments=self.n_rectangular_segments,
                 **self.rectangular_kwargs)
 
+        if self.target_is_start_and_end_and_mean:
+            y = start_and_end_and_mean(y)
+
         if self.classification:
             y = (y > 0).max(axis=1).reshape(
                 self.output_shape_after_processing())
@@ -309,6 +315,9 @@ class Source(object):
                 seq_length = self.n_rectangular_segments
             else:
                 seq_length = self.n_rectangular_segments - 1
+            n_outputs = 1
+        if self.target_is_start_and_end_and_mean:
+            seq_length = 3
             n_outputs = 1
 
         if self.reshape_target_to_2D:

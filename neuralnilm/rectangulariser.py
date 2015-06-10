@@ -1,6 +1,7 @@
 from __future__ import print_function, division
 import numpy as np
 import sys
+from nilmtk.electric import activation_series_for_chunk
 
 
 def rectangularise(data, n_segments, format='proportional'):
@@ -86,6 +87,33 @@ def _get_slice_with_highest_variance(changepoints, data):
         return None
     else:
         return slice_with_highest_variance
+
+
+def start_and_end_and_mean(data):
+    if data.ndim == 1:
+        return _start_and_end_and_mean(data)
+    else:
+        n_seq_per_batch = data.shape[0]
+        output = np.empty((n_seq_per_batch, 3, 1), dtype=np.float32)
+        for batch_i in range(n_seq_per_batch):
+            output[batch_i, :, 0] = _start_and_end_and_mean(
+                data[batch_i, :, 0])
+        return output
+
+
+def _start_and_end_and_mean(data):
+    THRESHOLD = 0.01
+    when_on = np.where(data > THRESHOLD)[0]
+    n = len(data)
+    if n < 2 or len(when_on) < 2:
+        start = end = mean = 0.0
+    else:
+        start = when_on[0]
+        end = when_on[-1]
+        mean = data[start:end].mean()
+        start /= n
+        end /= n
+    return np.array([start, end, mean], dtype=np.float32)
 
 
 """

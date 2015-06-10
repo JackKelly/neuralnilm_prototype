@@ -211,6 +211,15 @@ class RectangularOutputPlotter(Plotter):
         ax.set_title(title)
 
 
+class StartEndMeanPlotter(RectangularOutputPlotter):
+    def _plot_scatter(self, ax, data, title):
+        example = data[self.seq_i, :, 0]
+        y_values = [0, 0, 0.5]
+        ax.scatter(example, y_values)
+        ax.set_xlim((0, 1))
+        ax.set_title(title)
+    
+
 def gmm_pdf(theta, x):
     """
     Parameters
