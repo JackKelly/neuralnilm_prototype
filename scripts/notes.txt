@@ -476,4 +476,18 @@ TODO:
 the start point, end point and mean for each activation).
 
 506: First attempt with target_is_start_and_end_and_mean=True
-     git:
+     git: e45626d
+
+TODO:
+* plot power series for target.  And turn start, end, mean into
+  'proper' plot.
+
+507: first attempt to plot power series with target.
+
+508: ignore_incomplete=True
+
+509: try fixing bug where incomplete activations were still getting through.
+
+510: more filters (4 -> 16).  Another dense layer.  higher learning rate.
+
+511: independently centre inputs

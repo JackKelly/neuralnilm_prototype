@@ -114,7 +114,8 @@ class Net(object):
 
     def generate_validation_data_and_set_shapes(self):
         # Generate a "validation" sequence whose cost we will compute
-        self.X_val, self.y_val = self.source.validation_data()
+        self.validation_batch = self.source.validation_data()
+        self.X_val, self.y_val = self.validation_batch.data
         self.input_shape = self.X_val.shape
         self.n_seq_per_batch = self.input_shape[0]
         self.output_shape = self.y_val.shape
@@ -363,7 +364,8 @@ class Net(object):
                 self._change_layers(iteration)
             if iteration in self.epoch_callbacks:
                 self.epoch_callbacks[iteration](self, iteration)
-            X, y = self.source.queue.get(timeout=30)
+            batch = self.source.queue.get(timeout=30)
+            X, y = batch.data
             train_cost = self.train(X, y).flatten()[0]
             self.training_costs.append(train_cost)
             if not iteration % self.validation_interval:

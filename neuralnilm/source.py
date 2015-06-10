@@ -18,6 +18,12 @@ from .rectangulariser import rectangularise, start_and_end_and_mean
 SECS_PER_DAY = 60 * 60 * 24
 
 
+class Batch(object):
+    def __init__(self, data, target_power_timeseries):
+        self.data = data
+        self.target_power_timeseries = target_power_timeseries
+
+
 class Source(object):
     def __init__(self, seq_length, n_seq_per_batch, n_inputs, n_outputs,
                  logger=None,
@@ -118,9 +124,8 @@ class Source(object):
     def run(self):
         """Puts training data into a Queue"""
         while not self._stop.is_set():
-            X, y = self._gen_data()
-            X, y = self._process_data(X, y)
-            self.queue.put((X, y))
+            batch = self.get_batch()
+            self.queue.put(batch)
         self.empty_queue()
 
     def _initialise_standardisation(self):
@@ -173,8 +178,14 @@ class Source(object):
                 break
 
     def validation_data(self):
-        X, y = self._gen_data(validation=True)
-        return self._process_data(X, y)
+        return self.get_batch(validation=True)
+
+    def get_batch(self, validation=False):
+        X, y = self._gen_data(validation=validation)
+        X_processed, y_processed = self._process_data(X, y)
+        data = (X_processed, y_processed)
+        batch = Batch(data=data, target_power_timeseries=y)
+        return batch
 
     def _process_data(self, X, y):
         if self.subsample_target > 1:
@@ -1223,7 +1234,10 @@ class SameLocation(RandomSegments):
             data = np.pad(data, (0, n_zeros_to_pad), 'constant')
             return data
 
-        y = clip_or_pad(y)
+        if self.ignore_incomplete and len(y) > self.seq_length:
+            y = zeros()
+        else:
+            y = clip_or_pad(y)
 
         # get mains
         mains = self.mains[building_i]

@@ -55,21 +55,23 @@ class Plotter(object):
         return ax
 
     def plot_estimates(self):
-        X, y = self.net.X_val, self.net.y_val
+        validation_batch = self.net.validation_batch
+        X, y = validation_batch.data
         output = self.net.y_pred(X)
         X, y, output = self._process(X, y, output)
         sequences = range(min(self.net.n_seq_per_batch, self.n_seq_to_plot))
         for seq_i in sequences:
             self.seq_i = seq_i
-            fig, axes = self.create_estimates_fig(X, y, output)
+            fig, axes = self.create_estimates_fig(
+                X, y, output, validation_batch.target_power_timeseries)
 
     def _process(self, X, y, output):
         return X, y, output
 
-    def create_estimates_fig(self, X, y, output):
+    def create_estimates_fig(self, X, y, output, target_power_timeseries):
         fig, axes = plt.subplots(3)
         self._plot_network_output(axes[0], output)
-        self._plot_target(axes[1], y)
+        self._plot_target(axes[1], y, target_power_timeseries)
         self._plot_input(axes[2], X)
         for ax in axes:
             ax.grid(True)
@@ -98,7 +100,7 @@ class Plotter(object):
         n = len(output[self.seq_i, :, :])
         ax.set_xlim([0, n])
 
-    def _plot_target(self, ax, y):
+    def _plot_target(self, ax, y, target_power_timeseries):
         ax.set_title('Target')
         ax.plot(y[self.seq_i, :, :], linewidth=self.linewidth)
         # alpha: lower = more transparent
@@ -183,7 +185,7 @@ class CentralOutputPlotter(Plotter):
         n_outputs = output.shape[2]
         ax.bar(range(n_outputs), output[self.seq_i, 0, :])
 
-    def _plot_target(self, ax, y):
+    def _plot_target(self, ax, y, target_power_timeseries):
         ax.set_title('Target')
         n_outputs = y.shape[2]
         ax.bar(range(n_outputs), y[self.seq_i, 0, :])
@@ -198,7 +200,7 @@ class RectangularOutputPlotter(Plotter):
     def _plot_network_output(self, ax, output):
         self._plot_scatter(ax, output, 'Network output')
 
-    def _plot_target(self, ax, y):
+    def _plot_target(self, ax, y, target_power_timeseries):
         self._plot_scatter(ax, y, 'Target')
 
     def _plot_scatter(self, ax, data, title):
@@ -211,14 +213,40 @@ class RectangularOutputPlotter(Plotter):
         ax.set_title(title)
 
 
-class StartEndMeanPlotter(RectangularOutputPlotter):
-    def _plot_scatter(self, ax, data, title):
-        example = data[self.seq_i, :, 0]
-        y_values = [0, 0, 0.5]
-        ax.scatter(example, y_values)
+class StartEndMeanPlotter(Plotter):
+    def __init__(self, *args, **kwargs):
+        self.max_target_power = kwargs.pop('max_target_power', 100)
+        super(StartEndMeanPlotter, self).__init__(*args, **kwargs)
+
+    def _plot_target(self, ax, y, target_power_timeseries):
+        ax.set_title('Target')
+        # alpha: lower = more transparent
+        ax.legend(self.target_labels, fancybox=True,
+                  framealpha=0.5, prop={'size': 6})
+
+        # plot time series
+        target_power_timeseries = (
+            target_power_timeseries[self.seq_i, :, :] / self.max_target_power)
+        ax.plot(target_power_timeseries, linewidth=self.linewidth)
+
+        # plot 'rectangle'
+        n = len(target_power_timeseries)
+        target = y[self.seq_i, :, 0]
+        left = target[0] * n
+        width = (target[1] - target[0]) * n
+        height = target[2]
+        ax.bar(left, height, width, color='grey', edgecolor='grey', alpha=0.5)
+        ax.set_xlim([0, n])
+
+    def _plot_network_output(self, ax, output):
+        output = output[self.seq_i, :, 0]
+        left = output[0]
+        width = (output[1] - output[0])
+        height = output[2]
+        ax.bar(left, height, width)
         ax.set_xlim((0, 1))
-        ax.set_title(title)
-    
+        ax.set_title('Network output')
+
 
 def gmm_pdf(theta, x):
     """
