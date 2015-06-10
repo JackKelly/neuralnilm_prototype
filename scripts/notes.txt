@@ -457,3 +457,6 @@ i: 14 is good.  15 is good.
 501: reduce n_rectangular_segments to 3
 
 502: reduce n_rectangular_segments to 2, plot cumsum.
+     git: 4d191f6
+
+503: don't plot cumsum!

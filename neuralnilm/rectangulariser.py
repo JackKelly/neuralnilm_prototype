@@ -42,6 +42,8 @@ def _rectangularise(data, n_segments, format='proportional'):
             return segment_widths / total
     elif format == 'changepoints':
         return changepoints
+    elif format == 'changepoints [0,1]':
+        return np.array(changepoints) / len(data)
     else:
         raise RuntimeError("Unknown format: '{}'".format(format))
 

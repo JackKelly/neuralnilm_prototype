@@ -191,6 +191,10 @@ class CentralOutputPlotter(Plotter):
 
 
 class RectangularOutputPlotter(Plotter):
+    def __init__(self, *args, **kwargs):
+        self.cumsum = kwargs.pop('cumsum', False)
+        super(RectangularOutputPlotter, self).__init__(*args, **kwargs)
+
     def _plot_network_output(self, ax, output):
         self._plot_scatter(ax, output, 'Network output')
 
@@ -198,7 +202,9 @@ class RectangularOutputPlotter(Plotter):
         self._plot_scatter(ax, y, 'Target')
 
     def _plot_scatter(self, ax, data, title):
-        example = np.cumsum(data[self.seq_i, :, 0])
+        example = data[self.seq_i, :, 0]
+        if self.cumsum:
+            example = np.cumsum(example)
         y_values = [0] * len(example)
         ax.scatter(example, y_values)
         ax.set_xlim((0, 1))

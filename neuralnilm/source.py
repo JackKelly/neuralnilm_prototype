@@ -39,7 +39,8 @@ class Source(object):
                  clock_type=None,
                  two_pass=False,
                  subsample_target=1,
-                 n_rectangular_segments=None):
+                 n_rectangular_segments=None,
+                 rectangular_kwargs=None):
         """
         Parameters
         ----------
@@ -70,6 +71,8 @@ class Source(object):
         self.random_window = random_window
         self.subsample_target = subsample_target
         self.n_rectangular_segments = n_rectangular_segments
+        self.rectangular_kwargs = (
+            {} if rectangular_kwargs is None else rectangular_kwargs)
 
         if self.seq_length % self.subsample_target:
             raise RuntimeError(
@@ -218,7 +221,9 @@ class Source(object):
         X = self.X_processing_func(X)
         y = self.y_processing_func(y)
         if self.n_rectangular_segments is not None:
-            y = rectangularise(y, n_segments=self.n_rectangular_segments)
+            y = rectangularise(
+                y, n_segments=self.n_rectangular_segments,
+                **self.rectangular_kwargs)
 
         if self.classification:
             y = (y > 0).max(axis=1).reshape(
