@@ -18,8 +18,14 @@ def rectangularise(data, n_segments, format='proportional'):
 def _rectangularise(data, n_segments, format='proportional'):
     changepoints = []
     for segment_i in range(n_segments-1):
-        slice_with_highest_variance = _get_chunk_with_highest_variance(
+        slice_with_highest_variance = _get_slice_with_highest_variance(
             changepoints, data)
+        if slice_with_highest_variance is None:
+            # fill changepoints with zeros
+            n_zeros = n_segments - len(changepoints) - 1
+            changepoints += [0] * n_zeros
+            changepoints.sort()
+            break
         chunk_with_highest_variance = data[slice_with_highest_variance]
         changepoint = (_get_changepoint(chunk_with_highest_variance)
                        + slice_with_highest_variance.start)
@@ -29,7 +35,11 @@ def _rectangularise(data, n_segments, format='proportional'):
                       zip([0] + changepoints, changepoints + [len(data)])]
     segment_widths = np.array(segment_widths)
     if format == 'proportional':
-        return segment_widths / segment_widths.sum()
+        total = segment_widths.sum()
+        if total == 0:
+            return segment_widths
+        else:
+            return segment_widths / total
     elif format == 'changepoints':
         return changepoints
     else:
@@ -51,7 +61,7 @@ def _get_changepoint(data):
     return best_i
 
 
-def _get_chunk_with_highest_variance(changepoints, data):
+def _get_slice_with_highest_variance(changepoints, data):
     prev_changepoint = 0
     highest_variance = -1.0
     slice_with_highest_variance = None
@@ -63,4 +73,15 @@ def _get_chunk_with_highest_variance(changepoints, data):
         if variance > highest_variance:
             highest_variance = variance
             slice_with_highest_variance = this_slice
-    return slice_with_highest_variance
+    if highest_variance == 0:
+        return None
+    else:
+        return slice_with_highest_variance
+
+
+"""
+Emacs variables
+Local Variables:
+compile-command: "cp /home/jack/workspace/python/neuralnilm/neuralnilm/rectangulariser.py /mnt/sshfs/imperial/workspace/python/neuralnilm/neuralnilm/"
+End:
+"""

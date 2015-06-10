@@ -448,3 +448,7 @@ i: 14 is good.  15 is good.
 498: don't subsample target
 
 499: shorter seq length for washing machine
+
+################# RectangularSource #################
+
+500: first attempt at training with RectangularSource.

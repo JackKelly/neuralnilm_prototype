@@ -130,7 +130,7 @@ class Net(object):
 
             # Reshape if necessary
             if self.auto_reshape:
-                prev_layer_output_shape = self.layers[-1].get_output_shape()
+                prev_layer_output_shape = self.layers[-1].output_shape
                 n_dims = len(prev_layer_output_shape)
                 n_features = prev_layer_output_shape[-1]
                 if layer_type in RECURRENT_LAYERS:
@@ -170,7 +170,7 @@ class Net(object):
                 self.layer_labels[layer_label] = layer
 
         # Reshape output if necessary...
-        if (self.layers[-1].get_output_shape() != self.output_shape and
+        if (self.layers[-1].output_shape != self.output_shape and
             layer_type != MixtureDensityLayer):
             self.layers.append(ReshapeLayer(self.layers[-1], self.output_shape))
 
@@ -189,7 +189,7 @@ class Net(object):
                 pass
             else:
                 self.logger.info(" Input shape: {}".format(input_shape))
-            self.logger.info("Output shape: {}".format(layer.get_output_shape()))
+            self.logger.info("Output shape: {}".format(layer.output_shape))
 
     def compile(self):
         input = ndim_tensor(name='input', ndim=self.X_val.ndim)
@@ -201,14 +201,17 @@ class Net(object):
 
         self.logger.info("Compiling Theano functions...")
         loss_train = self.loss_function(
-            self.layers[-1].get_output(input), target_output)
+            lasagne.layers.get_output(self.layers[-1], input),
+            target_output)
         loss_eval = self.loss_function(
-            self.layers[-1].get_output(input, deterministic=True), target_output)
+            lasagne.layers.get_output(self.layers[-1], input,
+                                      deterministic=True),
+            target_output)
 
         # Updates
         all_params = lasagne.layers.get_all_params(self.layers[-1])
         updates = self.updates_func(
-            loss_train, all_params, learning_rate=self._learning_rate, 
+            loss_train, all_params, learning_rate=self._learning_rate,
             **self.updates_kwargs)
 
         # Theano functions for training, getting output, and computing loss_train
@@ -218,7 +221,9 @@ class Net(object):
             allow_input_downcast=True)
 
         self.y_pred = theano.function(
-            [input], self.layers[-1].get_output(input, deterministic=True),
+            [input],
+            lasagne.layers.get_output(self.layers[-1], input,
+                                      deterministic=True),
             on_unused_input='warn',
             allow_input_downcast=True)
 
@@ -490,7 +495,7 @@ class Net(object):
             if not (layer.get_params() or isinstance(layer, FeaturePoolLayer)):
                 continue
 
-            output = layer.get_output(self.X_val).eval()
+            output = lasagne.layers.get_output(layer, self.X_val).eval()
             n_features = output.shape[-1]
             seq_length = int(output.shape[0] / self.source.n_seq_per_batch)
 

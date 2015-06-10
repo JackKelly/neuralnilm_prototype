@@ -46,7 +46,7 @@ PATH = "/data/dk3810/figures"
 SAVE_PLOT_INTERVAL = 1000
 
 N_SEQ_PER_BATCH = 64
-N_SEGMENTS = 8
+N_SEGMENTS = 3
 
 source_dict = dict(
     filename='/data/dk3810/ukdale.h5',
@@ -188,6 +188,6 @@ if __name__ == "__main__":
 """
 Emacs variables
 Local Variables:
-compile-command: "cp /home/jack/workspace/python/neuralnilm/scripts/e500.py /mnt/sshfs/imperial/workspace/python/neuralnilm/scripts/"
+compile-command: "cp /home/jack/workspace/python/neuralnilm/scripts/e501.py /mnt/sshfs/imperial/workspace/python/neuralnilm/scripts/"
 End:
 """

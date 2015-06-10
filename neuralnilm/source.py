@@ -1149,7 +1149,8 @@ class SameLocation(RandomSegments):
             else:
                 activations = activations[n_validation_activations:]
         if len(activations) == 0:
-            return None, None
+            raise RuntimeError(
+                "No activations.  validation={}".format(validation))
         activation_i = self.rng.randint(low=0, high=len(activations)-1)
         activation = activations[activation_i]
 
