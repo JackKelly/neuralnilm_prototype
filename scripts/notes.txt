@@ -478,11 +478,9 @@ the start point, end point and mean for each activation).
 506: First attempt with target_is_start_and_end_and_mean=True
      git: e45626d
 
-TODO:
+507: first attempt to plot power series with target.
 * plot power series for target.  And turn start, end, mean into
   'proper' plot.
-
-507: first attempt to plot power series with target.
 
 508: ignore_incomplete=True
 
@@ -491,3 +489,24 @@ TODO:
 510: more filters (4 -> 16).  Another dense layer.  higher learning rate.
 
 511: independently centre inputs
+     git: a243e20
+
+512: try offset_probability = 0.9
+
+513: * no conv layer
+
+514: linear output (not standardised targets though)
+
+515: linear output, 2 conv layers, lower learning rate
+
+TODO:
+* TanH output
+* read Daniel Nouri's blog post on facial keypoint detection
+* I'm a bit suspicious of some of the training dta.  e.g. 513a_10
+* more conv layers
+* max pooling
+* pre-training (as AE?)
+* different appliances
+* two nets: one detects if there's a target anywhere in the input.
+  The other says where the target is.
+* instead of start, end, mean.  Try start, *width*, mean.
