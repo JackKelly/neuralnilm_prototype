@@ -107,7 +107,7 @@ def exp_a(name, target_appliance, seq_length):
         source=source
     ))
     NUM_FILTERS = 4
-    target_seq_length = N_SEGMENTS
+    target_seq_length = source.output_shape_after_processing()[1]
     net_dict_copy['layers_config'] = [
         {
             'type': DimshuffleLayer,

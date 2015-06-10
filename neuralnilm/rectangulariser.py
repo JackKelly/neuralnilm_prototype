@@ -17,6 +17,12 @@ def rectangularise(data, n_segments, format='proportional'):
 
 
 def _rectangularise(data, n_segments, format='proportional'):
+    """
+    Parameters
+    ----------
+    n_segments : int
+    format : {'proportional', 'changepoints', 'changepoints [0,1]'}
+    """
     changepoints = []
     for segment_i in range(n_segments-1):
         slice_with_highest_variance = _get_slice_with_highest_variance(

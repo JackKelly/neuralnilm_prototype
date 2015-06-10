@@ -464,4 +464,5 @@ i: 14 is good.  15 is good.
 
 504: n_rectangular_segments back to 3
 
-505: don't include_all
+505: don't include_all.  And use format:'changepoints [0,1]'
+     git: 3ce778b
