@@ -537,6 +537,9 @@ conv, conv is best
 518:
 like 517g.  But tweaked learning rate.  And train for ever.
 
+519:
+like 518 but don't independently center inputs.
+
 TODO:
 * use diff
 * different appliances
