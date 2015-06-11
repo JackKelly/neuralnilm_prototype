@@ -495,18 +495,59 @@ the start point, end point and mean for each activation).
 
 513: * no conv layer
 
-514: linear output (not standardised targets though)
+514: linear output (not standardised targets though), no conv layer
+avg valid cost =  0.0200949628
 
 515: linear output, 2 conv layers, lower learning rate
+avg valid cost =  0.0193651617  (after about 400,000 iterations!)
+
+516: linear output, 1 conv layer, high learning rate for a bit
+a: no conv
+avg valid cost =  0.0230021048
+
+b: 1 conv layer
+avg valid cost =  0.0197356101
+
+c: 1 conv layer, filter size = 2
+avg valid cost =  0.0202551596
+
+d: 1 conv layer, ReLU
+avg valid cost =  0.0210823435
+
+e: conv then pool
+avg valid cost =  0.0198636372
+
+f: conv, pool, conv
+avg valid cost =  0.0201312639
+
+g: conv, conv
+avg valid cost =  0.0191588160
+
+h: conv, conv, conv
+avg valid cost =  0.0198109504
+
+i: conv, conv, conv, conv
+avg valid cost =  0.0193489492
+
+CONCLUSTIONS:
+stick to linear Conv
+no conv is worst
+conv, conv is best
+
+518:
+like 517g.  But tweaked learning rate.  And train for ever.
 
 TODO:
+* use diff
+* different appliances
+* Scale targets to [-1, 1]
+* Try RealApplianceSource again. (it can do a better job of generating
+  more training data)
+* Mix RealApplianceSource with SamePosition.
 * TanH output
 * read Daniel Nouri's blog post on facial keypoint detection
 * I'm a bit suspicious of some of the training dta.  e.g. 513a_10
-* more conv layers
-* max pooling
 * pre-training (as AE?)
-* different appliances
 * two nets: one detects if there's a target anywhere in the input.
   The other says where the target is.
 * instead of start, end, mean.  Try start, *width*, mean.
