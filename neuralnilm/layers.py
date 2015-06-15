@@ -16,10 +16,6 @@ from neuralnilm.utils import remove_nones
 def BLSTMLayer(*args, **kwargs):
     """Configures forward and backwards LSTM layers to create a
     bidirectional LSTM.
-
-    If learn_init=True then you can't have multiple
-    layers of LSTM cells.
-    See https://github.com/craffel/nntools/issues/11
     """
     return BidirectionalLayer(LSTMLayer, *args, **kwargs)
 
