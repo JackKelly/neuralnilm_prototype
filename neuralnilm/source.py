@@ -53,13 +53,7 @@ class Source(object):
         ----------
         clock_type : {'one_hot', 'ramp'}
         """
-        if logger is None:
-            self.logger = logging.getLogger(__name__)
-            self.logger.setLevel(logging.DEBUG)
-            if not self.logger.handlers:
-                self.logger.addHandler(logging.StreamHandler(stdout))
-        else:
-            self.logger = logger
+        self._set_logger(logger)
 
         self.seq_length = seq_length
         self.n_seq_per_batch = n_seq_per_batch
@@ -111,7 +105,18 @@ class Source(object):
         self.clock_type = clock_type
         self.two_pass = two_pass
 
-    def _init_data():
+    def _set_logger(self, logger):
+        if hasattr(self, 'logger'):
+            return
+        elif logger is None:
+            self.logger = logging.getLogger(__name__)
+            self.logger.setLevel(logging.DEBUG)
+            if not self.logger.handlers:
+                self.logger.addHandler(logging.StreamHandler(stdout))
+        else:
+            self.logger = logger
+
+    def _init_data(self):
         pass
 
     def start(self):
@@ -413,6 +418,7 @@ class ToySource(Source):
 class RealApplianceSource(Source):
     def __init__(self, filename, appliances,
                  min_on_durations,
+                 logger=None,
                  max_appliance_powers=None,
                  min_off_durations=None,
                  on_power_thresholds=None,
@@ -456,6 +462,7 @@ class RealApplianceSource(Source):
             probability but every appliance will be present in at least
             one sequence per batch.
         """
+        self._set_logger(logger)
         self.dataset = DataSet(filename)
         self.appliances = appliances
 

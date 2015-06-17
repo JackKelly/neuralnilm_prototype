@@ -540,6 +540,13 @@ like 517g.  But tweaked learning rate.  And train for ever.
 519:
 like 518 but don't independently center inputs.
 
+######## RealApplianceSource with Recangular output #########
+520: buggy
+521: works but little training data
+522: appears to work, and lots of training data.
+
+
+
 TODO:
 * use diff
 * different appliances
