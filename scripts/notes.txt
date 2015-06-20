@@ -543,8 +543,9 @@ like 518 but don't independently center inputs.
 ######## RealApplianceSource with Recangular output #########
 520: buggy
 521: works but little training data
-522: appears to work, and lots of training data.
+522: appears to work, and lots of training data.  Works pretty well!
 
+523: same as 522 but independently center inputs.
 
 
 TODO:
