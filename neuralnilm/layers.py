@@ -4,8 +4,9 @@ import theano.tensor as T
 
 import numpy as np
 
-from lasagne.layers import (Layer, LSTMLayer, RecurrentLayer, ElemwiseSumLayer,
+from lasagne.layers import (Layer, ElemwiseSumLayer,
                             Conv1DLayer, DenseLayer)
+# from lasagne.layers import LSTMLayer, RecurrentLayer
 from lasagne.layers.conv import conv_output_length
 from lasagne import nonlinearities
 from lasagne import init
@@ -13,24 +14,24 @@ from lasagne import init
 from neuralnilm.utils import remove_nones
 
 
-def BLSTMLayer(*args, **kwargs):
-    """Configures forward and backwards LSTM layers to create a
-    bidirectional LSTM.
-    """
-    return BidirectionalLayer(LSTMLayer, *args, **kwargs)
+# def BLSTMLayer(*args, **kwargs):
+#     """Configures forward and backwards LSTM layers to create a
+#     bidirectional LSTM.
+#     """
+#     return BidirectionalLayer(LSTMLayer, *args, **kwargs)
 
 
-def BidirectionalRecurrentLayer(*args, **kwargs):
-    """Configures forward and backwards RecurrentLayers to create a
-    bidirectional recurrent layer."""
-    return BidirectionalLayer(RecurrentLayer, *args, **kwargs)
+# def BidirectionalRecurrentLayer(*args, **kwargs):
+#     """Configures forward and backwards RecurrentLayers to create a
+#     bidirectional recurrent layer."""
+#     return BidirectionalLayer(RecurrentLayer, *args, **kwargs)
 
 
-def BidirectionalLayer(layer_class, *args, **kwargs):
-    kwargs.pop('backwards', None)
-    l_fwd = layer_class(*args, backwards=False, **kwargs)
-    l_bck = layer_class(*args, backwards=True, **kwargs)
-    return ElemwiseSumLayer([l_fwd, l_bck])
+# def BidirectionalLayer(layer_class, *args, **kwargs):
+#     kwargs.pop('backwards', None)
+#     l_fwd = layer_class(*args, backwards=False, **kwargs)
+#     l_bck = layer_class(*args, backwards=True, **kwargs)
+#     return ElemwiseSumLayer([l_fwd, l_bck])
 
 
 class MixtureDensityLayer(Layer):

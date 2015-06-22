@@ -12,19 +12,20 @@ from time import time
 
 import theano
 import theano.tensor as T
-theano.config.compute_test_value = 'raise'
 
 import lasagne
-from lasagne.layers import (InputLayer, LSTMLayer, ReshapeLayer, Layer,
+from lasagne.layers import (InputLayer, ReshapeLayer, Layer,
                             ConcatLayer, ElemwiseSumLayer, DenseLayer,
                             get_all_layers, Conv1DLayer, FeaturePoolLayer,
-                            RecurrentLayer, DimshuffleLayer)
+                            DimshuffleLayer)
+# from lasagne.layers import LSTMLayer, RecurrentLayer
 from lasagne.nonlinearities import sigmoid, rectify
 from lasagne.utils import floatX
 from lasagne.updates import nesterov_momentum
 
 from .source import quantize
-from .layers import BLSTMLayer, MixtureDensityLayer, BidirectionalRecurrentLayer
+# from .layers import BLSTMLayer, MixtureDensityLayer, BidirectionalRecurrentLayer
+from .layers import MixtureDensityLayer
 from .utils import sfloatX, none_to_dict, ndim_tensor
 from .plot import Plotter
 from .batch_norm import batch_norm
@@ -122,8 +123,9 @@ class Net(object):
         self.n_outputs = self.output_shape[-1]
 
     def add_layers(self, layers_config):
-        RECURRENT_LAYERS = [LSTMLayer, BLSTMLayer, DimshuffleLayer,
-                            RecurrentLayer, BidirectionalRecurrentLayer]
+#        RECURRENT_LAYERS = [LSTMLayer, BLSTMLayer, DimshuffleLayer,
+#                            RecurrentLayer, BidirectionalRecurrentLayer]
+        RECURRENT_LAYERS = [DimshuffleLayer]
 
         for layer_config in layers_config:
             layer_type = layer_config.pop('type')
@@ -192,44 +194,49 @@ class Net(object):
             self.logger.info("Output shape: {}".format(layer.output_shape))
 
     def compile(self):
-        input = ndim_tensor(name='input', ndim=self.X_val.ndim)
-        target_output = ndim_tensor(name='target_output', ndim=self.y_val.ndim)
-
-        # add test values
-        input.tag.test_value = floatX(rand(*self.input_shape))
-        target_output.tag.test_value = floatX(rand(*self.output_shape))
-
         self.logger.info("Compiling Theano functions...")
-        loss_train = self.loss_function(
-            lasagne.layers.get_output(self.layers[-1], input),
-            target_output)
-        loss_eval = self.loss_function(
-            lasagne.layers.get_output(self.layers[-1], input,
-                                      deterministic=True),
-            target_output)
+        target_output = ndim_tensor(name='target_output', ndim=self.y_val.ndim)
+        network_input = ndim_tensor(name='network_input', ndim=self.X_val.ndim)
+        output_layer = self.layers[-1]
+
+        # Training
+        network_output_train = lasagne.layers.get_output(
+            output_layer, network_input)
+        loss_train = self.loss_function(network_output_train, target_output)
+
+        # Evaluation (test and validation)
+        network_output_eval = lasagne.layers.get_output(
+            output_layer, network_input, deterministic=True)
+        loss_eval = self.loss_function(network_output_eval, target_output)
 
         # Updates
-        all_params = lasagne.layers.get_all_params(self.layers[-1])
+        all_params = lasagne.layers.get_all_params(output_layer)
         updates = self.updates_func(
             loss_train, all_params, learning_rate=self._learning_rate,
             **self.updates_kwargs)
 
-        # Theano functions for training, getting output, and computing loss_train
+        # Theano functions for training, getting output,
+        # and computing loss_train
         self.train = theano.function(
-            [input, target_output],
-            loss_train, updates=updates, on_unused_input='warn',
+            inputs=[network_input, target_output],
+            outputs=loss_train,
+            updates=updates,
+            on_unused_input='warn',
             allow_input_downcast=True)
 
+        deterministic_output = lasagne.layers.get_output(
+            output_layer, network_input, deterministic=True)
+
         self.y_pred = theano.function(
-            [input],
-            lasagne.layers.get_output(self.layers[-1], input,
-                                      deterministic=True),
+            inputs=[network_input],
+            outputs=deterministic_output,
             on_unused_input='warn',
             allow_input_downcast=True)
 
         self.compute_cost = theano.function(
-            [input, target_output],
-            loss_eval, on_unused_input='warn',
+            inputs=[network_input, target_output],
+            outputs=[loss_eval, deterministic_output],
+            on_unused_input='warn',
             allow_input_downcast=True)
 
         self.logger.info("Done compiling Theano functions.")
@@ -243,7 +250,7 @@ class Net(object):
         except:
             raise
         finally:
-            self.source.stop()      
+            self.source.stop()
 
     def _change_layers(self, epoch):
         self.source.stop()
@@ -290,8 +297,8 @@ class Net(object):
             (" avg train cost =" + FMT + "\n").format(
                 np.mean(np.sort(self.training_costs)[:K])) +
             (" avg valid cost =" + FMT + "\n").format(
-                np.mean(np.sort(self.validation_costs)[:K])) + 
-            "\n" + 
+                np.mean(np.sort(self.validation_costs)[:K])) +
+            "\n" +
             "AVERAGE COSTS FOR THE LAST {:d} ITERATIONS\n".format(N) +
             (" avg train cost =" + FMT + "\n").format(
                 np.mean(self.training_costs[-N:])) +
@@ -369,7 +376,8 @@ class Net(object):
             train_cost = self.train(X, y).flatten()[0]
             self.training_costs.append(train_cost)
             if not iteration % self.validation_interval:
-                validation_cost = self.compute_cost(self.X_val, self.y_val).flatten()[0]
+                validation_cost = self.compute_cost(self.X_val, self.y_val)[0]
+                validation_cost = validation_cost.flatten()[0]
                 self.validation_costs.append(validation_cost)
                 _write_csv_row(
                     self.csv_filenames['validation_costs'],
@@ -402,7 +410,7 @@ class Net(object):
             self.logger.exception("Cannot save params!")
             f.close()
             return
-            
+
         layers = get_all_layers(self.layers[-1])
         for layer_i, layer in enumerate(layers):
             params = layer.get_params()
