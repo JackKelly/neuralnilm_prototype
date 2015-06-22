@@ -17,7 +17,7 @@ import lasagne
 from lasagne.layers import (InputLayer, ReshapeLayer, Layer,
                             ConcatLayer, ElemwiseSumLayer, DenseLayer,
                             get_all_layers, Conv1DLayer, FeaturePoolLayer,
-                            DimshuffleLayer)
+                            DimshuffleLayer, ConcatLayer)
 # from lasagne.layers import LSTMLayer, RecurrentLayer
 from lasagne.nonlinearities import sigmoid, rectify
 from lasagne.utils import floatX
@@ -164,9 +164,18 @@ class Net(object):
                     print(layer_config[k])
                     print(type(layer_config[k]))
 
-            # Init new layer_config
             self.logger.info('Initialising layer_config : {}'.format(layer_type))
-            layer = layer_type(self.layers[-1], **layer_config)
+                    
+            # Handle ConcatLayers
+            if layer_type == ConcatLayer:
+                incoming = [
+                    self.layer_labels[ref]
+                    for ref in layer_config.pop('incomings')]
+            else:
+                incoming = self.layers[-1]
+
+            # Init new layer_config
+            layer = layer_type(incoming, **layer_config)
             self.layers.append(layer)
 
             if layer_label is not None:
@@ -310,7 +319,7 @@ class Net(object):
 
         # print bests to screen
         print("  {:>5} |  {}{:>10.6f}{}  |  {}{:>10.6f}{}  |"
-              "  {:>11.6f}  |  {:>3.1f}s".format(
+              "  {:>11.6f}  |  {:>.3f}s".format(
                   iteration,
                   ansi.BLUE if is_best_train else "",
                   train_cost,

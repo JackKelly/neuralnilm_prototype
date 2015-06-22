@@ -563,11 +563,18 @@ overfitting!
 
 527: like 526 but add dropout layers
 had to do lots of debugging to get this to work.  Basically invalid run.
+oops, only 1 month of training data!
 
 528: dropout, 0.5 skip prob for first appliance, 0.75 skip prob for
 others.
+oops, only 1 month of training data!
 
 529: 528 but no dropout.
+oops, only 1 month of training data!
+
+530: skip layer from first conv
+
+531: add another dense layer, skip from first to last dense layers.
 
 TODO:
 * use diff
