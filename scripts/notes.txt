@@ -544,9 +544,30 @@ like 518 but don't independently center inputs.
 520: buggy
 521: works but little training data
 522: appears to work, and lots of training data.  Works pretty well!
+avg valid cost =  0.0234354474
 
-523: same as 522 but independently center inputs.
+523: same as 522 but independently center inputs.  Works pretty well.
+avg valid cost =  0.0233064983
 
+524: same as 523 but increase skip probability for first appliance and
+decrease it for others.  It's now 0.5 for all appliances.
+avg valid cost =  0.0646887049
+
+525: same as 524 but don't independently centre inputs
+avg valid cost =  0.0612
+
+526: change dense layers from 512, 256, 128 -> 512, 512, 512
+avg train cost =  0.0373702273
+avg valid cost =  0.0659154281
+overfitting!
+
+527: like 526 but add dropout layers
+had to do lots of debugging to get this to work.  Basically invalid run.
+
+528: dropout, 0.5 skip prob for first appliance, 0.75 skip prob for
+others.
+
+529: 528 but no dropout.
 
 TODO:
 * use diff
