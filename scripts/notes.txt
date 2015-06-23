@@ -580,6 +580,9 @@ Keep training rate at 1e-3.
 
 532: exactly the same as 531 but validation now different to train!
 
+533: same as 532 but only remove bare minimum of activations from
+training set.
+
 TODO:
 * use diff
 * different appliances

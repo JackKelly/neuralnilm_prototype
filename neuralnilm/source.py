@@ -524,31 +524,15 @@ class RealApplianceSource(Source):
             train_buildings, min_on_durations, min_off_durations,
             on_power_thresholds)
         if train_buildings == validation_buildings:
-            n_validation_activations = n_seq_per_batch
-            self.validation_activations = OrderedDict()
-            for appliance in self.appliances:
-                if isinstance(appliance, list):
-                    appliance = appliance[0]
-                self.validation_activations[appliance] = (
-                    self.train_activations[appliance]
-                    [:n_validation_activations])
-                self.train_activations[appliance] = (
-                    self.train_activations[appliance]
-                    [n_validation_activations:])
+            self.validation_activations = {}
+            # validation activations will be removed from train_activations
+            self.remove_used_activations = True
         else:
             self.logger.info("Loading validation activations...")
+            self.remove_used_activations = False
             self.validation_activations = self._load_activations(
                 validation_buildings, min_on_durations, min_off_durations,
                 on_power_thresholds)
-
-        for appliance in self.appliances:
-            if isinstance(appliance, list):
-                appliance = appliance[0]
-            self.logger.info(
-                "{}: {:d} validation activations, {:d} train activations"
-                .format(appliance,
-                        len(self.validation_activations[appliance]),
-                        len(self.train_activations[appliance])))
 
         self.dataset.store.close()
 
@@ -600,8 +584,10 @@ class RealApplianceSource(Source):
         y = np.zeros(shape=(self.seq_length, self.n_outputs), dtype=np.float32)
         POWER_THRESHOLD = 1
         BORDER = 5
-        activations = (self.validation_activations if validation
-                       else self.train_activations)
+        if validation and self.validation_activations:
+            activations = self.validation_activations
+        else:
+            activations = self.train_activations
 
         if not self.one_target_per_seq:
             random_appliances = []
@@ -625,7 +611,10 @@ class RealApplianceSource(Source):
             if n_activations == 0:
                 continue
             activation_i = self.rng.randint(0, n_activations)
-            activation = activations[appliance][activation_i]
+            if self.remove_used_activations and validation:
+                activation = activations[appliance].pop(activation_i)
+            else:
+                activation = activations[appliance][activation_i]
             latest_start_i = ((self.seq_length - len(activation)) -
                               (BORDER + self.lag))
             latest_start_i = max(latest_start_i, BORDER)
@@ -726,6 +715,13 @@ class RealApplianceSource(Source):
         for i in range(self.n_seq_per_batch):
             X[i, start:end, :], y[i, :, :] = self._gen_single_example(
                 validation, deterministic_appliances.get(i))
+        if self.remove_used_activations and validation:
+            for appliance in self.appliances:
+                if isinstance(appliance, list):
+                    appliance = appliance[0]
+                self.logger.info(
+                    "{}: {:d} train activations".format(
+                        appliance, len(self.train_activations[appliance])))
         return X, y
 
 
