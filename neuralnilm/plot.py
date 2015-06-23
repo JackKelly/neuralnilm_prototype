@@ -51,7 +51,8 @@ class Plotter(object):
         ax.set_ylabel('Cost')
         ax.legend()
         ax.grid(True)
-        self._save_or_display_fig('costs', fig, include_epochs=False)
+        self._save_or_display_fig(
+            'costs', fig, include_epochs=False, suffix='png')
         return ax
 
     def plot_estimates(self):
@@ -79,7 +80,7 @@ class Plotter(object):
         return fig, axes
 
     def _save_or_display_fig(self, string, fig,
-                             include_epochs=True, end_string=""):
+                             include_epochs=True, end_string="", suffix="pdf"):
         fig.tight_layout()
         if not self.save:
             plt.show(block=True)
@@ -90,7 +91,7 @@ class Plotter(object):
             string +
             ("_{:d}epochs".format(self.net.n_iterations()) if include_epochs else "") +
             ("_" if end_string else "") + end_string +
-            ".pdf")
+            "." + suffix)
         plt.savefig(filename, bbox_inches='tight')
         plt.close(fig)
 
