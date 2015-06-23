@@ -573,8 +573,10 @@ oops, only 1 month of training data!
 oops, only 1 month of training data!
 
 530: skip layer from first conv
+Not bad but not fantastic.  Doesn't seem to help much.
 
 531: add another dense layer, skip from first to last dense layers.
+Keep training rate at 1e-3.
 
 TODO:
 * use diff

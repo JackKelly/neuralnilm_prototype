@@ -93,8 +93,8 @@ net_dict = dict(
     updates_kwargs={'clip_range': (0, 10)},
     learning_rate=1e-3,
     learning_rate_changes_by_iteration={
-        1000: 1e-4,
-        50000: 1e-5
+#        1000: 1e-4,
+#        50000: 1e-5
     },
     do_save_activations=True,
     auto_reshape=False,
@@ -188,7 +188,7 @@ def exp_a(name):
         {
             'type': ConcatLayer,
             'axis': 1,
-            'incomings': ['dense0', 'reshape2']
+            'incomings': ['dense0', 'dense2']
         },
         {
             'type': DenseLayer,
