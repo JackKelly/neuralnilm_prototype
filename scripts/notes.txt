@@ -584,15 +584,16 @@ Keep training rate at 1e-3.
 training set.
 
 TODO:
+* try outputting a binary mask.  This might make skip connections more
+effective.  And then, after training a binary mask, try adding a few
+layers on top for regression?
 * use diff
 * different appliances
 * Scale targets to [-1, 1]
-* Try RealApplianceSource again. (it can do a better job of generating
-  more training data)
 * Mix RealApplianceSource with SamePosition.
 * TanH output
 * read Daniel Nouri's blog post on facial keypoint detection
-* I'm a bit suspicious of some of the training dta.  e.g. 513a_10
+* I'm a bit suspicious of some of the training data.  e.g. 513a_10
 * pre-training (as AE?)
 * two nets: one detects if there's a target anywhere in the input.
   The other says where the target is.
