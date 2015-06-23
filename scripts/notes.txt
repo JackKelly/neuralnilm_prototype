@@ -583,6 +583,9 @@ Keep training rate at 1e-3.
 533: same as 532 but only remove bare minimum of activations from
 training set.
 
+534: pad input before conv.  And allow 'distractor' appliances to be
+anyway in the target seq.  No skip layers.  Much larger net.
+
 TODO:
 * try outputting a binary mask.  This might make skip connections more
 effective.  And then, after training a binary mask, try adding a few

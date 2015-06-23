@@ -615,14 +615,26 @@ class RealApplianceSource(Source):
                 activation = activations[appliance].pop(activation_i)
             else:
                 activation = activations[appliance][activation_i]
-            latest_start_i = ((self.seq_length - len(activation)) -
-                              (BORDER + self.lag))
-            latest_start_i = max(latest_start_i, BORDER)
-            start_i = self.rng.randint(0, latest_start_i)
-            end_i = start_i + len(activation)
-            end_i = min(end_i, self.seq_length-(1+self.lag))
-            target = activation.values[:end_i-start_i]
-            X[start_i:end_i, 0] += target
+            if self.output_one_appliance and appliance_i > 0:
+                # Allow appliance to start before the start of the target seq
+                # and end after the end of the target seq
+                latest_start_i = self.seq_length - (BORDER + self.lag)
+                earliest_start_i = BORDER - len(activation)
+            else:
+                # Try to fit the appliance into the target seq
+                latest_start_i = ((self.seq_length - len(activation)) -
+                                  (BORDER + self.lag))
+                latest_start_i = max(latest_start_i, BORDER)
+                earliest_start_i = 0
+            start_i = self.rng.randint(earliest_start_i, latest_start_i)
+            X_start_i = max(0, start_i)
+            activation_start_i = -min(0, start_i)
+            activation_end_i = (
+                activation_start_i + self.seq_length - X_start_i - self.lag)
+            target = activation.values[activation_start_i:activation_end_i]
+            X_end_i = X_start_i + len(target)
+            assert X_end_i <= self.seq_length
+            X[X_start_i:X_end_i, 0] += target
             if (not self.target_is_prediction and
                     (appliance_i == 0 or not self.output_one_appliance)):
                 target = np.copy(target)
@@ -634,11 +646,11 @@ class RealApplianceSource(Source):
                     if max_appliance_power is not None:
                         target /= max_appliance_power
                 if self.target_is_diff:
-                    y[(start_i+self.lag):(end_i+self.lag-1), appliance_i] = (
-                        np.diff(target))
+                    y[(X_start_i+self.lag):(X_end_i+self.lag-1),
+                      appliance_i] = np.diff(target)
                 else:
-                    y[(start_i+self.lag):(end_i+self.lag), appliance_i] = (
-                        target)
+                    y[(X_start_i+self.lag):(X_end_i+self.lag),
+                      appliance_i] = target
 
         if self.clip_input:
             np.clip(X, 0, self.max_input_power, out=X)
