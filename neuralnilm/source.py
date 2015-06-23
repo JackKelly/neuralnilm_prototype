@@ -524,12 +524,32 @@ class RealApplianceSource(Source):
             train_buildings, min_on_durations, min_off_durations,
             on_power_thresholds)
         if train_buildings == validation_buildings:
-            self.validation_activations = self.train_activations
+            n_validation_activations = n_seq_per_batch
+            self.validation_activations = OrderedDict()
+            for appliance in self.appliances:
+                if isinstance(appliance, list):
+                    appliance = appliance[0]
+                self.validation_activations[appliance] = (
+                    self.train_activations[appliance]
+                    [:n_validation_activations])
+                self.train_activations[appliance] = (
+                    self.train_activations[appliance]
+                    [n_validation_activations:])
         else:
             self.logger.info("Loading validation activations...")
             self.validation_activations = self._load_activations(
                 validation_buildings, min_on_durations, min_off_durations,
                 on_power_thresholds)
+
+        for appliance in self.appliances:
+            if isinstance(appliance, list):
+                appliance = appliance[0]
+            self.logger.info(
+                "{}: {:d} validation activations, {:d} train activations"
+                .format(appliance,
+                        len(self.validation_activations[appliance]),
+                        len(self.train_activations[appliance])))
+
         self.dataset.store.close()
 
         super(RealApplianceSource, self).__init__(

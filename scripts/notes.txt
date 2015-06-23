@@ -578,6 +578,8 @@ Not bad but not fantastic.  Doesn't seem to help much.
 531: add another dense layer, skip from first to last dense layers.
 Keep training rate at 1e-3.
 
+532: exactly the same as 531 but validation now different to train!
+
 TODO:
 * use diff
 * different appliances
