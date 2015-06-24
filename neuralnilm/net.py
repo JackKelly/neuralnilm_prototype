@@ -175,7 +175,10 @@ class Net(object):
                 incoming = self.layers[-1]
 
             # Init new layer_config
+            apply_batch_norm = layer_config.pop('batch_normalize', False)
             layer = layer_type(incoming, **layer_config)
+            if apply_batch_norm:
+                layer = batch_norm(layer)
             self.layers.append(layer)
 
             if layer_label is not None:
@@ -219,7 +222,8 @@ class Net(object):
         loss_eval = self.loss_function(network_output_eval, target_output)
 
         # Updates
-        all_params = lasagne.layers.get_all_params(output_layer)
+        all_params = lasagne.layers.get_all_params(
+            output_layer, trainable=True)
         updates = self.updates_func(
             loss_train, all_params, learning_rate=self._learning_rate,
             **self.updates_kwargs)

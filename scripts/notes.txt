@@ -586,9 +586,31 @@ training set.
 534: pad input before conv.  And allow 'distractor' appliances to be
 anyway in the target seq.  No skip layers.  Much larger net.
 Results: pretty good, actually!
+First 272000 iterations: avg valid cost = 0.022723388
+All iterations: 0.0203086548
 
 535: same as 534 but smaller net.
+Results: not quite as good as 534.
+avg valid cost = 0.0248404965
 
+536: 534 with:
+ + batch norm on all dense layers
+ + use nesterov_momentum (not clipped_nesterov_momentum)
+ + reduce learning rate to 1e-4
+
+537: 536 with:
+ + batch norm on conv layers as well
+ + reduce size of most dense layers by half
+
+538: 537 but:
+ + no batch norm on conv layers (because it doesn't respect conv
+ property)
+ + start with very low learning rate (to allow BN to burn in)
+
+539: back to batch_norm with no kwargs.
+BN is ruining training. Giving up on BN for now.
+
+540: 535 but with dropout
 
 TODO:
 * try outputting a binary mask.  This might make skip connections more
