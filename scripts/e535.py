@@ -94,7 +94,7 @@ net_dict = dict(
     learning_rate=1e-2,
     learning_rate_changes_by_iteration={
         1000: 1e-3,
-        200000: 1e-4
+        500000: 1e-4
     },
     do_save_activations=True,
     auto_reshape=False,
