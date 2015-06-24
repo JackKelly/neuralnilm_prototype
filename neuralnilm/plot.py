@@ -252,13 +252,13 @@ class StartEndMeanPlotter(Plotter):
 
     def _plot_network_output(self, ax, output):
         n_outputs = output.shape[2]
-        colours = colour_iter(n_outputs) 
+        colours = colour_iter(n_outputs)
         for output_i in range(n_outputs):
             single_output = output[self.seq_i, :, output_i]
             left = single_output[0]
             width = (single_output[1] - single_output[0])
             height = single_output[2]
-            ax.bar(left, height, width,
+            ax.bar(left, height, width, alpha=0.5,
                    color=colours[output_i],
                    edgecolor=colours[output_i])
         ax.set_xlim((0, 1))
