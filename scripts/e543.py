@@ -152,13 +152,13 @@ def exp_a(name):
         },
         {
             'type': DenseLayer,
-            'num_units': 512 * 16,
+            'num_units': 512 * 8,
             'nonlinearity': rectify,
             'label': 'dense0'
         },
         {
             'type': DenseLayer,
-            'num_units': 512 * 8,
+            'num_units': 512 * 6,
             'nonlinearity': rectify,
             'label': 'dense1'
         },
