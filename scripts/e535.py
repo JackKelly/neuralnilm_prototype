@@ -91,10 +91,10 @@ net_dict = dict(
 #    updates_func=momentum,
     updates_func=clipped_nesterov_momentum,
     updates_kwargs={'clip_range': (0, 10)},
-    learning_rate=1e-3,
+    learning_rate=1e-2,
     learning_rate_changes_by_iteration={
-#        1000: 1e-4,
-#        50000: 1e-5
+        1000: 1e-3,
+        200000: 1e-4
     },
     do_save_activations=True,
     auto_reshape=False,
@@ -173,16 +173,16 @@ def exp_a(name):
         },
         {
             'type': DenseLayer,
-            'num_units': 512 * 4,
+            'num_units': 512 * 2,
             'nonlinearity': rectify,
             'label': 'dense0'
         },
-        {
-            'type': DenseLayer,
-            'num_units': 512 * 2,
-            'nonlinearity': rectify,
-            'label': 'dense1'
-        },
+        # {
+        #     'type': DenseLayer,
+        #     'num_units': 512 * 2,
+        #     'nonlinearity': rectify,
+        #     'label': 'dense1'
+        # },
         # {
         #     'type': DenseLayer,
         #     'num_units': 512,

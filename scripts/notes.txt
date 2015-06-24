@@ -585,6 +585,10 @@ training set.
 
 534: pad input before conv.  And allow 'distractor' appliances to be
 anyway in the target seq.  No skip layers.  Much larger net.
+Results: pretty good, actually!
+
+535: same as 534 but smaller net.
+
 
 TODO:
 * try outputting a binary mask.  This might make skip connections more
