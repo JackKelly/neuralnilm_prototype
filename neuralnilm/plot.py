@@ -2,8 +2,8 @@ from __future__ import division, print_function
 import matplotlib
 matplotlib.rcParams.update({'font.size': 8})
 import matplotlib.pyplot as plt
+from matplotlib.pyplot import cm
 import numpy as np
-import pandas as pd
 import h5py
 from scipy.stats import norm
 
@@ -227,26 +227,46 @@ class StartEndMeanPlotter(Plotter):
 
         # plot time series
         target_power_timeseries = (
-            target_power_timeseries[self.seq_i, :, :] / self.max_target_power)
-        ax.plot(target_power_timeseries, linewidth=self.linewidth)
+            target_power_timeseries[self.seq_i, :, :]) #  / self.max_target_power)
+        n, n_outputs = target_power_timeseries.shape
+
+        colours = colour_iter(n_outputs)
+        for output_i in range(n_outputs):
+            ax.plot(target_power_timeseries[:, output_i],
+                    linewidth=self.linewidth,
+                    c=colours[output_i],
+                    label=self.target_labels[output_i])
+        # alpha: lower = more transparent
+        ax.legend(fancybox=True, framealpha=0.5, prop={'size': 6})
 
         # plot 'rectangle'
-        n = len(target_power_timeseries)
-        target = y[self.seq_i, :, 0]
-        left = target[0] * n
-        width = (target[1] - target[0]) * n
-        height = target[2]
-        ax.bar(left, height, width, color='grey', edgecolor='grey', alpha=0.5)
+        for output_i in range(n_outputs):
+            target = y[self.seq_i, :, output_i]
+            left = target[0] * n
+            width = (target[1] - target[0]) * n
+            height = target[2]
+            ax.bar(left, height, width, alpha=0.5,
+                   color=colours[output_i],
+                   edgecolor=colours[output_i])
         ax.set_xlim([0, n])
 
     def _plot_network_output(self, ax, output):
-        output = output[self.seq_i, :, 0]
-        left = output[0]
-        width = (output[1] - output[0])
-        height = output[2]
-        ax.bar(left, height, width)
+        n_outputs = output.shape[2]
+        colours = colour_iter(n_outputs) 
+        for output_i in range(n_outputs):
+            single_output = output[self.seq_i, :, output_i]
+            left = single_output[0]
+            width = (single_output[1] - single_output[0])
+            height = single_output[2]
+            ax.bar(left, height, width,
+                   color=colours[output_i],
+                   edgecolor=colours[output_i])
         ax.set_xlim((0, 1))
         ax.set_title('Network output')
+
+
+def colour_iter(n):
+    return [c for c in cm.rainbow(np.linspace(0, 1, n))]
 
 
 def gmm_pdf(theta, x):

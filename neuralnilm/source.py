@@ -334,7 +334,6 @@ class Source(object):
             n_outputs = 1
         if self.target_is_start_and_end_and_mean:
             seq_length = 3
-            n_outputs = 1
 
         if self.reshape_target_to_2D:
             return (n_seq_per_batch * seq_length, n_outputs)

@@ -94,10 +94,12 @@ def start_and_end_and_mean(data):
         return _start_and_end_and_mean(data)
     else:
         n_seq_per_batch = data.shape[0]
-        output = np.empty((n_seq_per_batch, 3, 1), dtype=np.float32)
+        n_outputs = data.shape[2]
+        output = np.empty((n_seq_per_batch, 3, n_outputs), dtype=np.float32)
         for batch_i in range(n_seq_per_batch):
-            output[batch_i, :, 0] = _start_and_end_and_mean(
-                data[batch_i, :, 0])
+            for output_i in range(n_outputs):
+                output[batch_i, :, output_i] = _start_and_end_and_mean(
+                    data[batch_i, :, output_i])
         return output
 
 
