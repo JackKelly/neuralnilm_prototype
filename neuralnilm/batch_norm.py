@@ -11,14 +11,13 @@ Author: Jan Schlüter
 from: https://gist.github.com/f0k/f1a6bd3c8585c400c190
 """
 
-import numpy as np
-from lasagne.layers import Layer
+import lasagne
 from lasagne import nonlinearities
 import theano
 import theano.tensor as T
 
 
-class BatchNormLayer(Layer):
+class BatchNormLayer(lasagne.layers.Layer):
 
     def __init__(self, incoming, axes=None, epsilon=0.01, alpha=0.5,
                  nonlinearity=None, **kwargs):
@@ -57,17 +56,14 @@ class BatchNormLayer(Layer):
         if any(size is None for size in shape):
             raise ValueError("BatchNormLayer needs specified input sizes for "
                              "all dimensions/axes not normalized over.")
-        dtype = theano.config.floatX
-        self.mean = theano.shared(np.zeros(shape, dtype=dtype), 'mean')
-        self.std = theano.shared(np.ones(shape, dtype=dtype), 'std')
-        self.beta = theano.shared(np.zeros(shape, dtype=dtype), 'beta')
-        self.gamma = theano.shared(np.ones(shape, dtype=dtype), 'gamma')
-
-    def get_params(self):
-        return [self.gamma] + self.get_bias_params()
-
-    def get_bias_params(self):
-        return [self.beta]
+        self.mean = self.add_param(lasagne.init.Constant(0), shape, 'mean',
+                                   trainable=False, regularizable=False)
+        self.std = self.add_param(lasagne.init.Constant(1), shape, 'std',
+                                  trainable=False, regularizable=False)
+        self.beta = self.add_param(lasagne.init.Constant(0), shape, 'beta',
+                                   trainable=True, regularizable=True)
+        self.gamma = self.add_param(lasagne.init.Constant(1), shape, 'gamma',
+                                    trainable=True, regularizable=False)
 
     def get_output_for(self, input, deterministic=False, **kwargs):
         if deterministic:
@@ -116,5 +112,6 @@ def batch_norm(layer, **kwargs):
     if nonlinearity is not None:
         layer.nonlinearity = nonlinearities.identity
     if hasattr(layer, 'b'):
+        del layer.params[layer.b]
         layer.b = None
     return BatchNormLayer(layer, nonlinearity=nonlinearity, **kwargs)
