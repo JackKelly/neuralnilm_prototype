@@ -585,7 +585,7 @@ training set.
 
 534: pad input before conv.  And allow 'distractor' appliances to be
 anyway in the target seq.  No skip layers.  Much larger net.
-Results: pretty good, actually!
+Results: pretty good, actually! *******************************************
 First 272000 iterations: avg valid cost = 0.022723388
 All iterations: 0.0203086548
 
@@ -620,6 +620,8 @@ longer?)
  + don't use clipped_nesterov_momentum
 
 542: same as 541 but prettier plotting, hopefully
+
+543: 541, prettier plotting, multiple outputs, big net from 534
 
 TODO:
 * try outputting a binary mask.  This might make skip connections more
