@@ -17,7 +17,8 @@ def plot_activations(filename, epoch, seq_i=0, normalise=False):
         activations = layer_activations[seq_i, :, :]
         if normalise:
             activations /= activations.max(axis=0)
-        plt.imshow(activations.transpose(), aspect='auto', interpolation='none')
+        plt.imshow(
+            activations.transpose(), aspect='auto', interpolation='none')
         break
 
 
@@ -87,9 +88,11 @@ class Plotter(object):
             return
         end_string = str(end_string)
         filename = (
-            self.net.experiment_name + ("_" if self.net.experiment_name else "") +
+            self.net.experiment_name +
+            ("_" if self.net.experiment_name else "") +
             string +
-            ("_{:d}epochs".format(self.net.n_iterations()) if include_epochs else "") +
+            ("_{:d}epochs".format(self.net.n_iterations())
+             if include_epochs else "") +
             ("_" if end_string else "") + end_string +
             "." + suffix)
         plt.savefig(filename, bbox_inches='tight')
@@ -150,8 +153,8 @@ class MDNPlotter(Plotter):
         ax.set_title(title)
         output = output[self.seq_i, :, output_i, :, :]
         target = target[self.seq_i, :, output_i]
-        mu     = output[:, :, 0]
-        sigma  = output[:, :, 1]
+        mu = output[:, :, 0]
+        sigma = output[:, :, 1]
         mixing = output[:, :, 2]
 
         y_extra = max(target.ptp() * 0.2, mu.ptp() * 0.2)
@@ -226,8 +229,7 @@ class StartEndMeanPlotter(Plotter):
                   framealpha=0.5, prop={'size': 6})
 
         # plot time series
-        target_power_timeseries = (
-            target_power_timeseries[self.seq_i, :, :]) #  / self.max_target_power)
+        target_power_timeseries = target_power_timeseries[self.seq_i, :, :]
         n, n_outputs = target_power_timeseries.shape
 
         colours = colour_iter(n_outputs)
@@ -286,7 +288,7 @@ def gmm_pdf(theta, x):
     return pdf
 
 
-def gmm_heatmap(ax, thetas, x_lim, y_lim, normalise=False, 
+def gmm_heatmap(ax, thetas, x_lim, y_lim, normalise=False,
                 cmap=matplotlib.cm.Blues):
     """
     Parameters
@@ -308,6 +310,7 @@ def gmm_heatmap(ax, thetas, x_lim, y_lim, normalise=False,
     ax.imshow(img, interpolation='none', extent=extent, aspect='auto',
               origin='lower', cmap=cmap)
     return ax
+
 
 """
 Emacs variables
