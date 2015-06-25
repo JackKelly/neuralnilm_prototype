@@ -1,8 +1,9 @@
 from __future__ import print_function, division
-import matplotlib
+#import matplotlib
 import logging
 from sys import stdout
-matplotlib.use('Agg') # Must be before importing matplotlib.pyplot or pylab!
+# matplotlib.use('Agg') # Must be before importing matplotlib.pyplot or pylab!
+import matplotlib.pyplot as plt
 from neuralnilm import (Net, RealApplianceSource)
 from neuralnilm.source import (standardise, discretize, fdiff, power_and_fdiff,
                                RandomSegments, RandomSegmentsInMemory,
@@ -36,7 +37,7 @@ import theano.tensor as T
 import gc
 
 
-NAME = os.path.splitext(os.path.split(__main__.__file__)[1])[0]
+NAME = 'e534'
 PATH = "/data/dk3810/figures"
 SAVE_PLOT_INTERVAL = 25000
 
@@ -57,7 +58,7 @@ source_dict = dict(
     on_power_thresholds=[5] * 5,
     min_on_durations=[60, 1800, 60, 60, 1800],
     min_off_durations=[12, 600, 12, 12, 1800],
-    window=("2013-03-18", None),
+    window=("2013-03-18", "2013-04-18"),
     seq_length=512,
     output_one_appliance=True,
     train_buildings=[1],
@@ -166,7 +167,21 @@ def exp_a(name):
 # Load neural net
 full_exp_name = NAME + 'a'
 path = os.path.join(PATH, full_exp_name)
+print("Changing directory to", path)
 os.chdir(path)
+
+logger = logging.getLogger(full_exp_name)
+if not logger.handlers:
+    fh = logging.FileHandler(full_exp_name + '.log')
+    formatter = logging.Formatter('%(asctime)s %(message)s')
+    fh.setFormatter(formatter)
+    logger.addHandler(fh)
+    logger.addHandler(logging.StreamHandler(stream=stdout))
+
+logger.setLevel(logging.DEBUG)
+logger.info("***********************************")
+logger.info("Preparing " + full_exp_name + "...")
+
 net = exp_a(full_exp_name)
 net.print_net()
 net.compile()
@@ -177,8 +192,32 @@ net.compile()
 # and to make it easier to plot every appliance),
 # and long seq length,
 # then make one long mains by concatenating each seq
+source_dict_copy = deepcopy(source_dict)
+source_dict_copy.update(dict(
+    logger=logger,
+    seq_length=2000,
+    output_one_appliance=False
+))
+mains_source = RealApplianceSource(**source_dict_copy)
 
-disaggregate_start_stop_end(mains, net)
+N_BATCHES = 3
+logger.info("Preparing synthetic mains data for {} batches.".format(N_BATCHES))
+mains = None
+for batch_i in range(N_BATCHES):
+    mains_batch, targets_batch = mains_source._gen_data()
+    mains_batch, targets_batch = mains_source._process_data(
+        mains_batch, targets_batch)
+    if mains is None:
+        mains = mains_batch
+    else:
+        mains = np.concatenate((mains, mains_batch))
+mains = mains.flatten()
+logger.info("Done preparing synthetic mains data!")
+
+logger.info("Starting disag...")
+ax = disaggregate_start_stop_end(mains, net, stride=None)
+plt.show()
+logger.info("DONE!")
 
 """
 Emacs variables

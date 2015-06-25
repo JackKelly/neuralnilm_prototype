@@ -265,6 +265,11 @@ def plot_rectangles(ax, batch, seq_i=0, plot_seq_width=1, offset=0, alpha=0.5):
     alpha : float, optional
         [0, 1].  Transparency for the rectangles.
     """
+    # sanity check
+    for obj in [seq_i, plot_seq_width, offset, alpha]:
+        if not isinstance(obj, (int, float)):
+            raise ValueError("Incorrect input: {}".format(obj))
+    
     n_outputs = batch.shape[2]
     colors = get_colors(n_outputs)
     for output_i in range(n_outputs):
