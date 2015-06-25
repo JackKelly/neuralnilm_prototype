@@ -269,15 +269,14 @@ def plot_rectangles(ax, batch, seq_i=0, plot_seq_width=1, offset=0, alpha=0.5):
     for obj in [seq_i, plot_seq_width, offset, alpha]:
         if not isinstance(obj, (int, float)):
             raise ValueError("Incorrect input: {}".format(obj))
-    
+
     n_outputs = batch.shape[2]
     colors = get_colors(n_outputs)
     for output_i in range(n_outputs):
         single_output = batch[seq_i, :, output_i]
         left = (single_output[0] * plot_seq_width) + offset
         height = single_output[2]
-        width = (
-            ((single_output[1] - single_output[0]) * plot_seq_width) + offset)
+        width = (single_output[1] - single_output[0]) * plot_seq_width
         color = colors[output_i]
         ax.bar(left, height, width, alpha=alpha, color=color, edgecolor=color)
 

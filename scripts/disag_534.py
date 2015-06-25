@@ -17,7 +17,7 @@ from neuralnilm.objectives import (scaled_cost, mdn_nll,
                                    scaled_cost3)
 from neuralnilm.plot import MDNPlotter, CentralOutputPlotter, Plotter, RectangularOutputPlotter, StartEndMeanPlotter
 from neuralnilm.updates import clipped_nesterov_momentum
-from neuralnilm.disaggregate import disaggregate, disaggregate_start_stop_end
+from neuralnilm.disaggregate import disaggregate_start_stop_end
 from neuralnilm.rectangulariser import rectangularise
 
 from lasagne.nonlinearities import sigmoid, rectify, tanh, identity, softmax
@@ -58,7 +58,7 @@ source_dict = dict(
     on_power_thresholds=[5] * 5,
     min_on_durations=[60, 1800, 60, 60, 1800],
     min_off_durations=[12, 600, 12, 12, 1800],
-    window=("2013-03-18", "2013-04-18"),
+    window=("2013-03-18", None),
     seq_length=512,
     output_one_appliance=True,
     train_buildings=[1],
@@ -196,26 +196,43 @@ source_dict_copy = deepcopy(source_dict)
 source_dict_copy.update(dict(
     logger=logger,
     seq_length=2000,
-    output_one_appliance=False
+    output_one_appliance=False,
+    input_stats=net.source.input_stats,
+    target_is_start_and_end_and_mean=False,
+    window=("2013-03-18", "2013-05-18")
 ))
 mains_source = RealApplianceSource(**source_dict_copy)
 
-N_BATCHES = 3
+N_BATCHES = 1
 logger.info("Preparing synthetic mains data for {} batches.".format(N_BATCHES))
 mains = None
+targets = None
 for batch_i in range(N_BATCHES):
     mains_batch, targets_batch = mains_source._gen_data()
     mains_batch, targets_batch = mains_source._process_data(
         mains_batch, targets_batch)
     if mains is None:
         mains = mains_batch
+        targets = targets_batch[:, :, 0]
     else:
         mains = np.concatenate((mains, mains_batch))
+        targets = np.concatenate((targets, targets_batch[:, :, 0]))
+
 mains = mains.flatten()
+targets = targets.flatten()
 logger.info("Done preparing synthetic mains data!")
 
 logger.info("Starting disag...")
-ax = disaggregate_start_stop_end(mains, net, stride=None)
+fig, axes = plt.subplots(3, 1, sharex=True)
+disaggregate_start_stop_end(mains, net, stride=16, ax=axes[0])
+axes[0].set_title('Network output')
+
+seq_length = net.input_shape[1]
+axes[1].plot(np.pad(targets, (seq_length, seq_length), mode='constant'))
+axes[1].set_title("Target")
+
+axes[2].plot(np.pad(mains, (seq_length, seq_length), mode='constant'))
+axes[2].set_title('Network input')
 plt.show()
 logger.info("DONE!")
 

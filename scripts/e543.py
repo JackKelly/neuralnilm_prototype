@@ -48,7 +48,6 @@ N_SEQ_PER_BATCH = 64
 MAX_TARGET_POWER = 300
 
 
-
 source_dict = dict(
     filename='/data/dk3810/ukdale.h5',
     appliances=[
@@ -180,7 +179,7 @@ def exp_a(name):
         }
     ]
     net = Net(**net_dict_copy)
-    net.load_params(49630)
+    net.load_params(270119)
     return net
 
 
