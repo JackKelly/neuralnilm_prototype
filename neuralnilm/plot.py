@@ -223,48 +223,58 @@ class StartEndMeanPlotter(Plotter):
         super(StartEndMeanPlotter, self).__init__(*args, **kwargs)
 
     def _plot_target(self, ax, y, target_power_timeseries):
-        ax.set_title('Target')
-        # alpha: lower = more transparent
-        ax.legend(self.target_labels, fancybox=True,
-                  framealpha=0.5, prop={'size': 6})
-
-        # plot time series
-        target_power_timeseries = target_power_timeseries[self.seq_i, :, :]
-        n, n_outputs = target_power_timeseries.shape
-
+        # Plot time series.
+        seq_length, n_outputs = target_power_timeseries.shape[1:3]
         colors = get_colors(n_outputs)
         for output_i in range(n_outputs):
-            ax.plot(target_power_timeseries[:, output_i],
+            ax.plot(target_power_timeseries[self.seq_i, :, output_i],
                     linewidth=self.linewidth,
                     c=colors[output_i],
                     label=self.target_labels[output_i])
-        # alpha: lower = more transparent
-        ax.legend(fancybox=True, framealpha=0.5, prop={'size': 6})
 
-        # plot 'rectangle'
-        for output_i in range(n_outputs):
-            target = y[self.seq_i, :, output_i]
-            left = target[0] * n
-            width = (target[1] - target[0]) * n
-            height = target[2]
-            ax.bar(left, height, width, alpha=0.5,
-                   color=colors[output_i],
-                   edgecolor=colors[output_i])
-        ax.set_xlim([0, n])
+        # Legend: lower alpha = more transparent.
+        ax.legend(fancybox=True, framealpha=0.5, prop={'size': 6})
+        ax.set_title('Target')
+
+        # Rectangles.
+        plot_rectangles(ax, y, seq_i=self.seq_i, plot_seq_width=seq_length)
+        ax.set_xlim((0, seq_length))
 
     def _plot_network_output(self, ax, output):
-        n_outputs = output.shape[2]
-        colors = get_colors(n_outputs)
-        for output_i in range(n_outputs):
-            single_output = output[self.seq_i, :, output_i]
-            left = single_output[0]
-            width = (single_output[1] - single_output[0])
-            height = single_output[2]
-            ax.bar(left, height, width, alpha=0.5,
-                   color=colors[output_i],
-                   edgecolor=colors[output_i])
+        plot_rectangles(ax, output, self.seq_i)
         ax.set_xlim((0, 1))
         ax.set_title('Network output')
+
+
+def plot_rectangles(ax, batch, seq_i=0, plot_seq_width=1, offset=0, alpha=0.5):
+    """
+    Parameters
+    ----------
+    ax : matplotlib axes
+    batch : numpy.ndarray
+        Shape = (n_seq_per_batch, seq_length, n_outputs)
+    seq_i : int, optional
+        Index into the first dimension of `batch`.
+    plot_seq_width : int or float, optional
+        The width of a sequence plotted on the X-axis.
+        Multiply `left` and `right` values by `plot_seq_width` before plotting.
+    offset : float, optional
+        Shift rectangles left or right by `offset` where one complete sequence
+        is of length `plot_seq_width`.  i.e. to move rectangles half a plot
+        width right, set `offset` to `plot_seq_width / 2.0`.
+    alpha : float, optional
+        [0, 1].  Transparency for the rectangles.
+    """
+    n_outputs = batch.shape[2]
+    colors = get_colors(n_outputs)
+    for output_i in range(n_outputs):
+        single_output = batch[seq_i, :, output_i]
+        left = (single_output[0] * plot_seq_width) + offset
+        height = single_output[2]
+        width = (
+            ((single_output[1] - single_output[0]) * plot_seq_width) + offset)
+        color = colors[output_i]
+        ax.bar(left, height, width, alpha=alpha, color=color, edgecolor=color)
 
 
 def get_colors(n):

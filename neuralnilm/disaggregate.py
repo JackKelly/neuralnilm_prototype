@@ -1,7 +1,10 @@
 from __future__ import division, print_function
 import numpy as np
+import matplotlib.pyplot as plt
 
 from neuralnilm.source import standardise
+from neuralnilm.plot import plot_rectangles
+
 
 def disaggregate(mains, net):
     """
@@ -37,3 +40,42 @@ def disaggregate(mains, net):
         appliance_estimates[start:end] = output.flatten()
 
     return appliance_estimates
+
+
+def disaggregate_start_stop_end(mains, net, stride=1, ax=None):
+    """
+    Parameters
+    ----------
+    mains : 1D np.ndarray
+        Must already be standardised according to `net.source.input_stats`.
+    net : neuralnilm.net.Net
+    stride : int, optional
+    ax : matplotlib.axes.Axes, optional
+
+    Returns
+    -------
+    ax : matplotlib.axes.Axes
+    """
+    n_seq_per_batch, seq_length = net.input_shape[:2]
+    n_samples_per_batch = seq_length * n_seq_per_batch
+    if ax is None:
+        ax = plt.gca()
+
+    # Pad mains with zeros at both ends so we can slide
+    # over the start and end of the mains data.
+    pad_width = (n_samples_per_batch, n_samples_per_batch)
+    mains_padded = np.pad(mains, pad_width, mode='constant')
+
+    # Loop over the mains data, sliding the net over the data.
+    n_mains_samples = len(mains_padded)
+    last_mains_start_i = n_mains_samples - n_samples_per_batch
+    for mains_start_i in xrange(0, last_mains_start_i, stride):
+        mains_end_i = mains_start_i + n_samples_per_batch
+        net_input_flat_batch = mains_padded[mains_start_i:mains_end_i]
+        net_input = net_input_flat_batch.reshape(net.input_shape)
+        net_output = net.y_pred(net_input)
+        offset = mains_start_i, n_mains_samples
+        for seq_i in range(n_seq_per_batch):
+            plot_rectangles(ax, net_output, seq_i, offset=offset)
+
+    return ax

@@ -584,7 +584,7 @@ Keep training rate at 1e-3.
 training set.
 
 534: pad input before conv.  And allow 'distractor' appliances to be
-anyway in the target seq.  No skip layers.  Much larger net.
+anywhere in the target seq.  No skip layers.  Much larger net.
 Results: pretty good, actually! *******************************************
 First 272000 iterations: avg valid cost = 0.022723388
 All iterations: 0.0203086548
