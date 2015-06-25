@@ -232,11 +232,11 @@ class StartEndMeanPlotter(Plotter):
         target_power_timeseries = target_power_timeseries[self.seq_i, :, :]
         n, n_outputs = target_power_timeseries.shape
 
-        colours = colour_iter(n_outputs)
+        colors = get_colors(n_outputs)
         for output_i in range(n_outputs):
             ax.plot(target_power_timeseries[:, output_i],
                     linewidth=self.linewidth,
-                    c=colours[output_i],
+                    c=colors[output_i],
                     label=self.target_labels[output_i])
         # alpha: lower = more transparent
         ax.legend(fancybox=True, framealpha=0.5, prop={'size': 6})
@@ -248,26 +248,26 @@ class StartEndMeanPlotter(Plotter):
             width = (target[1] - target[0]) * n
             height = target[2]
             ax.bar(left, height, width, alpha=0.5,
-                   color=colours[output_i],
-                   edgecolor=colours[output_i])
+                   color=colors[output_i],
+                   edgecolor=colors[output_i])
         ax.set_xlim([0, n])
 
     def _plot_network_output(self, ax, output):
         n_outputs = output.shape[2]
-        colours = colour_iter(n_outputs)
+        colors = get_colors(n_outputs)
         for output_i in range(n_outputs):
             single_output = output[self.seq_i, :, output_i]
             left = single_output[0]
             width = (single_output[1] - single_output[0])
             height = single_output[2]
             ax.bar(left, height, width, alpha=0.5,
-                   color=colours[output_i],
-                   edgecolor=colours[output_i])
+                   color=colors[output_i],
+                   edgecolor=colors[output_i])
         ax.set_xlim((0, 1))
         ax.set_title('Network output')
 
 
-def colour_iter(n):
+def get_colors(n):
     return [c for c in cm.rainbow(np.linspace(0, 1, n))]
 
 
