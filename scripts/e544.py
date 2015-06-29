@@ -55,7 +55,7 @@ source_dict = dict(
         ['fridge freezer', 'fridge', 'freezer'],
         ['washer dryer', 'washing machine'],
         'kettle',
-        'htpc',
+        'HTPC',
         'dish washer'
     ],
     max_appliance_powers=[MAX_TARGET_POWER, 2400, 2400, 200, 2500],

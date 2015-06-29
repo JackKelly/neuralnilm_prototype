@@ -618,6 +618,7 @@ longer?)
  + no dropout
  + multiple appliance outputs
  + don't use clipped_nesterov_momentum
+ + increase skip_probability_for_first_appliances from 0.5 to 0.75
 
 542: same as 541 but prettier plotting, hopefully
 
