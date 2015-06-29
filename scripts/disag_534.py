@@ -15,8 +15,8 @@ from neuralnilm.layers import (MixtureDensityLayer, DeConv1DLayer,
 from neuralnilm.objectives import (scaled_cost, mdn_nll,
                                    scaled_cost_ignore_inactive, ignore_inactive,
                                    scaled_cost3)
-from neuralnilm.plot import MDNPlotter, CentralOutputPlotter, Plotter, RectangularOutputPlotter, StartEndMeanPlotter
-from neuralnilm.updates import clipped_nesterov_momentum
+from neuralnilm.plot import (
+    StartEndMeanPlotter, plot_disaggregate_start_stop_end)
 from neuralnilm.disaggregate import disaggregate_start_stop_end
 from neuralnilm.rectangulariser import rectangularise
 
@@ -76,8 +76,7 @@ source_dict = dict(
 net_dict = dict(
     save_plot_interval=SAVE_PLOT_INTERVAL,
     loss_function=lambda x, t: squared_error(x, t).mean(),
-    updates_func=clipped_nesterov_momentum,
-    updates_kwargs={'clip_range': (0, 10)},
+    updates_func=nesterov_momentum,
     learning_rate=1e-3,
     do_save_activations=True,
     auto_reshape=False,
@@ -218,20 +217,34 @@ for batch_i in range(N_BATCHES):
         mains = np.concatenate((mains, mains_batch))
         targets = np.concatenate((targets, targets_batch[:, :, 0]))
 
-mains = mains.flatten()
-targets = targets.flatten()
+seq_length = net.input_shape[1]
+
+
+def pad(data):
+    return np.pad(data, (seq_length, seq_length), mode='constant',
+                  constant_values=(data.min().astype(float), ))
+
+
+mains = pad(mains.flatten())
+targets = pad(targets.flatten())
 logger.info("Done preparing synthetic mains data!")
 
+# disag
+STRIDE = 16
 logger.info("Starting disag...")
+rectangles = disaggregate_start_stop_end(mains, net, stride=STRIDE)
+
+# plot
+logger.info("Plotting...")
 fig, axes = plt.subplots(3, 1, sharex=True)
-disaggregate_start_stop_end(mains, net, stride=16, ax=axes[0])
+alpha = STRIDE / seq_length
+plot_disaggregate_start_stop_end(rectangles, ax=axes[0], alpha=alpha)
 axes[0].set_title('Network output')
 
-seq_length = net.input_shape[1]
-axes[1].plot(np.pad(targets, (seq_length, seq_length), mode='constant'))
+axes[1].plot(targets)
 axes[1].set_title("Target")
 
-axes[2].plot(np.pad(mains, (seq_length, seq_length), mode='constant'))
+axes[2].plot(mains)
 axes[2].set_title('Network input')
 plt.show()
 logger.info("DONE!")

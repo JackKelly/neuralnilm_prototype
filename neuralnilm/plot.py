@@ -252,7 +252,7 @@ def plot_rectangles(ax, batch, seq_i=0, plot_seq_width=1, offset=0, alpha=0.5):
     ----------
     ax : matplotlib axes
     batch : numpy.ndarray
-        Shape = (n_seq_per_batch, seq_length, n_outputs)
+        Shape = (n_seq_per_batch, 3, n_outputs)
     seq_i : int, optional
         Index into the first dimension of `batch`.
     plot_seq_width : int or float, optional
@@ -279,6 +279,34 @@ def plot_rectangles(ax, batch, seq_i=0, plot_seq_width=1, offset=0, alpha=0.5):
         width = (single_output[1] - single_output[0]) * plot_seq_width
         color = colors[output_i]
         ax.bar(left, height, width, alpha=alpha, color=color, edgecolor=color)
+
+
+def plot_disaggregate_start_stop_end(rectangles, ax=None, alpha=0.5):
+    """
+    Parameters
+    ----------
+    rectangles : dict
+        output from neuralnilm.disaggregate.disaggregate_start_stop_end
+    ax : matplotlib.axes.Axes, optional
+    alpha : float, [0, 1]
+
+    Returns
+    -------
+    ax
+    """
+    if ax is None:
+        ax = plt.gca()
+    n_outputs = len(rectangles.keys())
+    colors = get_colors(n_outputs)
+
+    for output_i, rects in rectangles.iteritems():
+        color = colors[output_i]
+        for rectangle in rects:
+            width = rectangle.right - rectangle.left
+            ax.bar(rectangle.left, rectangle.height, width,
+                   alpha=alpha, color=color, edgecolor=color)
+
+    return ax
 
 
 def get_colors(n):

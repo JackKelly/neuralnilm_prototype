@@ -1,9 +1,10 @@
 from __future__ import division, print_function
 import numpy as np
-import matplotlib.pyplot as plt
+from collections import namedtuple
+import csv
+from os.path import join
 
 from neuralnilm.source import standardise
-from neuralnilm.plot import plot_rectangles
 
 
 def disaggregate(mains, net):
@@ -42,55 +43,80 @@ def disaggregate(mains, net):
     return appliance_estimates
 
 
-def disaggregate_start_stop_end(mains, net, stride=1, ax=None):
+Rectangle = namedtuple('Rectangle', ['left', 'right', 'height'])
+
+
+def disaggregate_start_stop_end(mains, net, stride=1):
     """
     Parameters
     ----------
     mains : 1D np.ndarray
         Must already be standardised according to `net.source.input_stats`.
+        And it is highly advisable to pad `mains` with `seq_length` elements
+        at both ends so the net can slide over the very start and end.
     net : neuralnilm.net.Net
     stride : int or None, optional
         if None then stide = seq_length
-    ax : matplotlib.axes.Axes, optional
 
     Returns
     -------
-    ax : matplotlib.axes.Axes
+    rectangles : dict
+        Each key is an output instance integer.
+        Each value is a Rectangle namedtuple with fields:
+        - 'start' : int, index into `mains`
+        - 'stop' : int, index into `mains`
+        - 'height' : float, raw network output
     """
     assert mains.ndim == 1
     n_seq_per_batch, seq_length = net.input_shape[:2]
+    n_outputs = net.output_shape[2]
     if stride is None:
         stride = seq_length
-    if ax is None:
-        ax = plt.gca()
-
-    # Pad mains with zeros at both ends so we can slide
-    # over the start and end of the mains data.
-    pad_width = (seq_length, seq_length)
-    mains_padded = np.pad(mains, pad_width, mode='constant')
-    n_mains_samples = len(mains_padded)
+    n_mains_samples = len(mains)
 
     # Divide mains data into batches
     n_batches = (n_mains_samples / stride) / n_seq_per_batch
     n_batches = np.ceil(n_batches).astype(int)
+
+    rectangles = {output_i: [] for output_i in range(n_outputs)}
+
+    # Iterate over each batch
     for batch_i in xrange(n_batches):
         net_input = np.zeros(net.input_shape, dtype=np.float32)
         batch_start = batch_i * n_seq_per_batch * stride
         for seq_i in xrange(n_seq_per_batch):
-            start = batch_start + (seq_i * stride)
-            end = start + seq_length
-            seq = mains_padded[start:end]
+            mains_start_i = batch_start + (seq_i * stride)
+            mains_end_i = mains_start_i + seq_length
+            seq = mains[mains_start_i:mains_end_i]
             net_input[seq_i, :len(seq), 0] = seq
 
         net_output = net.y_pred(net_input)
         for seq_i in range(n_seq_per_batch):
             offset = batch_start + (seq_i * stride)
-            plot_rectangles(ax, net_output, seq_i, offset=offset,
-                            plot_seq_width=seq_length,
-                            alpha=stride/seq_length)
+            for output_i in range(n_outputs):
+                net_output_for_seq = net_output[seq_i, :, output_i]
+                rect_left = (net_output_for_seq[0] * seq_length) + offset
+                rect_left = int(round(rect_left))
+                rect_right = (net_output_for_seq[1] * seq_length) + offset
+                rect_right = int(round(rect_right))
+                rect_height = net_output_for_seq[2]
+                rect = Rectangle(
+                    left=rect_left, right=rect_right, height=rect_height)
+                rectangles[output_i].append(rect)
 
-    return ax
+    return rectangles
 
+
+def save_rectangles(rectangles, path=''):
+    for output_i, rects in rectangles.iteritems():
+        filename = 'disag_rectangles_output{:d}.csv'.format(output_i)
+        filename = join(path, filename)
+        print("Saving", filename)
+        with open(filename, 'wb') as f:
+            writer = csv.writer(f)
+            writer.writerow(Rectangle._fields)
+            writer.writerows(rects)
+        print("Done saving", filename)
 
 """
 Emacs variables
