@@ -624,6 +624,12 @@ longer?)
 543: 541, prettier plotting, multiple outputs, big net from 534
 (slightly smaller because full size net ran out of GPU mem)
 
+544: 534 but with
+- slightly smaller layers (like 543)
+- no clipping of gradient
+- use top-5 appliances from house 1
+- use slightly smaller timeframe to train on
+
 TODO:
 * try outputting a binary mask.  This might make skip connections more
 effective.  And then, after training a binary mask, try adding a few
