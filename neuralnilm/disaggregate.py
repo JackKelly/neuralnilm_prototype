@@ -185,7 +185,7 @@ def rectangles_to_matrix(rectangles, max_appliance_power):
         Normalised to [0, 1]
     """
     n_samples = rectangles[-1].right
-    matrix = np.zeros(shape=(max_appliance_power, n_samples))
+    matrix = np.zeros(shape=(max_appliance_power, n_samples), dtype=np.float32)
     for rect in rectangles:
         height = int(round(rect.height * max_appliance_power))
         matrix[:height, rect.left:rect.right] += 1
