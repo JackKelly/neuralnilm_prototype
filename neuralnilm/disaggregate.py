@@ -3,6 +3,7 @@ import numpy as np
 from collections import namedtuple
 import csv
 from os.path import join, expanduser
+import pandas as pd
 
 from neuralnilm.source import standardise
 
@@ -198,12 +199,14 @@ def plot_rectangles_matrix(matrix):
     plt.show()
 
 
-def rectangles_matrix_to_vector(matrix, overlap_threshold=0.5):
+def rectangles_matrix_to_vector(matrix, min_on_power, overlap_threshold=0.5):
     """
     Parameters
     ----------
     matrix : 2D numpy.ndarray
         Output from `rectangles_to_matrix`
+    min_on_power : int
+        Watts
     overlap_threshold : float, [0, 1]
 
     Returns
@@ -212,14 +215,33 @@ def rectangles_matrix_to_vector(matrix, overlap_threshold=0.5):
         Watts
     """
     n_samples = matrix.shape[1]
-    vector = np.zeros(n_samples)
-    matrix[matrix < overlap_threshold] = 0
-    for i in range(n_samples):
-        row_indicies = np.nonzero(matrix[:, i])[0]
-        if row_indicies.size > 0:
-            power = np.max(row_indicies)
-            vector[i] = power
 
+    # Zero out any elements less than overlap_threshold
+    matrix[matrix < overlap_threshold] = 0
+
+    # Find indicies of non-zero elements
+    nonzero_indicies = np.nonzero(matrix)
+    del matrix
+
+    # Put indicies into a Pandas Series so we can use
+    # Pandas' groupby mechanism
+    nonzero_indicies = pd.Series(
+        nonzero_indicies[0], index=nonzero_indicies[1])
+
+    # Ignore any below min_on_power
+    nonzero_indicies = nonzero_indicies[nonzero_indicies > min_on_power]
+
+    # nonzero_indicies has lots of duplicate indicies,
+    # one duplicate for every row on that column is above zero.
+    # So we group by the indicies and then get the max row index
+    # to drape a 'hull' over the nonzero elements of matrix.
+    grouped = nonzero_indicies.groupby(level=0)
+    del nonzero_indicies
+    hull = grouped.max()
+    del grouped
+
+    vector = np.zeros(n_samples)
+    vector[hull.index] = hull.values
     return vector
 
 """
