@@ -43,7 +43,7 @@ class Plotter(object):
         fig, ax = plt.subplots(1)
 
         # Plot training costs
-        ax.plot(self.net.training_costs, marker='.', label='Training')
+        ax.plot(self.net.training_costs, label='Training')
 
         # Plot validation costs
         validation_x = np.arange(
@@ -51,7 +51,7 @@ class Plotter(object):
         n_validations = min(len(validation_x), len(self.net.validation_costs))
         ax.plot(validation_x[:n_validations],
                 self.net.validation_costs[:n_validations],
-                marker='.', label='Validation')
+                label='Validation')
 
         # Text and formatting
         ax.set_xlabel('Iteration')
