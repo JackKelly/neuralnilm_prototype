@@ -69,8 +69,8 @@ net_dict = dict(
     updates_func=nesterov_momentum,
     learning_rate=1e-3,
     learning_rate_changes_by_iteration={
-        350000: 1e-4,
-        450000: 1e-5
+        250000: 1e-4,
+        275000: 1e-5
     },
     do_save_activations=True,
     auto_reshape=False,
@@ -195,6 +195,7 @@ def exp_b(name):
             n_seq_to_plot=32, max_target_power=MAX_TARGET_POWER)
     ))
     net = Net(**net_dict_copy)
+    net.load_params(175000)
     return net
 
 
@@ -226,6 +227,7 @@ def exp_c(name):
             n_seq_to_plot=32, max_target_power=MAX_TARGET_POWER)
     ))
     net = Net(**net_dict_copy)
+    net.load_params(25000)
     return net
 
 
@@ -261,14 +263,14 @@ def exp_d(name):
 
 
 def main():
-    EXPERIMENTS = list('abcd')
+    EXPERIMENTS = list('bcd')
     for experiment in EXPERIMENTS:
         full_exp_name = NAME + experiment
         func_call = init_experiment(PATH, experiment, full_exp_name)
         logger = logging.getLogger(full_exp_name)
         try:
             net = eval(func_call)
-            run_experiment(net, epochs=500000)
+            run_experiment(net, epochs=300000)
         except KeyboardInterrupt:
             logger.info("KeyboardInterrupt")
             break

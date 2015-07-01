@@ -41,19 +41,25 @@ class Plotter(object):
 
     def plot_costs(self):
         fig, ax = plt.subplots(1)
-        ax.plot(self.net.training_costs, label='Training')
+
+        # Plot training costs
+        ax.plot(self.net.training_costs, marker='.', label='Training')
+
+        # Plot validation costs
         validation_x = np.arange(
             0, len(self.net.training_costs), self.net.validation_interval)
         n_validations = min(len(validation_x), len(self.net.validation_costs))
         ax.plot(validation_x[:n_validations],
                 self.net.validation_costs[:n_validations],
-                label='Validation')
+                marker='.', label='Validation')
+
+        # Text and formatting
         ax.set_xlabel('Iteration')
         ax.set_ylabel('Cost')
         ax.legend()
         ax.grid(True)
         self._save_or_display_fig(
-            'costs', fig, include_epochs=False, suffix='png', dpi=600)
+            'costs', fig, include_epochs=False, suffix='png', dpi=300)
         return ax
 
     def plot_estimates(self):
