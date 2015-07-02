@@ -322,6 +322,12 @@ def plot_disaggregate_start_stop_end(rectangles, ax=None, alpha=0.5):
     return ax
 
 
+def plot_rectangles_matrix(matrix):
+    import matplotlib.pyplot as plt
+    plt.imshow(matrix, aspect='auto', interpolation='none', origin='lower')
+    plt.show()
+
+
 def get_colors(n):
     return [c for c in cm.rainbow(np.linspace(0, 1, n))]
 

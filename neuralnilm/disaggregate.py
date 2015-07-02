@@ -47,7 +47,7 @@ def disaggregate(mains, net):
 Rectangle = namedtuple('Rectangle', ['left', 'right', 'height'])
 
 
-def disaggregate_start_stop_end(mains, net, stride=1):
+def disaggregate_start_stop_end(mains, net, stride=1, max_target_power=1):
     """
     Parameters
     ----------
@@ -58,6 +58,8 @@ def disaggregate_start_stop_end(mains, net, stride=1):
     net : neuralnilm.net.Net
     stride : int or None, optional
         if None then stide = seq_length
+    max_target_power : int, optional
+        Watts
 
     Returns
     -------
@@ -66,7 +68,7 @@ def disaggregate_start_stop_end(mains, net, stride=1):
         Each value is a Rectangle namedtuple with fields:
         - 'start' : int, index into `mains`
         - 'stop' : int, index into `mains`
-        - 'height' : float, raw network output
+        - 'height' : float, Watts
     """
     assert mains.ndim == 1
     n_seq_per_batch, seq_length = net.input_shape[:2]
@@ -100,7 +102,7 @@ def disaggregate_start_stop_end(mains, net, stride=1):
                 rect_left = int(round(rect_left))
                 rect_right = (net_output_for_seq[1] * seq_length) + offset
                 rect_right = int(round(rect_right))
-                rect_height = net_output_for_seq[2]
+                rect_height = net_output_for_seq[2] * max_target_power
                 rect = Rectangle(
                     left=rect_left, right=rect_right, height=rect_height)
                 rectangles[output_i].append(rect)
@@ -187,16 +189,10 @@ def rectangles_to_matrix(rectangles, max_appliance_power):
     n_samples = rectangles[-1].right
     matrix = np.zeros(shape=(max_appliance_power, n_samples), dtype=np.float32)
     for rect in rectangles:
-        height = int(round(rect.height * max_appliance_power))
+        height = int(round(rect.height))
         matrix[:height, rect.left:rect.right] += 1
     matrix /= matrix.max()
     return matrix
-
-
-def plot_rectangles_matrix(matrix):
-    import matplotlib.pyplot as plt
-    plt.imshow(matrix, aspect='auto', interpolation='none', origin='lower')
-    plt.show()
 
 
 def rectangles_matrix_to_vector(matrix, min_on_power, overlap_threshold=0.5):

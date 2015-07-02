@@ -17,7 +17,9 @@ from neuralnilm.objectives import (scaled_cost, mdn_nll,
                                    scaled_cost3)
 from neuralnilm.plot import (
     StartEndMeanPlotter, plot_disaggregate_start_stop_end)
-from neuralnilm.disaggregate import disaggregate_start_stop_end
+from neuralnilm.disaggregate import (
+    disaggregate_start_stop_end, rectangles_to_matrix,
+    rectangles_matrix_to_vector, save_rectangles)
 from neuralnilm.rectangulariser import rectangularise
 
 from lasagne.nonlinearities import sigmoid, rectify, tanh, identity, softmax
@@ -37,12 +39,35 @@ import theano.tensor as T
 import gc
 
 
-NAME = 'e534'
+NAME = 'e544'
 PATH = "/data/dk3810/figures"
 SAVE_PLOT_INTERVAL = 25000
 
 N_SEQ_PER_BATCH = 64
 MAX_TARGET_POWER = 300
+
+full_exp_name = NAME + 'a'
+path = os.path.join(PATH, full_exp_name)
+print("Changing directory to", path)
+os.chdir(path)
+
+logger = logging.getLogger(full_exp_name)
+if not logger.handlers:
+    fh = logging.FileHandler(full_exp_name + '.log')
+    formatter = logging.Formatter('%(asctime)s %(message)s')
+    fh.setFormatter(formatter)
+    logger.addHandler(fh)
+    logger.addHandler(logging.StreamHandler(stream=stdout))
+
+logger.setLevel(logging.DEBUG)
+logger.info("***********************************")
+logger.info("Preparing " + full_exp_name + "...")
+
+# Load input stats
+input_stats = {
+    'mean': np.load("input_stats_mean.npy"),
+    'std': np.load("input_stats_std.npy")
+}
 
 
 source_dict = dict(
@@ -69,7 +94,8 @@ source_dict = dict(
     independently_center_inputs=False,
     skip_probability=0.75,
     target_is_start_and_end_and_mean=True,
-    one_target_per_seq=False
+    one_target_per_seq=False,
+    input_stats=input_stats
 )
 
 
@@ -97,8 +123,6 @@ def exp_a(name):
         experiment_name=name,
         source=source
     ))
-    NUM_FILTERS = 16
-    target_seq_length = source.output_shape_after_processing()[1]
     net_dict_copy['layers_config'] = [
         {
             'type': DimshuffleLayer,
@@ -110,7 +134,7 @@ def exp_a(name):
         },
         {
             'type': Conv1DLayer,  # convolve over the time axis
-            'num_filters': NUM_FILTERS,
+            'num_filters': 16,
             'filter_size': 4,
             'stride': 1,
             'nonlinearity': None,
@@ -118,7 +142,7 @@ def exp_a(name):
         },
         {
             'type': Conv1DLayer,  # convolve over the time axis
-            'num_filters': NUM_FILTERS,
+            'num_filters': 16,
             'filter_size': 4,
             'stride': 1,
             'nonlinearity': None,
@@ -154,42 +178,18 @@ def exp_a(name):
         },
         {
             'type': DenseLayer,
-            'num_units': target_seq_length,
+            'num_units': 3,
             'nonlinearity': None
         }
     ]
     net = Net(**net_dict_copy)
-    net.load_params(573215)
+    net.load_params(822610)
     return net
 
-
 # Load neural net
-full_exp_name = NAME + 'a'
-path = os.path.join(PATH, full_exp_name)
-print("Changing directory to", path)
-os.chdir(path)
-
-logger = logging.getLogger(full_exp_name)
-if not logger.handlers:
-    fh = logging.FileHandler(full_exp_name + '.log')
-    formatter = logging.Formatter('%(asctime)s %(message)s')
-    fh.setFormatter(formatter)
-    logger.addHandler(fh)
-    logger.addHandler(logging.StreamHandler(stream=stdout))
-
-logger.setLevel(logging.DEBUG)
-logger.info("***********************************")
-logger.info("Preparing " + full_exp_name + "...")
-
 net = exp_a(full_exp_name)
 net.print_net()
 net.compile()
-
-# Load input stats
-input_stats = {
-    'mean': np.load("input_stats_mean.npy"),
-    'std': np.load("input_stats_std.npy")
-}
 
 # Generate mains data
 # create new source, based on net's source,
@@ -201,6 +201,7 @@ source_dict_copy = deepcopy(source_dict)
 source_dict_copy.update(dict(
     logger=logger,
     seq_length=2048,
+    border=100,
     output_one_appliance=False,
     input_stats=input_stats,
     target_is_start_and_end_and_mean=False,
@@ -238,29 +239,51 @@ mains = pad(mains.flatten())
 targets = pad(targets.flatten())
 logger.info("Done preparing synthetic mains data!")
 
+# Unstandardise for plotting
+targets *= MAX_TARGET_POWER
+mains_unstandardised = (mains * input_stats['std']) + input_stats['mean']
+mains_unstandardised *= mains_source.max_input_power
+
 # disag
 STRIDE = 16
 logger.info("Starting disag...")
-rectangles = disaggregate_start_stop_end(mains, net, stride=STRIDE)
+rectangles = disaggregate_start_stop_end(
+    mains, net, stride=STRIDE, max_target_power=MAX_TARGET_POWER)
+rectangles_matrix = rectangles_to_matrix(rectangles[0], MAX_TARGET_POWER)
+disag_vector = rectangles_matrix_to_vector(
+    rectangles_matrix, min_on_power=50, overlap_threshold=0.40)
+
+# save data to disk
+logger.info("Saving data to disk...")
+np.save('mains', mains_unstandardised)
+np.save('targets', targets)
+np.save('disag_vector', disag_vector)
+save_rectangles(rectangles)
+# TODO: metrics!!!
+# TODO: get net training again.
 
 # plot
 logger.info("Plotting...")
-fig, axes = plt.subplots(3, 1, sharex=True)
+fig, axes = plt.subplots(4, 1, sharex=True)
 alpha = STRIDE / seq_length
 plot_disaggregate_start_stop_end(rectangles, ax=axes[0], alpha=alpha)
 axes[0].set_title('Network output')
 
-axes[1].plot(targets)
-axes[1].set_title("Target")
+axes[1].plot(disag_vector)
+axes[1].set_title("Disaggregated vector")
 
-axes[2].plot(mains)
-axes[2].set_title('Network input')
+axes[2].plot(targets)
+axes[2].set_title("Target")
+
+axes[3].plot(mains_unstandardised)
+axes[3].set_title('Network input')
+axes[3].set_xlim((0, len(mains)))
 plt.show()
 logger.info("DONE!")
 
 """
 Emacs variables
 Local Variables:
-compile-command: "cp /home/jack/workspace/python/neuralnilm/scripts/disag_534.py /mnt/sshfs/imperial/workspace/python/neuralnilm/scripts/"
+compile-command: "cp /home/jack/workspace/python/neuralnilm/scripts/disag_544.py /mnt/sshfs/imperial/workspace/python/neuralnilm/scripts/"
 End:
 """

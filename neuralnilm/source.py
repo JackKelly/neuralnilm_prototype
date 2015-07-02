@@ -443,6 +443,7 @@ class RealApplianceSource(Source):
                  target_is_prediction=False,
                  one_target_per_seq=False,
                  ensure_all_appliances_represented=True,
+                 border=5,
                  **kwargs):
         """
         Parameters
@@ -512,6 +513,7 @@ class RealApplianceSource(Source):
         self.one_target_per_seq = one_target_per_seq
         self.ensure_all_appliances_represented = (
             ensure_all_appliances_represented)
+        self.border = border
 
         self.logger.info("Loading training activations...")
         if on_power_thresholds is None:
@@ -582,7 +584,6 @@ class RealApplianceSource(Source):
         X = np.zeros(shape=(self.seq_length, self.n_inputs), dtype=np.float32)
         y = np.zeros(shape=(self.seq_length, self.n_outputs), dtype=np.float32)
         POWER_THRESHOLD = 1
-        BORDER = 5
         if validation and self.validation_activations:
             activations = self.validation_activations
         else:
@@ -617,13 +618,13 @@ class RealApplianceSource(Source):
             if self.output_one_appliance and appliance_i > 0:
                 # Allow appliance to start before the start of the target seq
                 # and end after the end of the target seq
-                latest_start_i = self.seq_length - (BORDER + self.lag)
-                earliest_start_i = BORDER - len(activation)
+                latest_start_i = self.seq_length - (self.border + self.lag)
+                earliest_start_i = self.border - len(activation)
             else:
                 # Try to fit the appliance into the target seq
                 latest_start_i = ((self.seq_length - len(activation)) -
-                                  (BORDER + self.lag))
-                latest_start_i = max(latest_start_i, BORDER)
+                                  (self.border + self.lag))
+                latest_start_i = max(latest_start_i, self.border)
                 earliest_start_i = 0
             start_i = self.rng.randint(earliest_start_i, latest_start_i)
             X_start_i = max(0, start_i)
