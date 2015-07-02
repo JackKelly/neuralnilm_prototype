@@ -41,19 +41,26 @@ class Plotter(object):
 
     def plot_costs(self):
         fig, ax = plt.subplots(1)
-
+        n_iterations = len(self.net.training_costs)
+        SIZE = 2
+        
         # Plot training costs
-        ax.plot(self.net.training_costs, label='Training')
+        train_x = np.arange(0, n_iterations)
+        ax.scatter(train_x, self.net.training_costs, label='Training',
+                   c='b', alpha=0.2, s=SIZE, linewidths=0)
 
         # Plot validation costs
-        validation_x = np.arange(
-            0, len(self.net.training_costs), self.net.validation_interval)
+        validation_x = np.arange(0, n_iterations, self.net.validation_interval)
         n_validations = min(len(validation_x), len(self.net.validation_costs))
-        ax.plot(validation_x[:n_validations],
-                self.net.validation_costs[:n_validations],
-                label='Validation')
+        ax.scatter(validation_x[:n_validations],
+                   self.net.validation_costs[:n_validations],
+                   label='Validation', c='g', s=SIZE, linewidths=0)
 
         # Text and formatting
+        ax.set_xlim((0, n_iterations))
+        max_cost = max(max(self.net.training_costs),
+                       max(self.net.validation_costs))
+        ax.set_ylim((0, max_cost))
         ax.set_xlabel('Iteration')
         ax.set_ylabel('Cost')
         ax.legend()

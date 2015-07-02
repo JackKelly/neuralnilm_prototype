@@ -396,21 +396,28 @@ class Net(object):
                     self.csv_filenames['validation_costs'],
                     row=[iteration, validation_cost])
             if not iteration % self.save_plot_interval:
-                try:
-                    self.plotter.plot_all()
-                except:
-                    self.logger.exception("")
-                try:
-                    self.save_params()
-                except:
-                    self.logger.exception("")
-                try:
-                    self.save_activations()
-                except:
-                    self.logger.exception("")
+                self.save()
             duration = time() - t0
             self.print_and_save_training_progress(duration)
         self.logger.info("Finished training")
+
+    def save(self):
+        self.logger.info("Saving plots...")
+        try:
+            self.plotter.plot_all()
+        except:
+            self.logger.exception("")
+        self.logger.info("Saving params...")
+        try:
+            self.save_params()
+        except:
+            self.logger.exception("")
+        self.logger.info("Saving activations...")
+        try:
+            self.save_activations()
+        except:
+            self.logger.exception("")
+        self.logger.info("Finished saving.")
 
     def n_iterations(self):
         return max(len(self.training_costs) - 1, 0)
@@ -481,7 +488,8 @@ class Net(object):
 
         def load_csv(key, limit):
             filename = self.csv_filenames[key]
-            data = np.genfromtxt(filename, delimiter=',')[:limit, :]
+            data = np.genfromtxt(filename, delimiter=',', skip_header=1)
+            data = data[:limit, :]
 
             # overwrite costs file
             self._write_csv_headers(key)

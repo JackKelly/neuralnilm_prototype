@@ -224,10 +224,14 @@ def exp_c(name):
         experiment_name=name,
         source=source,
         plotter=StartEndMeanPlotter(
-            n_seq_to_plot=32, max_target_power=MAX_TARGET_POWER)
+            n_seq_to_plot=32, max_target_power=MAX_TARGET_POWER),
+        learning_rate_changes_by_iteration={
+            150000: 1e-4,
+            275000: 1e-5
+        }
     ))
     net = Net(**net_dict_copy)
-    net.load_params(25000)
+    net.load_params(107746)
     return net
 
 
@@ -263,7 +267,7 @@ def exp_d(name):
 
 
 def main():
-    EXPERIMENTS = list('bcd')
+    EXPERIMENTS = list('cd')
     for experiment in EXPERIMENTS:
         full_exp_name = NAME + experiment
         func_call = init_experiment(PATH, experiment, full_exp_name)

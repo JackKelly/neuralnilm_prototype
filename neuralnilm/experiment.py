@@ -44,37 +44,51 @@ def run_experiment(net, epochs):
     fit(net, epochs)
 
 
-def save(net):
-    print("Saving plots...")
-    net.plotter.plot_all()
-    print("Saving params...")
-    net.save_params()
-    net.save_activations()
-    print("Done saving.")
-
-
 def fit(net, epochs):
     print("Running net.fit for", net.experiment_name)
     try:
         net.fit(epochs)
     except KeyboardInterrupt:
         print("Keyboard interrupt received.")
-        enter_debugger = raw_input("Enter debugger [N/y]? ")
-        if enter_debugger.lower() == 'y':
-            import ipdb; ipdb.set_trace()
-        save_data = raw_input("Save latest data [N/y]? ")
-        if save_data.lower() == "y":
-            save(net)
-        stop_all = raw_input("Stop all experiments [N/y]? ")
-        if stop_all.lower() == "y":
-            raise
-        continue_fit = raw_input("Continue fitting this experiment [Y/n]? ")
-        if continue_fit.lower() in ["y", ""]:
-            new_epochs = raw_input("Change number of epochs [currently {}]? "
-                                   .format(epochs))
-            if new_epochs:
+        menu(net, epochs)
+
+
+def menu(net, epochs):
+    # Print menu
+    print("")
+    print("------------------ OPTIONS ------------------")
+    print("d: Enter debugger.")
+    print("s: Save plots and params.")
+    print("q: Quit all experiments.")
+    print("e: Change number of epochs to train this net (currently {})."
+          .format(epochs))
+    print("c: Continue training.")
+    print("")
+
+    # Get input
+    selection_str = raw_input("Please enter one or more letters: ")
+
+    # Handle input
+    for selection in selection_str:
+        if selection == 'd':
+            import ipdb
+            ipdb.set_trace()
+        elif selection == 's':
+            net.save()
+        elif selection == 'q':
+            sure = raw_input("Are you sure you want to quit [Y/n]? ")
+            if sure.lower() != 'n':
+                raise
+        elif selection == 'e':
+            new_epochs = raw_input("New number of epochs: ")
+            try:
                 epochs = int(new_epochs)
-            fit(net, epochs)
-    # except:
-    #     save(net)
-    #     raise
+            except:
+                print("'{}' not an integer!".format(new_epochs))
+        elif selection == 'c':
+            break
+        else:
+            print("Selection '{}' not recognised!".format(selection))
+            break
+    print("Continuing training for {} epochs...".format(epochs))
+    fit(net, epochs)
