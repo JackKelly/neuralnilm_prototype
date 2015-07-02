@@ -228,12 +228,12 @@ def rectangles_matrix_to_vector(matrix, min_on_power, overlap_threshold=0.5):
     nonzero_indicies = pd.Series(
         nonzero_indicies[0], index=nonzero_indicies[1])
 
-    # Ignore any below min_on_power
+    # Ignore any values below min_on_power
     nonzero_indicies = nonzero_indicies[nonzero_indicies > min_on_power]
 
-    # nonzero_indicies has lots of duplicate indicies,
-    # one duplicate for every row on that column is above zero.
-    # So we group by the indicies and then get the max row index
+    # nonzero_indicies will have lots of duplicate indicies,
+    # one duplicate for every row on that column whose value is above zero.
+    # So we group by the indicies and get the max row index
     # to drape a 'hull' over the nonzero elements of matrix.
     grouped = nonzero_indicies.groupby(level=0)
     del nonzero_indicies
