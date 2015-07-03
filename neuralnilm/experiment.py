@@ -80,11 +80,14 @@ def menu(net, epochs):
             if sure.lower() != 'n':
                 raise
         elif selection == 'e':
-            new_epochs = raw_input("New number of epochs: ")
-            try:
-                epochs = int(new_epochs)
-            except:
-                print("'{}' not an integer!".format(new_epochs))
+            new_epochs = raw_input("New number of epochs (or 'None'): ")
+            if new_epochs == 'None':
+                epochs = None
+            else:
+                try:
+                    epochs = int(new_epochs)
+                except:
+                    print("'{}' not an integer!".format(new_epochs))
         elif selection == 'c':
             break
         else:
