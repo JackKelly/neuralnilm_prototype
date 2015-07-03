@@ -39,14 +39,14 @@ import theano.tensor as T
 import gc
 
 
-NAME = 'e544'
+NAME = 'e545'
 PATH = "/data/dk3810/figures"
 SAVE_PLOT_INTERVAL = 25000
 
 N_SEQ_PER_BATCH = 64
-MAX_TARGET_POWER = 300
+MAX_TARGET_POWER = 200
 
-full_exp_name = NAME + 'a'
+full_exp_name = NAME + 'c'
 path = os.path.join(PATH, full_exp_name)
 print("Changing directory to", path)
 os.chdir(path)
@@ -79,13 +79,13 @@ source_dict = dict(
         'HTPC',
         'dish washer'
     ],
-    max_appliance_powers=[MAX_TARGET_POWER, 2400, 2400, 200, 2500],
+    max_appliance_powers=[300, 2400, 2600, 200, 2500],
     on_power_thresholds=[5] * 5,
     min_on_durations=[60, 1800, 30, 60, 1800],
     min_off_durations=[12, 600, 1, 12, 1800],
     # Just load a tiny bit of data.  Won't be used.
     window=("2013-04-12", "2013-04-27"),
-    seq_length=512,
+    seq_length=2048,
     output_one_appliance=True,
     train_buildings=[1],
     validation_buildings=[1],
@@ -183,7 +183,7 @@ def exp_a(name):
         }
     ]
     net = Net(**net_dict_copy)
-    net.load_params(822610)
+    net.load_params(300000)
     return net
 
 # Load neural net
@@ -214,15 +214,16 @@ N_BATCHES = 1
 logger.info("Preparing synthetic mains data for {} batches.".format(N_BATCHES))
 mains = None
 targets = None
+TARGET_I = 3
 for batch_i in range(N_BATCHES):
     batch = mains_source.queue.get(timeout=30)
     mains_batch, targets_batch = batch.data
     if mains is None:
         mains = mains_batch
-        targets = targets_batch[:, :, 0]
+        targets = targets_batch[:, :, TARGET_I]
     else:
         mains = np.concatenate((mains, mains_batch))
-        targets = np.concatenate((targets, targets_batch[:, :, 0]))
+        targets = np.concatenate((targets, targets_batch[:, :, TARGET_I]))
 
 mains_source.stop()
 
@@ -251,7 +252,7 @@ rectangles = disaggregate_start_stop_end(
     mains, net, stride=STRIDE, max_target_power=MAX_TARGET_POWER)
 rectangles_matrix = rectangles_to_matrix(rectangles[0], MAX_TARGET_POWER)
 disag_vector = rectangles_matrix_to_vector(
-    rectangles_matrix, min_on_power=40, overlap_threshold=0.30)
+    rectangles_matrix, min_on_power=50, overlap_threshold=0.30)
 
 # save data to disk
 logger.info("Saving data to disk...")
@@ -259,8 +260,6 @@ np.save('mains', mains_unstandardised)
 np.save('targets', targets)
 np.save('disag_vector', disag_vector)
 save_rectangles(rectangles)
-# TODO: metrics!!!
-# TODO: get net training again.
 
 # plot
 logger.info("Plotting...")
@@ -284,6 +283,6 @@ logger.info("DONE!")
 """
 Emacs variables
 Local Variables:
-compile-command: "cp /home/jack/workspace/python/neuralnilm/scripts/disag_544.py /mnt/sshfs/imperial/workspace/python/neuralnilm/scripts/"
+compile-command: "cp /home/jack/workspace/python/neuralnilm/scripts/disag_545c.py /mnt/sshfs/imperial/workspace/python/neuralnilm/scripts/"
 End:
 """
