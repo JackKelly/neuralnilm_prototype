@@ -1,9 +1,9 @@
 from __future__ import print_function, division
 import numpy as np
-import sklearn.metrics as metrics
 from os.path import join
 import matplotlib.pyplot as plt
 import yaml  # for pretty-printing dict
+from neuralnilm.metrics import run_metrics, across_all_appliances
 
 # sklearn evokes warnings from numpy
 import warnings
@@ -19,21 +19,8 @@ EXPERIMENT_DIRECTORIES = {
     'dish washer': 'e545d'
 }
 
-METRICS = {
-    'classification': [
-        'accuracy_score',
-        'f1_score',
-        'precision_score',
-        'recall_score'
-    ],
-    'regression': [
-        'explained_variance_score',
-        'mean_absolute_error'
-    ]
-}
 
 scores = {}
-total_sum_abs_diff = 0.0
 aggregate_predictions = None
 for appliance, exp_dir in EXPERIMENT_DIRECTORIES.iteritems():
     full_dir = join(BASE_DIRECTORY, exp_dir)
@@ -65,73 +52,10 @@ for appliance, exp_dir in EXPERIMENT_DIRECTORIES.iteritems():
         aggregate_predictions = aggregate_predictions[:n_agg]
         aggregate_predictions += y_pred[:n_agg]
 
-    # Classification metrics
-    ON_POWER = 10
-    y_true[y_true <= ON_POWER] = 0
-    y_true_class = y_true > ON_POWER
-    y_pred_class = y_pred > ON_POWER
-
-    ARGS = {
-        'classification': '(y_true_class, y_pred_class)',
-        'regression': '(y_true, y_pred)'
-    }
-
-    scores[appliance] = {}
-    for metric_type, metric_list in METRICS.iteritems():
-        scores[appliance][metric_type] = {}
-        for metric in metric_list:
-            score = eval('metrics.' + metric + ARGS[metric_type])
-            scores[appliance][metric_type][metric] = float(score)
-
-    sum_y_true = np.sum(y_true)
-    sum_y_pred = np.sum(y_pred)
-    # negative means underestimates
-    relative_error_in_total_energy = float(
-        (sum_y_pred - sum_y_true) / max(sum_y_true, sum_y_pred))
-
-    # For total energy correctly assigned
     mains = load('mains')
-    denominator = 2 * np.sum(mains)
-    abs_diff = np.fabs(y_pred - y_true)
-    sum_abs_diff = np.sum(abs_diff)
-    total_energy_correctly_assigned = 1 - (sum_abs_diff / denominator)
-    total_energy_correctly_assigned = float(total_energy_correctly_assigned)
-    total_sum_abs_diff += sum_abs_diff
+    scores[appliance] = run_metrics(y_true, y_pred, mains)
 
-    scores[appliance]['disaggregation'] = {
-        'relative_error_in_total_energy': relative_error_in_total_energy,
-        'total_energy_correctly_assigned': total_energy_correctly_assigned
-    }
-
-# Total energy correctly assigned
-# See Eq(1) on p5 of Kolter & Johnson 2011
-denominator = 2 * np.sum(mains)
-total_energy_correctly_assigned = 1 - (total_sum_abs_diff / denominator)
-total_energy_correctly_assigned = float(total_energy_correctly_assigned)
-
-# explained variance
-n = min(len(mains), len(aggregate_predictions))
-mains = mains[:n]
-aggregate_predictions = aggregate_predictions[:n]
-
-scores['across all appliances'] = {
-    'disaggregation': {
-        'total_energy_correctly_assigned': total_energy_correctly_assigned
-    },
-    'regression': {
-        'explained_variance_score': float(
-            metrics.explained_variance_score(mains, aggregate_predictions)),
-        'mean_absolute_error': float(
-            np.mean(
-                [scores[app]['regression']['mean_absolute_error']
-                 for app in scores]))
-    },
-    'classification': {
-        metric: float(np.mean([scores[app]['classification'][metric]
-                               for app in scores]))
-        for metric in METRICS['classification']}
-}
-
+scores = across_all_appliances(scores, mains, aggregate_predictions)
 print()
 print(yaml.dump(scores, default_flow_style=False))
 
