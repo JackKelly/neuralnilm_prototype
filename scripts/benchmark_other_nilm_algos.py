@@ -40,6 +40,7 @@ mains = np.load(join(BASE_DIRECTORY, 'e545a/mains.npy'))
 mains = pd.DataFrame(mains)
 scores = {}
 
+
 def co():
     # TRAIN
     disag = CombinatorialOptimisation()
@@ -62,7 +63,8 @@ def co():
         n = min(len(y_true), len(y_pred))
         y_true = y_true[:n]
         y_pred = y_pred[:n]
-        scores['CO'][appliance_type] = run_metrics(y_true, y_pred, mains.values)
+        scores['CO'][appliance_type] = run_metrics(
+            y_true, y_pred, mains.values)
 
         if aggregate_predictions is None:
             aggregate_predictions = y_pred
@@ -109,6 +111,69 @@ def fhmm():
 
     scores['FHMM'] = across_all_appliances(
         scores['FHMM'], mains, aggregate_predictions)
+
+
+def always_off():
+    # METRICS
+    scores['Always off'] = {}
+    aggregate_predictions = None
+    for appliance in APPLIANCES:
+        y_true_fname = join(
+            BASE_DIRECTORY, EXPERIMENT_DIRECTORIES[appliance],
+            'targets.npy')
+        y_true = np.load(y_true_fname)
+        n = len(y_true)
+        y_pred = np.zeros(n)
+        scores['Always off'][appliance] = run_metrics(
+            y_true, y_pred, mains.values)
+
+        if aggregate_predictions is None:
+            aggregate_predictions = y_pred
+        else:
+            n_agg = min(len(aggregate_predictions), len(y_pred))
+            aggregate_predictions = aggregate_predictions[:n_agg]
+            aggregate_predictions += y_pred[:n_agg]
+
+    scores['Always off'] = across_all_appliances(
+        scores['Always off'], mains, aggregate_predictions)
+
+
+def mean():
+    # METRICS
+    ALGO = 'Mean'
+    scores[ALGO] = {}
+    aggregate_predictions = None
+    for appliance in APPLIANCES:
+        y_true_fname = join(
+            BASE_DIRECTORY, EXPERIMENT_DIRECTORIES[appliance],
+            'targets.npy')
+        y_true = np.load(y_true_fname)
+        n = len(y_true)
+        y_pred = np.zeros(n) + y_true.mean()
+        scores[ALGO][appliance] = run_metrics(
+            y_true, y_pred, mains.values)
+
+        if aggregate_predictions is None:
+            aggregate_predictions = y_pred
+        else:
+            n_agg = min(len(aggregate_predictions), len(y_pred))
+            aggregate_predictions = aggregate_predictions[:n_agg]
+            aggregate_predictions += y_pred[:n_agg]
+
+    scores[ALGO] = across_all_appliances(
+        scores[ALGO], mains, aggregate_predictions)
+
+
+# LOAD YAML IF NECESSARY
+with open(join(BASE_DIRECTORY, 'benchmark_scores.yaml'), 'r') as fh:
+    scores = yaml.load(fh)
+
+# Run
+# co()
+# fhmm()
+
+always_off()
+mean()
 
 
 print()
