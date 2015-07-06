@@ -19,7 +19,7 @@ METRICS = {
 
 def run_metrics(y_true, y_pred, mains):
     # Classification metrics
-    ON_POWER = 10
+    ON_POWER = 4
     y_true[y_true <= ON_POWER] = 0
     y_true_class = y_true > ON_POWER
     y_pred_class = y_pred > ON_POWER
