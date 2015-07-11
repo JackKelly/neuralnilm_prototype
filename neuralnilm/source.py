@@ -1375,6 +1375,40 @@ class SameLocation(RandomSegments):
         self.mains = mains
 
 
+class MultiSource(Source):
+    def __init__(self, sources, standardisation_source, **kwargs):
+        """
+        Parameters
+        ----------
+        sources : list of dicts
+            keys are:
+            - source : Source
+            - train_probability : float [0, 1]
+            - validation_probability : float [0, 1]
+        standardisation_source : Source
+            The source to take standardisation stats from
+        """
+        for source_dict in sources:
+            source = source_dict['source']
+            source.input_stats = standardisation_source.input_stats
+            source.target_stats = standardisation_source.target_stats
+        self.sources = sources
+        super(MultiSource, self).__init__(
+            seq_length=standardisation_source.seq_length,
+            n_seq_per_batch=standardisation_source.n_seq_per_batch,
+            n_inputs=standardisation_source.n_inputs,
+            n_outputs=standardisation_source.n_outputs,
+            **kwargs
+        )
+
+    def _gen_data(self, validation=False):
+        key = 'validation_probability' if validation else 'train_probability'
+        probabilities = [source_dict[key] for source_dict in self.sources]
+        source_i = self.rng.choice(len(self.sources), p=probabilities)
+        source = self.sources[source_i]['source']
+        return source._gen_data(validation)
+
+
 def quantize(data, n_bins, all_hot=True, range=(-1, 1), length=None):
     midpoint = n_bins // 2
     if length is None:
