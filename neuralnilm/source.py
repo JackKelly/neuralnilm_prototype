@@ -1399,6 +1399,7 @@ class MultiSource(Source):
             source.input_stats = standardisation_source.input_stats
             source.target_stats = standardisation_source.target_stats
         self.sources = sources
+        self.standardisation_source = standardisation_source
         super(MultiSource, self).__init__(
             seq_length=standardisation_source.seq_length,
             n_seq_per_batch=standardisation_source.n_seq_per_batch,
@@ -1411,9 +1412,11 @@ class MultiSource(Source):
         key = 'validation_probability' if validation else 'train_probability'
         probabilities = [source_dict[key] for source_dict in self.sources]
         source_i = self.rng.choice(len(self.sources), p=probabilities)
-        print("Using source_i", source_i)
         source = self.sources[source_i]['source']
         return source.get_batch(validation)
+
+    def get_labels(self):
+        return self.standardisation_source.get_labels()
 
 
 def quantize(data, n_bins, all_hot=True, range=(-1, 1), length=None):

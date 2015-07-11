@@ -633,6 +633,12 @@ longer?)
 
 545: like 544 but train on the other four appliances
 
+-------------
+
+546: First attempt at using MultiSource
+
+
+
 TODO:
 * try outputting a binary mask.  This might make skip connections more
 effective.  And then, after training a binary mask, try adding a few
