@@ -422,6 +422,7 @@ class RealApplianceSource(Source):
                  min_off_durations=None,
                  on_power_thresholds=None,
                  max_input_power=None,
+                 divide_input_by_max_input_power=True,
                  clip_input=True,
                  window=(None, None),
                  seq_length=1000,
@@ -472,6 +473,7 @@ class RealApplianceSource(Source):
             self.max_input_power = max_input_power
         self.clip_input = clip_input
 
+        self.divide_input_by_max_input_power = divide_input_by_max_input_power
         if max_appliance_powers is None:
             max_appliance_powers = [None] * len(appliances)
 
@@ -656,7 +658,8 @@ class RealApplianceSource(Source):
             np.clip(X, 0, self.max_input_power, out=X)
 
         fdiff = np.diff(X[:, 0]) / self.max_diff
-        if self.max_input_power is not None:
+        if (self.divide_input_by_max_input_power and
+                self.max_input_power is not None):
             X[:, 0] /= self.max_input_power
 
         if self.target_is_prediction:
@@ -1137,6 +1140,7 @@ class SameLocation(RandomSegments):
                  allow_incomplete=False,
                  ignore_incomplete=False,
                  include_all=False,
+                 divide_target_by=1,
                  *args, **kwargs):
         self.offset_probability = offset_probability
         self.ignore_offset_activations = ignore_offset_activations
@@ -1145,6 +1149,7 @@ class SameLocation(RandomSegments):
         self.skip_probability = skip_probability
         self.allow_incomplete = allow_incomplete
         self.include_all = include_all
+        self.divide_target_by = divide_target_by
         kwargs['ignore_incomplete'] = ignore_incomplete
         super(SameLocation, self).__init__(*args, **kwargs)
 
@@ -1185,6 +1190,7 @@ class SameLocation(RandomSegments):
             if X is None:
                 continue
             if len(X) == self.seq_length:
+                y /= self.divide_target_by
                 return X, y
         if X is None:
             raise RuntimeError("X is None")
@@ -1401,12 +1407,13 @@ class MultiSource(Source):
             **kwargs
         )
 
-    def _gen_data(self, validation=False):
+    def get_batch(self, validation=False):
         key = 'validation_probability' if validation else 'train_probability'
         probabilities = [source_dict[key] for source_dict in self.sources]
         source_i = self.rng.choice(len(self.sources), p=probabilities)
+        print("Using source_i", source_i)
         source = self.sources[source_i]['source']
-        return source._gen_data(validation)
+        return source.get_batch(validation)
 
 
 def quantize(data, n_bins, all_hot=True, range=(-1, 1), length=None):
