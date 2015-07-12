@@ -637,7 +637,7 @@ longer?)
 
 546: First attempt at using MultiSource
 
-
+547: same as 546 but run on GPU
 
 TODO:
 * try outputting a binary mask.  This might make skip connections more
