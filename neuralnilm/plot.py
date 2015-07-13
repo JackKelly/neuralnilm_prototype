@@ -22,7 +22,7 @@ def plot_activations(filename, epoch, seq_i=0, normalise=False):
         break
 
 
-class Plotter(object):
+class Plotter(object):    
     def __init__(self, n_seq_to_plot=10):
         self.n_seq_to_plot = n_seq_to_plot
         self.linewidth = 0.2
@@ -30,6 +30,7 @@ class Plotter(object):
         self.seq_i = 0
         self.plot_additional_seqs = 0
         self.net = None
+        self.ylim = None  # Set by the user while code is running.
 
     @property
     def target_labels(self):
@@ -43,7 +44,7 @@ class Plotter(object):
         fig, ax = plt.subplots(1)
         n_iterations = len(self.net.training_costs)
         SIZE = 2
-        
+
         # Plot training costs
         train_x = np.arange(0, n_iterations)
         ax.scatter(train_x, self.net.training_costs, label='Training',
@@ -58,9 +59,16 @@ class Plotter(object):
 
         # Text and formatting
         ax.set_xlim((0, n_iterations))
-        max_cost = max(max(self.net.training_costs),
-                       max(self.net.validation_costs))
-        ax.set_ylim((0, max_cost))
+        if self.ylim is None:
+            train_start_i = 100 if len(self.net.training_costs) > 1000 else 0
+            valid_start_i = 100 if len(self.net.validation_costs) > 1000 else 0
+            max_cost = max(max(self.net.training_costs[:train_start_i]),
+                           max(self.net.validation_costs[:valid_start_i]))
+            min_cost = min(min(self.net.training_costs),
+                           min(self.net.validation_costs))
+            ax.set_ylim((min_cost, max_cost))
+        else:
+            ax.set_ylim(self.ylim)
         ax.set_xlabel('Iteration')
         ax.set_ylabel('Cost')
         ax.legend()
