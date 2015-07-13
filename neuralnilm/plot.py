@@ -62,8 +62,8 @@ class Plotter(object):
         if self.ylim is None:
             train_start_i = 100 if len(self.net.training_costs) > 1000 else 0
             valid_start_i = 100 if len(self.net.validation_costs) > 1000 else 0
-            max_cost = max(max(self.net.training_costs[:train_start_i]),
-                           max(self.net.validation_costs[:valid_start_i]))
+            max_cost = max(max(self.net.training_costs[train_start_i:]),
+                           max(self.net.validation_costs[valid_start_i:]))
             min_cost = min(min(self.net.training_costs),
                            min(self.net.validation_costs))
             ax.set_ylim((min_cost, max_cost))

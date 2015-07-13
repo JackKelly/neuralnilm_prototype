@@ -445,6 +445,7 @@ class RealApplianceSource(Source):
                  one_target_per_seq=False,
                  ensure_all_appliances_represented=True,
                  border=5,
+                 window_per_building=None,
                  **kwargs):
         """
         Parameters
@@ -462,6 +463,11 @@ class RealApplianceSource(Source):
             every sequence.  Else each appliance will be skipped with this
             probability but every appliance will be present in at least
             one sequence per batch.
+        window_per_building : dict
+            Keys are Building instance integers.
+            Must have one for each building.
+            Values are (<start>, <end>) dates (or whatever 
+            nilmtk.DataSet.set_window() accepts)
         """
         self._set_logger(logger)
         self.dataset = DataSet(filename)
@@ -516,6 +522,10 @@ class RealApplianceSource(Source):
         self.ensure_all_appliances_represented = (
             ensure_all_appliances_represented)
         self.border = border
+        if window_per_building and window != (None, None):
+            raise ValueError(
+                "Cannot set both `window_per_building` and `window`")
+        self.window_per_building = window_per_building
 
         self.logger.info("Loading training activations...")
         if on_power_thresholds is None:
@@ -558,8 +568,15 @@ class RealApplianceSource(Source):
                           on_power_thresholds):
         activations = OrderedDict()
         for building_i in buildings:
+            if self.window_per_building:
+                window = self.window_per_building[building_i]
+                self.logger.info(
+                    "Setting window for building {} to (start={}, end={})"
+                    .format(building_i, *window))
+                self.dataset.set_window(*window)
             elec = self.dataset.buildings[building_i].elec
-            meters = get_meters_for_appliances(elec, self.appliances)
+            meters = get_meters_for_appliances(
+                elec, self.appliances, self.logger)
             for appliance_i, meter in enumerate(meters):
                 appliance = self.appliances[appliance_i]
                 if isinstance(appliance, list):
@@ -577,7 +594,8 @@ class RealApplianceSource(Source):
                     sample_period=self.sample_period,
                     clip_appliance_power=self.clip_appliance_power)
                 self.logger.info(
-                    "Loaded {:d} activations.".format(len(activation_series)))
+                    "    Loaded {:d} activations."
+                    .format(len(activation_series)))
         return activations
 
     def _gen_single_example(self, validation=False, appliances=None):
@@ -766,7 +784,8 @@ class NILMTKSource(Source):
         self.metergroups = {}
         for building_i in self._all_buildings():
             elec = self.dataset.buildings[building_i].elec
-            meters = get_meters_for_appliances(elec, self.appliances)
+            meters = get_meters_for_appliances(
+                elec, self.appliances, self.logger)
             self.metergroups[building_i] = MeterGroup(meters)
 
     def _all_buildings(self):
@@ -1141,7 +1160,10 @@ class SameLocation(RandomSegments):
                  ignore_incomplete=False,
                  include_all=False,
                  divide_target_by=1,
-                 *args, **kwargs):
+                 window_per_building=None,
+                 window=(None, None),
+                 *args,
+                 **kwargs):
         self.offset_probability = offset_probability
         self.ignore_offset_activations = ignore_offset_activations
         self.clip_appliance_power = clip_appliance_power
@@ -1150,7 +1172,12 @@ class SameLocation(RandomSegments):
         self.allow_incomplete = allow_incomplete
         self.include_all = include_all
         self.divide_target_by = divide_target_by
+        if window_per_building and window != (None, None):
+            raise ValueError(
+                "Cannot set both `window_per_building` and `window`")
+        self.window_per_building = window_per_building
         kwargs['ignore_incomplete'] = ignore_incomplete
+        kwargs['window'] = window
         super(SameLocation, self).__init__(*args, **kwargs)
 
     def _init_data(self):
@@ -1167,10 +1194,21 @@ class SameLocation(RandomSegments):
         self.sections_without_target = {}
         for building_i in self.get_all_buildings():
             sections_without_target = TimeFrameGroup()
-            prev_end = self.mains[building_i].index[0]
+            mains_start = self.mains[building_i].index[0]
+            prev_end = mains_start
             for activation in self.activations[building_i]:
-                sections_without_target.append(
-                    TimeFrame(prev_end, activation.index[0]))
+                activation_start = activation.index[0]
+                try:
+                    timeframe = TimeFrame(prev_end, activation_start)
+                except ValueError as exception:
+                    self.logger.info(
+                        "Failed to create timeframe:"
+                        " building_i={}, mains_start={}, prev_end={},"
+                        " activation_start={}.  Exception={}"
+                        .format(building_i, mains_start, prev_end,
+                                activation_start, exception))
+                else:
+                    sections_without_target.append(timeframe)
                 prev_end = activation.index[-1]
             sections_without_target.append(
                 TimeFrame(prev_end, self.mains[building_i].index[-1]))
@@ -1184,7 +1222,7 @@ class SameLocation(RandomSegments):
                     sections_without_target)
 
     def _gen_single_example(self, validation=False):
-        N_RETRIES = 50
+        N_RETRIES = 256
         for retry in range(N_RETRIES):
             X, y = self._gen_single_example_(validation)
             if X is None:
@@ -1298,6 +1336,11 @@ class SameLocation(RandomSegments):
         if len(X) != self.seq_length:
             return None, None
 
+        # Check previous activation isn't in mains
+        if activation_i > 0:
+            if activations[activation_i-1].index[-1] > X.index[0]:
+                return None, None
+
         if self.include_all:
             y_series = pd.Series(y, index=X.index)
             # check activations backwards
@@ -1343,6 +1386,12 @@ class SameLocation(RandomSegments):
         activations = OrderedDict()
         self.target_good_sections = {}
         for building_i in self.get_all_buildings():
+            if self.window_per_building:
+                window = self.window_per_building[building_i]
+                self.logger.info(
+                    "Setting window for building {} to (start={}, end={})"
+                    .format(building_i, *window))
+                self.dataset.set_window(*window)
             elec = self.dataset.buildings[building_i].elec
             try:
                 meter, target_app = get_meter_for_appliance(
@@ -1369,6 +1418,14 @@ class SameLocation(RandomSegments):
     def _load_mains(self):
         mains = OrderedDict()
         for building_i in self.get_all_buildings():
+            self.logger.info(
+                "Loading mains data for building {:d}...".format(building_i))
+            if self.window_per_building:
+                window = self.window_per_building[building_i]
+                self.logger.info(
+                    "  Setting window for building {} to (start={}, end={})"
+                    .format(building_i, *window))
+                self.dataset.set_window(*window)
             elec = self.dataset.buildings[building_i].elec
             meter = elec.mains()
             mains_data = meter.power_series_all_data(
@@ -1376,8 +1433,21 @@ class SameLocation(RandomSegments):
             mains_data = mains_data.dropna()
             mains[building_i] = mains_data
             self.logger.info(
-                "Loaded mains data for building {:d}.".format(building_i))
+                "  Loaded mains data for building {:d}.".format(building_i))
             gc.collect()
+
+            # Check if any activations start *before* mains starts
+            remove_activations_before_index = 0
+            for i, activation in enumerate(self.activations[building_i]):
+                if activation.index[0] < mains_data.index[0]:
+                    remove_activations_before_index = i + 1
+            if remove_activations_before_index > 0:
+                self.logger.info(
+                    "Mains starts after activation {} so will remove previous"
+                    " activations.".format(remove_activations_before_index))
+                self.activations[building_i] = self.activations[building_i][
+                    remove_activations_before_index:]
+
         self.mains = mains
 
 
@@ -1413,7 +1483,9 @@ class MultiSource(Source):
         probabilities = [source_dict[key] for source_dict in self.sources]
         source_i = self.rng.choice(len(self.sources), p=probabilities)
         source = self.sources[source_i]['source']
-        return source.get_batch(validation)
+        batch = source.get_batch(validation)
+        batch.source_i = source_i
+        return batch
 
     def get_labels(self):
         return self.standardisation_source.get_labels()
@@ -1518,7 +1590,7 @@ def power_and_fdiff(X):
     return output
 
 
-def get_meters_for_appliances(elec, appliances):
+def get_meters_for_appliances(elec, appliances, logger):
     meters = []
     for appliance_i, apps in enumerate(appliances):
         if not isinstance(apps, list):
@@ -1532,8 +1604,9 @@ def get_meters_for_appliances(elec, appliances):
                 meters.append(meter)
                 break
         else:
-            print("  No appliance matching", apps, "in building",
-                  elec.building())
+            logger.info(
+                "  No appliance matching {} in building {}."
+                .format(apps, elec.building()))
             continue
     return meters
 

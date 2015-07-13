@@ -1,0 +1,38 @@
+BULDING 2
+ Appliance(type='fridge', instance=1),
+ Appliance(type='washing machine', instance=1),
+ Appliance(type='toaster', instance=1),
+ Appliance(type='microwave', instance=1),
+ Appliance(type='kettle', instance=1),
+ Appliance(type='dish washer', instance=1),
+
+BUILDING 3
+ Appliance(type='kettle', instance=1)
+
+BUILDING 4
+ Appliance(type='washing machine', instance=1),
+ Appliance(type='freezer', instance=1),
+ Appliance(type='kettle', instance=1),
+ Appliance(type='microwave', instance=1)]
+
+BUILDING 5
+ Appliance(type='washer dryer', instance=1),
+ Appliance(type='microwave', instance=1),
+ Appliance(type='toaster', instance=1),
+ Appliance(type='dish washer', instance=1),
+ Appliance(type='kettle', instance=1),
+ Appliance(type='fridge freezer', instance=1)]
+
+
+
+   HOUSE     | 1  2  3  4  5 | COUNT
+-------------+---------------+------
+1. KETTLE    | Y  Y  Y  Y  Y | *****
+2. FRIDGE    | Y  Y     Y  Y | ****
+3. WASHING M | Y  Y     Y  Y | ****
+4. MICROWAVE | Y  Y     Y  Y | ****
+5. DISH WASH | Y  Y        Y | ***
+
+6. TOASTER   | Y  Y        Y | ***
+7. TV        | Y        Y  Y | ***
+

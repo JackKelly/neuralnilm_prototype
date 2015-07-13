@@ -639,6 +639,10 @@ longer?)
 
 547: same as 546 but run on GPU
 
+548: train on houses 1,2,3,4.  Validate on house 5.
+
+549: same as 548 but lower learning rate
+
 TODO:
 * try outputting a binary mask.  This might make skip connections more
 effective.  And then, after training a binary mask, try adding a few
