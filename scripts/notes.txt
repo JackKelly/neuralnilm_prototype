@@ -643,6 +643,8 @@ longer?)
 
 549: same as 548 but lower learning rate
 
+550: same as 549 but independently centre inputs
+
 TODO:
 * try outputting a binary mask.  This might make skip connections more
 effective.  And then, after training a binary mask, try adding a few
