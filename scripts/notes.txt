@@ -662,7 +662,11 @@ But this seemed to hurt training.
 551: washing machine first attempt.  Isn't working well but I suspect
 that's a data issue.  Or too long a sequence.
 
-552: microwave
+552: microwave (validate on house 2 becuase I think house 5 doesn't
+have any valid microwave activations)
+
+553: microwave again but drop seq length to 128.  And try hacky way to
+get source to use logger.
 
 TODO:
 * try outputting a binary mask.  This might make skip connections more

@@ -47,7 +47,7 @@ UKDALE_FILENAME = '/data/dk3810/ukdale.h5'
 MAX_TARGET_POWER = 1500
 TARGET_APPLIANCE = 'microwave'
 
-SEQ_LENGTH = 512
+SEQ_LENGTH = 128
 N_SEQ_PER_BATCH = 64
 TRAIN_BUILDINGS = [1, 3, 4, 5]
 VALIDATION_BUILDINGS = [2]
@@ -69,6 +69,7 @@ INPUT_STATS = {
 
 
 real_appliance_source1 = RealApplianceSource(
+    logger=logging.getLogger(NAME + 'a'),
     filename=UKDALE_FILENAME,
     appliances=[
         TARGET_APPLIANCE,
@@ -97,6 +98,7 @@ real_appliance_source1 = RealApplianceSource(
 )
 
 same_location_source1 = SameLocation(
+    logger=logging.getLogger(NAME + 'a'),
     filename=UKDALE_FILENAME,
     target_appliance=TARGET_APPLIANCE,
     window_per_building=WINDOW_PER_BUILDING,
