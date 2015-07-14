@@ -44,11 +44,10 @@ SAVE_PLOT_INTERVAL = 25000
 
 UKDALE_FILENAME = '/data/dk3810/ukdale.h5'
 
-MAX_TARGET_POWER = 300
+MAX_TARGET_POWER = 2400
+TARGET_APPLIANCE = ['washer dryer', 'washing machine']
 
-TARGET_APPLIANCE = ['fridge freezer', 'fridge', 'freezer']
-
-SEQ_LENGTH = 512
+SEQ_LENGTH = 2048
 N_SEQ_PER_BATCH = 64
 TRAIN_BUILDINGS = [1, 2, 3, 4]
 VALIDATION_BUILDINGS = [5]
@@ -68,19 +67,20 @@ INPUT_STATS = {
     'std': np.array([374.43884277], dtype=np.float32)
 }
 
+
 real_appliance_source1 = RealApplianceSource(
     filename=UKDALE_FILENAME,
     appliances=[
         TARGET_APPLIANCE,
-        ['washer dryer', 'washing machine'],
+        ['fridge freezer', 'fridge', 'freezer'],
         'dish washer',
         'kettle',
         'microwave'
     ],
-    max_appliance_powers=[MAX_TARGET_POWER, 2400, 2500, 2600, 1500],
+    max_appliance_powers=[MAX_TARGET_POWER, 300, 2500, 2600, 1500],
     on_power_thresholds=[5] * 5,
-    min_on_durations=[60, 1800, 1800, 12, 12],
-    min_off_durations=[12, 600, 1800, 12, 12],
+    min_on_durations=[1800, 60, 1800, 12, 12],
+    min_off_durations=[600, 12, 1800, 12, 12],
     divide_input_by_max_input_power=False,
     window_per_building=WINDOW_PER_BUILDING,
     seq_length=SEQ_LENGTH,
@@ -222,7 +222,6 @@ def exp_a(name):
             n_seq_to_plot=32, max_target_power=MAX_TARGET_POWER)
     ))
     net = Net(**net_dict_copy)
-    net.load_params(350000)
     return net
 
 
@@ -252,6 +251,6 @@ if __name__ == "__main__":
 """
 Emacs variables
 Local Variables:
-compile-command: "cp /home/jack/workspace/python/neuralnilm/scripts/e550.py /mnt/sshfs/imperial/workspace/python/neuralnilm/scripts/"
+compile-command: "cp /home/jack/workspace/python/neuralnilm/scripts/e551.py /mnt/sshfs/imperial/workspace/python/neuralnilm/scripts/"
 End:
 """

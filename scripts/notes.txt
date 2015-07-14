@@ -645,6 +645,21 @@ longer?)
 
 550: same as 549 but independently centre inputs
 
+e550a_train_on_real_data_after_350000 was where I used:
+
+def only_train_on_real_data(net, iteration):
+    net.logger.info(
+        "Iteration {}: Now only training on real data.".format(iteration))
+    net.source.sources[0]['train_probability'] = 0.0
+    net.source.sources[1]['train_probability'] = 1.0
+
+epoch_callbacks={
+    350000: only_train_on_real_data
+}
+
+But this seemed to hurt training.
+
+
 TODO:
 * try outputting a binary mask.  This might make skip connections more
 effective.  And then, after training a binary mask, try adding a few
