@@ -221,10 +221,12 @@ def exp_a(name):
         experiment_name=name,
         source=multi_source,
         plotter=StartEndMeanPlotter(
-            n_seq_to_plot=32, max_target_power=MAX_TARGET_POWER)
+            n_seq_to_plot=32,
+            n_training_examples_to_plot=16,
+            max_target_power=MAX_TARGET_POWER)
     ))
     net = Net(**net_dict_copy)
-    net.load_params(722188)
+    net.load_params(730532)
     return net
 
 

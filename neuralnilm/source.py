@@ -177,6 +177,8 @@ class Source(object):
         self._thread = None
 
     def get(self, timeout=30, **kwargs):
+        if self._thread is None:
+            self.start()
         return self.queue.get(timeout=timeout, **kwargs)
 
     def empty_queue(self):
