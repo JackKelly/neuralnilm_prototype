@@ -145,8 +145,8 @@ net_dict = dict(
     updates_func=nesterov_momentum,
     learning_rate=1e-5,
     learning_rate_changes_by_iteration={
-        400000: 1e-6,
-        500000: 1e-7
+        # 400000: 1e-6,
+        # 500000: 1e-7
     },
     epoch_callbacks={
 #        350000: only_train_on_real_data
@@ -224,6 +224,7 @@ def exp_a(name):
             n_seq_to_plot=32, max_target_power=MAX_TARGET_POWER)
     ))
     net = Net(**net_dict_copy)
+    net.load_params(685510)
     return net
 
 
@@ -239,7 +240,7 @@ def main():
         except KeyboardInterrupt:
             logger.info("KeyboardInterrupt")
             break
-        except Exception as exception:
+        except Exception:
             logger.exception("Exception")
             # raise
         finally:

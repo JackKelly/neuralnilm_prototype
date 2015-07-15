@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 import logging
 from numpy.random import rand
 from time import time
+from os.path import exists
 
 import theano
 import theano.tensor as T
@@ -29,6 +30,7 @@ from .layers import MixtureDensityLayer
 from .utils import sfloatX, none_to_dict, ndim_tensor
 from .plot import Plotter
 from .batch_norm import batch_norm
+
 
 class ansi:
     # from dnouri/nolearn/nolearn/lasagne.py
@@ -95,13 +97,16 @@ class Net(object):
         self.csv_filenames = {
             'training_costs': self.experiment_name + "_training_costs.csv",
             'validation_costs': self.experiment_name + "_validation_costs.csv",
-            'best_costs': self.experiment_name + "_best_costs.txt"
+            'training_costs_metadata':
+                self.experiment_name + "_training_costs_metadata.csv",
+            'best_costs': self.experiment_name + "_best_costs.txt",
         }
 
         self.generate_validation_data_and_set_shapes()
 
         self.validation_costs = []
         self.training_costs = []
+        self.training_costs_metadata = []
         self.layers = []
         self.layer_labels = {}
 
@@ -269,10 +274,11 @@ class Net(object):
         self.source.stop()
         self.source.empty_queue()
         self.logger.info("Changing layers...\nOld architecture:")
-        self.print_net()        
+        self.print_net()
         layer_changes = self.layer_changes[epoch]
         for layer_to_remove in range(layer_changes['remove_from'], 0):
-            self.logger.info("Removed {}".format(self.layers.pop(layer_to_remove)))
+            self.logger.info(
+                "Removed {}".format(self.layers.pop(layer_to_remove)))
         if 'callback' in layer_changes:
             layer_changes['callback'](self, epoch)
         self.add_layers(layer_changes['new_layers'])
@@ -281,13 +287,29 @@ class Net(object):
         self.compile()
         self.source.start()
 
+    def _save_training_costs_metadata(self):
+        if not self.training_costs_metadata:
+            return
+        keys = self.training_costs_metadata[-1].keys()
+        n_iterations = self.n_iterations()
+        if n_iterations == 0:
+            mode = 'w'
+        else:
+            mode = 'a'
+        with open(self.csv_filenames['training_costs_metadata'], mode) as fh:
+            writer = csv.DictWriter(fh, fieldnames=keys)
+            if n_iterations == 0:
+                writer.writeheader()
+            writer.writerow(self.training_costs_metadata[-1])
+
     def print_and_save_training_progress(self, duration):
         iteration = self.n_iterations()
         train_cost = self.training_costs[-1]
-        validation_cost = (self.validation_costs[-1] if self.validation_costs 
+        validation_cost = (self.validation_costs[-1] if self.validation_costs
                            else None)
         _write_csv_row(self.csv_filenames['training_costs'],
                        [iteration, train_cost, duration])
+        self._save_training_costs_metadata()
         best_train_cost = min(self.training_costs)
         best_valid_cost = min(self.validation_costs)
         is_best_train = train_cost == best_train_cost
@@ -298,13 +320,13 @@ class Net(object):
         N = 500
         K = 25
         txt = (
-            "BEST COSTS\n" + 
+            "BEST COSTS\n" +
             ("best train cost =" + FMT + " at iteration{:6d}\n").format(
-                best_train_cost, self.training_costs.index(best_train_cost)) + 
+                best_train_cost, self.training_costs.index(best_train_cost)) +
             ("best valid cost =" + FMT + " at iteration{:6d}\n").format(
-                best_valid_cost, 
-                self.validation_costs.index(best_valid_cost) * 
-                self.validation_interval) + 
+                best_valid_cost,
+                self.validation_costs.index(best_valid_cost) *
+                self.validation_interval) +
             "\n" +
             "AVERAGE FOR THE TOP {:d} ITERATIONS\n".format(K) +
             (" avg train cost =" + FMT + "\n").format(
@@ -333,22 +355,22 @@ class Net(object):
                   ansi.ENDC if is_best_valid else "",
                   train_cost / validation_cost,
                   duration
-        ))
+              ))
         if np.isnan(train_cost):
             msg = "training cost is NaN at iteration {}!".format(iteration)
             self.logger.error(msg)
             raise TrainingError(msg)
 
-    def _write_csv_headers(self, key='both'):
-        if key in ['both', 'training_costs']:
+    def _write_csv_headers(self, key='all'):
+        if key in ['all', 'training_costs']:
             _write_csv_row(
                 self.csv_filenames['training_costs'],
-                row=['iteration', 'train_cost', 'duration'], 
+                row=['iteration', 'train_cost', 'duration'],
                 mode='w')
-        if key in ['both', 'validation_costs']:
+        if key in ['all', 'validation_costs']:
             _write_csv_row(
                 self.csv_filenames['validation_costs'],
-                row=['iteration', 'validation_cost'], 
+                row=['iteration', 'validation_cost'],
                 mode='w')
 
     @property
@@ -376,10 +398,11 @@ class Net(object):
             self._write_csv_headers()
 
         while iteration != n_iterations:
-            t0 = time() # for calculating training duration
+            t0 = time()  # for calculating training duration
             iteration = len(self.training_costs)
             if iteration in self.learning_rate_changes_by_iteration:
-                self.learning_rate = self.learning_rate_changes_by_iteration[iteration]
+                self.learning_rate = (
+                    self.learning_rate_changes_by_iteration[iteration])
             if iteration in self.layer_changes:
                 self._change_layers(iteration)
             if iteration in self.epoch_callbacks:
@@ -388,6 +411,8 @@ class Net(object):
             X, y = batch.data
             train_cost = self.train(X, y).flatten()[0]
             self.training_costs.append(train_cost)
+            if batch.metadata:
+                self.training_costs_metadata.append(batch.metadata)
             if not iteration % self.validation_interval:
                 validation_cost = self.compute_cost(self.X_val, self.y_val)[0]
                 validation_cost = validation_cost.flatten()[0]
@@ -435,7 +460,7 @@ class Net(object):
         epoch_name = 'epoch{:06d}'.format(self.n_iterations())
         try:
             epoch_group = f.create_group(epoch_name)
-        except ValueError as exception:
+        except ValueError:
             self.logger.exception("Cannot save params!")
             f.close()
             return
@@ -452,8 +477,9 @@ class Net(object):
                 if param.name:
                     param_name += "_" + param.name
                 data = param.get_value()
-                layer_group.create_dataset(param_name, data=data, compression="gzip")
-            
+                layer_group.create_dataset(
+                    param_name, data=data, compression="gzip")
+
         f.close()
 
     def load_params(self, iteration, filename=None):
@@ -486,6 +512,7 @@ class Net(object):
         f.close()
         self.logger.info('Done loading params from ' + filename + '.')
 
+        # LOAD COSTS
         def load_csv(key, limit):
             filename = self.csv_filenames[key]
             data = np.genfromtxt(filename, delimiter=',', skip_header=1)
@@ -500,6 +527,25 @@ class Net(object):
         self.training_costs = load_csv('training_costs', iteration)
         self.validation_costs = load_csv(
             'validation_costs', iteration // self.validation_interval)
+
+        # LOAD TRAINING COSTS METADATA
+        metadata_fname = self.csv_filenames['training_costs_metadata']
+        try:
+            metadata_fh = open(metadata_fname, 'r')
+        except IOError:
+            pass
+        else:
+            reader = csv.DictReader(metadata_fh)
+            training_costs_metadata = [row for row in reader]
+            keys = training_costs_metadata[-1].keys()
+            metadata_fh.close()
+            self.training_costs_metadata = training_costs_metadata[:iteration]
+            if len(training_costs_metadata) > iteration:
+                # Overwrite old file
+                with open(metadata_fname, 'w') as metadata_fh:
+                    writer = csv.DictWriter(metadata_fh, keys)
+                    writer.writeheader()
+                    writer.writerows(self.training_costs_metadata)
 
         # set learning rate
         if self.learning_rate_changes_by_iteration:
@@ -520,7 +566,7 @@ class Net(object):
         epoch_name = 'epoch{:06d}'.format(self.n_iterations())
         try:
             epoch_group = f.create_group(epoch_name)
-        except ValueError as exception:
+        except ValueError:
             self.logger.exception("Cannot save params!")
             f.close()
             return
@@ -542,14 +588,15 @@ class Net(object):
                 output = output.transpose(0, 2, 1)
 
             layer_name = 'L{:02d}_{}'.format(layer_i, layer.__class__.__name__)
-            epoch_group.create_dataset(layer_name, data=output, compression="gzip")
+            epoch_group.create_dataset(
+                layer_name, data=output, compression="gzip")
 
         # save validation data
         if self.n_iterations() == 0:
-            f.create_dataset('validation_data', data=self.X_val, compression="gzip")
+            f.create_dataset(
+                'validation_data', data=self.X_val, compression="gzip")
 
         f.close()
-        
 
 
 def _write_csv_row(filename, row, mode='a'):

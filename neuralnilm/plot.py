@@ -22,7 +22,7 @@ def plot_activations(filename, epoch, seq_i=0, normalise=False):
         break
 
 
-class Plotter(object):    
+class Plotter(object):
     def __init__(self, n_seq_to_plot=10):
         self.n_seq_to_plot = n_seq_to_plot
         self.linewidth = 0.2
@@ -45,10 +45,22 @@ class Plotter(object):
         n_iterations = len(self.net.training_costs)
         SIZE = 2
 
+        # Check for source_i metadata
+        try:
+            source_i_list = [
+                int(metadata['source_i'])
+                for metadata in self.net.training_costs_metadata]
+        except:
+            train_color = 'b'
+        else:
+            TRAIN_COLOR_MAP = {0: 'r', 1: 'b'}
+            train_color = [
+                TRAIN_COLOR_MAP[source_i] for source_i in source_i_list]
+
         # Plot training costs
         train_x = np.arange(0, n_iterations)
         ax.scatter(train_x, self.net.training_costs, label='Training',
-                   c='b', alpha=0.2, s=SIZE, linewidths=0)
+                   c=train_color, alpha=0.2, s=SIZE, linewidths=0)
 
         # Plot validation costs
         validation_x = np.arange(0, n_iterations, self.net.validation_interval)

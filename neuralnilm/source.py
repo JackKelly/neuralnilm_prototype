@@ -19,9 +19,10 @@ SECS_PER_DAY = 60 * 60 * 24
 
 
 class Batch(object):
-    def __init__(self, data, target_power_timeseries):
+    def __init__(self, data, target_power_timeseries, metadata=None):
         self.data = data
         self.target_power_timeseries = target_power_timeseries
+        self.metadata = OrderedDict({} if metadata is None else metadata)
 
 
 class Source(object):
@@ -1484,7 +1485,7 @@ class MultiSource(Source):
         source_i = self.rng.choice(len(self.sources), p=probabilities)
         source = self.sources[source_i]['source']
         batch = source.get_batch(validation)
-        batch.source_i = source_i
+        batch.metadata['source_i'] = source_i
         return batch
 
     def get_labels(self):
