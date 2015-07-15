@@ -113,26 +113,26 @@ class Plotter(object):
                 X, y, output, train_batch.target_power_timeseries,
                 filename_string='train_estimates',
                 metadata=train_batch.metadata,
-                end_str=batch_i)
+                end_string=batch_i)
 
     def _process(self, X, y, output):
         return X, y, output
 
     def create_estimates_fig(self, X, y, output, target_power_timeseries,
                              filename_string='estimates', metadata=None,
-                             end_str=None):
+                             end_string=None):
         fig, axes = plt.subplots(3)
         self._plot_network_output(axes[0], output)
         self._plot_target(axes[1], y, target_power_timeseries)
         if metadata:
             fig.text(
-                x=0.1, y=0.95, s=str(dict(metadata)), fontsize=6,
+                x=0.1, y=0.5, s=str(dict(metadata)), fontsize=6,
                 horizontalalignment='center', verticalalignment='center')
         self._plot_input(axes[2], X)
         for ax in axes:
             ax.grid(True)
-        end_str = self.seq_i if end_str is None else end_str
-        self._save_or_display_fig(filename_string, fig, end_string=self.seq_i)
+        end_string = self.seq_i if end_string is None else end_string
+        self._save_or_display_fig(filename_string, fig, end_string=end_string)
         return fig, axes
 
     def _save_or_display_fig(self, string, fig, dpi=None,

@@ -36,3 +36,40 @@ BUILDING 5
 6. TOASTER   | Y  Y        Y | ***
 7. TV        | Y        Y  Y | ***
 
+
+MICROWAVE
+--------
+
+House 1 looks fine but there are some long activations:
+Max number of samples: 194.0
+Mean number of samples: 18.0513613861
+Min number of samples: 4.0
+
+66
+75 & 76
+78 & 79
+91
+96: MISSING MAINS FOR PART OF THIS!
+117
+177: long
+
+House 2 looks fine
+415 activations
+Max number of samples: 91.0
+Mean number of samples: 21.5975903614
+Min number of samples: 4.0
+
+House 4's 'microwave' channel is shared with the washing machine!!!
+Do not use this or the washing machine channels!
+
+House 5 fine but need a decent on_power_threshold (200W)
+22 activations
+Max number of samples: 104.0
+Mean number of samples: 18.9545454545
+Min number of samples: 4.0
+
+Use only houses 1, 2, 5
+Use on_power_threshold of 200 W
+min_on_duration = 12
+min_off_duration = 30
+LENGTH = 256

@@ -50,13 +50,16 @@ SAVE_PLOT_INTERVAL = 25000
 
 UKDALE_FILENAME = '/data/dk3810/ukdale.h5'
 
-MAX_TARGET_POWER = 1500
+MAX_TARGET_POWER = 3000
+ON_POWER_THRESHOLD = 200
+MIN_ON_DURATION = 12
+MIN_OFF_DURATION = 30
 TARGET_APPLIANCE = 'microwave'
 
-SEQ_LENGTH = 128
+SEQ_LENGTH = 256
 N_SEQ_PER_BATCH = 64
-TRAIN_BUILDINGS = [1, 3, 4, 5]
-VALIDATION_BUILDINGS = [2]
+TRAIN_BUILDINGS = [1, 2]
+VALIDATION_BUILDINGS = [5]
 SKIP_PROBABILITY_FOR_TARGET = 0.5
 INDEPENDENTLY_CENTER_INPUTS = True
 
@@ -85,10 +88,10 @@ net_dict = dict(
     save_plot_interval=SAVE_PLOT_INTERVAL,
     loss_function=lambda x, t: squared_error(x, t).mean(),
     updates_func=nesterov_momentum,
-    learning_rate=1e-5,
+    learning_rate=1e-4,
     learning_rate_changes_by_iteration={
-        # 400000: 1e-6,
-        # 500000: 1e-7
+        400000: 1e-5,
+        500000: 1e-6
     },
     epoch_callbacks={
         350000: only_train_on_real_data
@@ -170,9 +173,9 @@ def exp_a(name):
             ['washer dryer', 'washing machine']
         ],
         max_appliance_powers=[MAX_TARGET_POWER, 300, 2500, 2600, 2400],
-        on_power_thresholds=[5] * 5,
-        min_on_durations=[12, 60, 1800, 12, 1800],
-        min_off_durations=[12, 12, 1800, 12, 600],
+        on_power_thresholds=[ON_POWER_THRESHOLD] + [10] * 4,
+        min_on_durations=[MIN_ON_DURATION, 60, 1800, 12, 1800],
+        min_off_durations=[MIN_OFF_DURATION, 12, 1800, 12, 600],
         divide_input_by_max_input_power=False,
         window_per_building=WINDOW_PER_BUILDING,
         seq_length=SEQ_LENGTH,
@@ -203,7 +206,10 @@ def exp_a(name):
         offset_probability=1,
         divide_target_by=MAX_TARGET_POWER,
         input_stats=INPUT_STATS,
-        independently_center_inputs=INDEPENDENTLY_CENTER_INPUTS
+        independently_center_inputs=INDEPENDENTLY_CENTER_INPUTS,
+        on_power_threshold=ON_POWER_THRESHOLD,
+        min_on_duration=MIN_ON_DURATION,
+        min_off_duration=MIN_OFF_DURATION
     )
 
     multi_source = MultiSource(
@@ -232,7 +238,7 @@ def exp_a(name):
             max_target_power=MAX_TARGET_POWER)
     ))
     net = Net(**net_dict_copy)
-    net.load_params(730532)
+    net.load_params(11589)
     return net
 
 
@@ -262,6 +268,6 @@ if __name__ == "__main__":
 """
 Emacs variables
 Local Variables:
-compile-command: "cp /home/jack/workspace/python/neuralnilm/scripts/e552.py /mnt/sshfs/imperial/workspace/python/neuralnilm/scripts/"
+compile-command: "cp /home/jack/workspace/python/neuralnilm/scripts/e554.py /mnt/sshfs/imperial/workspace/python/neuralnilm/scripts/"
 End:
 """

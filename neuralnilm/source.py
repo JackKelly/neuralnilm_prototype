@@ -593,7 +593,8 @@ class RealApplianceSource(Source):
                 activation_series = meter.activation_series(
                     on_power_threshold=on_power_thresholds[appliance_i],
                     min_on_duration=min_on_durations[appliance_i],
-                    min_off_duration=min_off_durations[appliance_i])
+                    min_off_duration=min_off_durations[appliance_i],
+                    resample=True)
                 activations[appliance] = _preprocess_activations(
                     activation_series,
                     max_power=self.max_appliance_powers[appliance],
@@ -1168,6 +1169,10 @@ class SameLocation(RandomSegments):
                  divide_target_by=1,
                  window_per_building=None,
                  window=(None, None),
+                 load_mains=True,
+                 on_power_threshold=40,
+                 min_on_duration=12,
+                 min_off_duration=12,
                  *args,
                  **kwargs):
         self.offset_probability = offset_probability
@@ -1178,12 +1183,16 @@ class SameLocation(RandomSegments):
         self.allow_incomplete = allow_incomplete
         self.include_all = include_all
         self.divide_target_by = divide_target_by
+        self.load_mains = load_mains
+        self.min_off_duration = min_off_duration
+        self.min_on_duration = min_on_duration
         if window_per_building and window != (None, None):
             raise ValueError(
                 "Cannot set both `window_per_building` and `window`")
         self.window_per_building = window_per_building
         kwargs['ignore_incomplete'] = ignore_incomplete
         kwargs['window'] = window
+        kwargs['on_power_threshold'] = on_power_threshold
         super(SameLocation, self).__init__(*args, **kwargs)
 
     def _init_data(self):
@@ -1192,8 +1201,9 @@ class SameLocation(RandomSegments):
         * Load all mains data into memory
         """
         self._load_activations()
-        self._load_mains()
-        if self.skip_probability:
+        if self.load_mains:
+            self._load_mains()
+        if self.skip_probability and self.load_mains:
             self._load_sections_without_target()
 
     def _load_sections_without_target(self):
@@ -1410,7 +1420,9 @@ class SameLocation(RandomSegments):
                 continue
             self.target_good_sections[building_i] = meter.good_sections()
             activation_series = meter.activation_series(
-                on_power_threshold=40)
+                on_power_threshold=self.on_power_threshold,
+                min_off_duration=self.min_off_duration,
+                min_on_duration=self.min_on_duration)
             activations[building_i] = _preprocess_activations(
                 activation_series,
                 max_power=self.max_appliance_power,
@@ -1418,6 +1430,9 @@ class SameLocation(RandomSegments):
             self.logger.info(
                 "Loaded {:d} {:s} activations from house {:d}.".
                 format(len(activation_series), target_app, building_i))
+            if len(activation_series) == 0:
+                del activations[building_i]
+                self._remove_building(building_i)
             gc.collect()
         self.activations = activations
 
