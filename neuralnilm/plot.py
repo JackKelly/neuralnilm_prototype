@@ -23,7 +23,7 @@ def plot_activations(filename, epoch, seq_i=0, normalise=False):
 
 
 class Plotter(object):
-    def __init__(self, n_seq_to_plot=10):
+    def __init__(self, n_seq_to_plot=10, n_training_examples_to_plot=4):
         self.n_seq_to_plot = n_seq_to_plot
         self.linewidth = 0.2
         self.save = True
@@ -31,6 +31,7 @@ class Plotter(object):
         self.plot_additional_seqs = 0
         self.net = None
         self.ylim = None  # Set by the user while code is running.
+        self.n_training_examples_to_plot = n_training_examples_to_plot
 
     @property
     def target_labels(self):
@@ -100,17 +101,29 @@ class Plotter(object):
             fig, axes = self.create_estimates_fig(
                 X, y, output, validation_batch.target_power_timeseries)
 
+        # Training examples
+        for batch_i in range(self.n_training_examples_to_plot):
+            self.seq_i = 0
+            train_batch = self.net.source.get()
+            X, y = train_batch.data
+            output = self.net.y_pred(X)
+            X, y, output = self._process(X, y, output)
+            fig, axes = self.create_estimates_fig(
+                X, y, output, train_batch.target_power_timeseries,
+                filename_string='train_estimates_{}'.format(batch_i))
+
     def _process(self, X, y, output):
         return X, y, output
 
-    def create_estimates_fig(self, X, y, output, target_power_timeseries):
+    def create_estimates_fig(self, X, y, output, target_power_timeseries,
+                             filename_string='estimates'):
         fig, axes = plt.subplots(3)
         self._plot_network_output(axes[0], output)
         self._plot_target(axes[1], y, target_power_timeseries)
         self._plot_input(axes[2], X)
         for ax in axes:
             ax.grid(True)
-        self._save_or_display_fig('estimates', fig, end_string=self.seq_i)
+        self._save_or_display_fig(filename_string, fig, end_string=self.seq_i)
         return fig, axes
 
     def _save_or_display_fig(self, string, fig, dpi=None,

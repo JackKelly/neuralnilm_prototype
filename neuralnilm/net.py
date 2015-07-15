@@ -407,7 +407,7 @@ class Net(object):
                 self._change_layers(iteration)
             if iteration in self.epoch_callbacks:
                 self.epoch_callbacks[iteration](self, iteration)
-            batch = self.source.queue.get(timeout=30)
+            batch = self.source.get()
             X, y = batch.data
             train_cost = self.train(X, y).flatten()[0]
             self.training_costs.append(train_cost)

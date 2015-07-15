@@ -86,7 +86,7 @@ net_dict = dict(
         # 500000: 1e-7
     },
     epoch_callbacks={
-#        350000: only_train_on_real_data
+        350000: only_train_on_real_data
     },
     do_save_activations=True,
     auto_reshape=False,

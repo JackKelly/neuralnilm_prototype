@@ -176,6 +176,9 @@ class Source(object):
         self._thread.join()
         self._thread = None
 
+    def get(self, timeout=30, **kwargs):
+        return self.queue.get(timeout=timeout, **kwargs)
+
     def empty_queue(self):
         while True:
             try:
