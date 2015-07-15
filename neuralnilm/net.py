@@ -557,6 +557,12 @@ class Net(object):
                         self.learning_rate_changes_by_iteration[key])
                     break
 
+        # epoch_callbacks
+        callbacks_to_call = [
+            key for key in self.epoch_callbacks.keys() if key < iteration]
+        for callback_iteration in callbacks_to_call:
+            self.epoch_callbacks[callback_iteration](self, callback_iteration)
+
     def save_activations(self):
         if not self.do_save_activations:
             return

@@ -68,7 +68,6 @@ INPUT_STATS = {
 }
 
 
-
 def only_train_on_real_data(net, iteration):
     net.logger.info(
         "Iteration {}: Now only training on real data.".format(iteration))
@@ -225,7 +224,7 @@ def exp_a(name):
             n_seq_to_plot=32, max_target_power=MAX_TARGET_POWER)
     ))
     net = Net(**net_dict_copy)
-    net.load_params(685510)
+    net.load_params(722188)
     return net
 
 
