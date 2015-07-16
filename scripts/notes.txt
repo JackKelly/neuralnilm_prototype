@@ -695,6 +695,13 @@ output. downsample output 2x.  Conv in middle.
 
 564: no conv anywhere.  More BLSTM cells.
 
+565:
+a) 2048 seq length
+b) conv at beginning, 256 seq length
+c) elem size sum, 256 seq length
+d) sigmoid everywhere, no conv, 256 length seq
+- doesn't appear to learn anything sensible
+
 TODO:
 * try outputting a binary mask.  This might make skip connections more
 effective.  And then, after training a binary mask, try adding a few

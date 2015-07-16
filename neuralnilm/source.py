@@ -1201,6 +1201,7 @@ class SameLocation(RandomSegments):
             self._load_mains()
         if self.skip_probability and self.load_mains:
             self._load_sections_without_target()
+        self.dataset.store.close()            
 
     def _load_sections_without_target(self):
         self.sections_without_target = {}
