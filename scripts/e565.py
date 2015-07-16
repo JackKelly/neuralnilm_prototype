@@ -214,10 +214,10 @@ def exp_a(name):
             n_seq_to_plot=32,
             n_training_examples_to_plot=16
         ),
-        learning_rate=1e-3,
+        learning_rate=1e-4,
         learning_rate_changes_by_iteration={
-            1000: 1e-4,
-            10000: 1e-5
+            1000: 1e-5,
+            10000: 1e-6
         },
         layers_config=[
             {
@@ -229,13 +229,13 @@ def exp_a(name):
                 'type': BLSTMLayer,
                 'num_units': 128,
                 'merge_mode': 'concatenate',
-                'grad_clipping': 10.0
+                'grad_clipping': 1.0
             },
             {
                 'type': BLSTMLayer,
                 'num_units': 256,
                 'merge_mode': 'concatenate',
-                'grad_clipping': 10.0
+                'grad_clipping': 1.0
             },
             {
                 'type': DenseLayer,
