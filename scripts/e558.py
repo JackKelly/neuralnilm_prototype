@@ -46,7 +46,7 @@ NAME = os.path.splitext(os.path.split(__main__.__file__)[1])[0]
 #PATH = "/homes/dk3810/workspace/python/neuralnilm/figures"
 PATH = "/data/dk3810/figures"
 # PATH = "/home/jack/experiments/neuralnilm/figures"
-SAVE_PLOT_INTERVAL = 25000
+SAVE_PLOT_INTERVAL = 1000
 
 UKDALE_FILENAME = '/data/dk3810/ukdale.h5'
 
@@ -91,7 +91,7 @@ net_dict = dict(
     learning_rate=1e-1,
     learning_rate_changes_by_iteration={
         1000: 1e-2,
-        2000: 1e-3
+        10000: 1e-3
     },
     epoch_callbacks={
         350000: only_train_on_real_data
@@ -100,14 +100,24 @@ net_dict = dict(
     auto_reshape=True,
     layers_config=[
         {
+            'type': DenseLayer,
+            'num_units': 10,
+            'nonlinearity': tanh
+        },
+        {
             'type': BLSTMLayer,
-            'num_units': 60,
+            'num_units': 128,
             'merge_mode': 'concatenate'
         },
         {
             'type': BLSTMLayer,
-            'num_units': 80,
+            'num_units': 128,
             'merge_mode': 'concatenate'
+        },
+        {
+            'type': DenseLayer,
+            'num_units': 128,
+            'nonlinearity': tanh
         },
         {
             'type': DenseLayer,
@@ -224,6 +234,6 @@ if __name__ == "__main__":
 """
 Emacs variables
 Local Variables:
-compile-command: "cp /home/jack/workspace/python/neuralnilm/scripts/e557.py /mnt/sshfs/imperial/workspace/python/neuralnilm/scripts/"
+compile-command: "cp /home/jack/workspace/python/neuralnilm/scripts/e558.py /mnt/sshfs/imperial/workspace/python/neuralnilm/scripts/"
 End:
 """

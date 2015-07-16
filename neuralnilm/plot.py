@@ -23,7 +23,8 @@ def plot_activations(filename, epoch, seq_i=0, normalise=False):
 
 
 class Plotter(object):
-    def __init__(self, n_seq_to_plot=10, n_training_examples_to_plot=4, net=None):
+    def __init__(self, n_seq_to_plot=10, n_training_examples_to_plot=4,
+                 net=None):
         self.n_seq_to_plot = n_seq_to_plot
         self.linewidth = 0.2
         self.save = True
@@ -47,16 +48,16 @@ class Plotter(object):
         SIZE = 2
 
         # Check for source_i metadata
-        try:
+        if (self.net.training_costs_metadata and
+                'source_i' in self.net.training_costs_metadata[0]):
             source_i_list = [
                 int(metadata['source_i'])
                 for metadata in self.net.training_costs_metadata]
-        except:
-            train_color = 'b'
-        else:
             TRAIN_COLOR_MAP = {0: 'r', 1: 'b'}
             train_color = [
                 TRAIN_COLOR_MAP[source_i] for source_i in source_i_list]
+        else:
+            train_color = 'b'
 
         # Plot training costs
         train_x = np.arange(0, n_iterations)

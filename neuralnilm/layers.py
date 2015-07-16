@@ -4,7 +4,7 @@ import theano.tensor as T
 
 import numpy as np
 
-from lasagne.layers import (Layer, ElemwiseSumLayer,
+from lasagne.layers import (Layer, ElemwiseSumLayer, ConcatLayer,
                             Conv1DLayer, DenseLayer)
 from lasagne.layers.conv import conv_output_length
 from lasagne import nonlinearities
@@ -33,13 +33,19 @@ else:
         Parameters
         ----------
         layer_class : e.g. lasagne.layers.LSTMLayer
-        merge_layer_class : e.g. lasagne.layers.ElemwiseSumLayer
+        merge_mode : {'sum', 'concatenate'}
         """
         kwargs.pop('backwards', None)
-        merge_layer_class = kwargs.pop('merge_layer_class', ElemwiseSumLayer)
+        merge_mode = kwargs.pop('merge_mode', 'sum')
         l_fwd = layer_class(*args, backwards=False, **kwargs)
         l_bck = layer_class(*args, backwards=True, **kwargs)
-        return merge_layer_class([l_fwd, l_bck])
+        layers = [l_fwd, l_bck]
+        if merge_mode == 'sum':
+            return ElemwiseSumLayer(layers)
+        elif merge_mode == 'concatenate':
+            return ConcatLayer(layers, axis=2)
+        else:
+            raise ValueError("'{}' not a valid merge_mode".format(merge_mode))
 
 
 class MixtureDensityLayer(Layer):

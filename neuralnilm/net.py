@@ -165,7 +165,7 @@ class Net(object):
             # Handle references:
             for k, v in layer_config.iteritems():
                 if isinstance(v, basestring) and v.startswith("ref:"):
-                    v = v[4:] # remove "ref:"
+                    v = v[4:]  # remove "ref:"
                     label, _, attr = v.partition('.')
                     target_layer = self.layer_labels[label]
 #                    layer_config[k] = getattr(target_layer, attr)
