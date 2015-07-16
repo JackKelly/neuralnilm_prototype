@@ -10,7 +10,7 @@ from neuralnilm.source import (standardise, discretize, fdiff, power_and_fdiff,
 from neuralnilm.experiment import run_experiment, init_experiment
 from neuralnilm.net import TrainingError
 from neuralnilm.layers import (MixtureDensityLayer, DeConv1DLayer,
-                               SharedWeightsDenseLayer)
+                               SharedWeightsDenseLayer, BLSTMLayer)
 from neuralnilm.objectives import (scaled_cost, mdn_nll,
                                    scaled_cost_ignore_inactive, ignore_inactive,
                                    scaled_cost3)
@@ -58,8 +58,8 @@ TARGET_APPLIANCE = 'microwave'
 
 SEQ_LENGTH = 256
 N_SEQ_PER_BATCH = 64
-TRAIN_BUILDINGS = [1, 2]
-VALIDATION_BUILDINGS = [5]
+TRAIN_BUILDINGS = [1] #, 2]
+VALIDATION_BUILDINGS = [1] # 5
 SKIP_PROBABILITY_FOR_TARGET = 0.5
 INDEPENDENTLY_CENTER_INPUTS = True
 
@@ -88,72 +88,28 @@ net_dict = dict(
     save_plot_interval=SAVE_PLOT_INTERVAL,
     loss_function=lambda x, t: squared_error(x, t).mean(),
     updates_func=nesterov_momentum,
-    learning_rate=1e-4,
+    learning_rate=1e-1,
     learning_rate_changes_by_iteration={
-        400000: 1e-5,
-        500000: 1e-6
+        1000: 1e-2,
+        2000: 1e-3
     },
     epoch_callbacks={
         350000: only_train_on_real_data
     },
     do_save_activations=True,
-    auto_reshape=False,
+    auto_reshape=True,
     layers_config=[
         {
-            'type': DimshuffleLayer,
-            'pattern': (0, 2, 1)  # (batch, features, time)
+            'type': BLSTMLayer,
+            'num_units': 60
         },
         {
-            'type': PadLayer,
-            'width': 4
-        },
-        {
-            'type': Conv1DLayer,  # convolve over the time axis
-            'num_filters': 16,
-            'filter_size': 4,
-            'stride': 1,
-            'nonlinearity': None,
-            'border_mode': 'valid'
-        },
-        {
-            'type': Conv1DLayer,  # convolve over the time axis
-            'num_filters': 16,
-            'filter_size': 4,
-            'stride': 1,
-            'nonlinearity': None,
-            'border_mode': 'valid'
-        },
-        {
-            'type': DimshuffleLayer,
-            'pattern': (0, 2, 1),  # back to (batch, time, features)
-            'label': 'dimshuffle3'
+            'type': BLSTMLayer,
+            'num_units': 80
         },
         {
             'type': DenseLayer,
-            'num_units': 512 * 8,
-            'nonlinearity': rectify,
-            'label': 'dense0'
-        },
-        {
-            'type': DenseLayer,
-            'num_units': 512 * 6,
-            'nonlinearity': rectify,
-            'label': 'dense1'
-        },
-        {
-            'type': DenseLayer,
-            'num_units': 512 * 4,
-            'nonlinearity': rectify,
-            'label': 'dense2'
-        },
-        {
-            'type': DenseLayer,
-            'num_units': 512,
-            'nonlinearity': rectify
-        },
-        {
-            'type': DenseLayer,
-            'num_units': 3,
+            'num_units': 1,
             'nonlinearity': None
         }
     ]
@@ -185,57 +141,56 @@ def exp_a(name):
         n_seq_per_batch=N_SEQ_PER_BATCH,
         skip_probability=0.75,
         skip_probability_for_first_appliance=SKIP_PROBABILITY_FOR_TARGET,
-        target_is_start_and_end_and_mean=True,
+#        target_is_start_and_end_and_mean=True,
         standardise_input=True,
         input_stats=INPUT_STATS,
         independently_center_inputs=INDEPENDENTLY_CENTER_INPUTS
     )
 
-    same_location_source1 = SameLocation(
-        logger=logger,
-        filename=UKDALE_FILENAME,
-        target_appliance=TARGET_APPLIANCE,
-        window_per_building=WINDOW_PER_BUILDING,
-        seq_length=SEQ_LENGTH,
-        train_buildings=TRAIN_BUILDINGS,
-        validation_buildings=VALIDATION_BUILDINGS,
-        n_seq_per_batch=N_SEQ_PER_BATCH,
-        skip_probability=SKIP_PROBABILITY_FOR_TARGET,
-        target_is_start_and_end_and_mean=True,
-        standardise_input=True,
-        offset_probability=1,
-        divide_target_by=MAX_TARGET_POWER,
-        input_stats=INPUT_STATS,
-        independently_center_inputs=INDEPENDENTLY_CENTER_INPUTS,
-        on_power_threshold=ON_POWER_THRESHOLD,
-        min_on_duration=MIN_ON_DURATION,
-        min_off_duration=MIN_OFF_DURATION
-    )
+#     same_location_source1 = SameLocation(
+#         logger=logger,
+#         filename=UKDALE_FILENAME,
+#         target_appliance=TARGET_APPLIANCE,
+#         window_per_building=WINDOW_PER_BUILDING,
+#         seq_length=SEQ_LENGTH,
+#         train_buildings=TRAIN_BUILDINGS,
+#         validation_buildings=VALIDATION_BUILDINGS,
+#         n_seq_per_batch=N_SEQ_PER_BATCH,
+#         skip_probability=SKIP_PROBABILITY_FOR_TARGET,
+# #        target_is_start_and_end_and_mean=True,
+#         standardise_input=True,
+#         offset_probability=1,
+#         divide_target_by=MAX_TARGET_POWER,
+#         input_stats=INPUT_STATS,
+#         independently_center_inputs=INDEPENDENTLY_CENTER_INPUTS,
+#         on_power_threshold=ON_POWER_THRESHOLD,
+#         min_on_duration=MIN_ON_DURATION,
+#         min_off_duration=MIN_OFF_DURATION
+#     )
 
-    multi_source = MultiSource(
-        sources=[
-            {
-                'source': real_appliance_source1,
-                'train_probability': 0.5,
-                'validation_probability': 0
-            },
-            {
-                'source': same_location_source1,
-                'train_probability': 0.5,
-                'validation_probability': 1
-            }
-        ],
-        standardisation_source=same_location_source1
-    )
+    # multi_source = MultiSource(
+    #     sources=[
+    #         {
+    #             'source': real_appliance_source1,
+    #             'train_probability': 0.5,
+    #             'validation_probability': 0
+    #         },
+    #         {
+    #             'source': same_location_source1,
+    #             'train_probability': 0.5,
+    #             'validation_probability': 1
+    #         }
+    #     ],
+    #     standardisation_source=same_location_source1
+    # )
 
     net_dict_copy = deepcopy(net_dict)
     net_dict_copy.update(dict(
         experiment_name=name,
-        source=multi_source,
-        plotter=StartEndMeanPlotter(
+        source=real_appliance_source1,
+        plotter=Plotter(
             n_seq_to_plot=32,
-            n_training_examples_to_plot=16,
-            max_target_power=MAX_TARGET_POWER)
+            n_training_examples_to_plot=16)
     ))
     net = Net(**net_dict_copy)
     return net
@@ -267,6 +222,6 @@ if __name__ == "__main__":
 """
 Emacs variables
 Local Variables:
-compile-command: "cp /home/jack/workspace/python/neuralnilm/scripts/e555.py /mnt/sshfs/imperial/workspace/python/neuralnilm/scripts/"
+compile-command: "cp /home/jack/workspace/python/neuralnilm/scripts/e556.py /mnt/sshfs/imperial/workspace/python/neuralnilm/scripts/"
 End:
 """

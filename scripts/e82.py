@@ -164,4 +164,3 @@ net = Net(
 net.print_net()
 net.compile()
 net.fit()
-

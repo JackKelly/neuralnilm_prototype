@@ -23,13 +23,13 @@ def plot_activations(filename, epoch, seq_i=0, normalise=False):
 
 
 class Plotter(object):
-    def __init__(self, n_seq_to_plot=10, n_training_examples_to_plot=4):
+    def __init__(self, n_seq_to_plot=10, n_training_examples_to_plot=4, net=None):
         self.n_seq_to_plot = n_seq_to_plot
         self.linewidth = 0.2
         self.save = True
         self.seq_i = 0
         self.plot_additional_seqs = 0
-        self.net = None
+        self.net = net
         self.ylim = None  # Set by the user while code is running.
         self.n_training_examples_to_plot = n_training_examples_to_plot
 

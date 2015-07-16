@@ -672,6 +672,12 @@ get source to use logger.  Duff data!
 
 555: microwave: same as 554 but increase MIN_ON_DURATION to 18s
 
+####### BRIEF ATTEMPT AT BLSTMs AGAIN ##########
+
+556: BLSTM on microwave
+
+557: same as 556 but use ConcatLayer, not ElemwiseSum layer
+
 TODO:
 * try outputting a binary mask.  This might make skip connections more
 effective.  And then, after training a binary mask, try adding a few

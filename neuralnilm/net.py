@@ -19,13 +19,21 @@ from lasagne.layers import (InputLayer, ReshapeLayer, Layer,
                             ConcatLayer, ElemwiseSumLayer, DenseLayer,
                             get_all_layers, Conv1DLayer, FeaturePoolLayer,
                             DimshuffleLayer, ConcatLayer)
-# from lasagne.layers import LSTMLayer, RecurrentLayer
+try:
+    from lasagne.layers import LSTMLayer, RecurrentLayer
+    from neuralnilm.layers import BLSTMLayer
+    from neuralnilm.layers import BidirectionalRecurrentLayer
+except ImportError:
+    RECURRENT_LAYERS = [DimshuffleLayer]
+else:
+    RECURRENT_LAYERS = [LSTMLayer, BLSTMLayer, DimshuffleLayer,
+                        RecurrentLayer, BidirectionalRecurrentLayer]
+
 from lasagne.nonlinearities import sigmoid, rectify
 from lasagne.utils import floatX
 from lasagne.updates import nesterov_momentum
 
 from .source import quantize
-# from .layers import BLSTMLayer, MixtureDensityLayer, BidirectionalRecurrentLayer
 from .layers import MixtureDensityLayer
 from .utils import sfloatX, none_to_dict, ndim_tensor
 from .plot import Plotter
@@ -128,10 +136,6 @@ class Net(object):
         self.n_outputs = self.output_shape[-1]
 
     def add_layers(self, layers_config):
-#        RECURRENT_LAYERS = [LSTMLayer, BLSTMLayer, DimshuffleLayer,
-#                            RecurrentLayer, BidirectionalRecurrentLayer]
-        RECURRENT_LAYERS = [DimshuffleLayer]
-
         for layer_config in layers_config:
             layer_type = layer_config.pop('type')
             layer_label = layer_config.pop('label', None)
