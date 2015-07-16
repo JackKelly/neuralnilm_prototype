@@ -204,6 +204,14 @@ class Source(object):
                           self.subsample_target, self.n_outputs)
             y = y.mean(axis=2)
 
+        if self.input_padding:
+            pad = self.input_padding // 2
+            X = np.pad(
+                X,
+                pad_width=((0, 0), (pad, pad), (0, 0)),
+                mode='constant'
+            )
+
         def _standardise(n, stats, data):
             for i in range(n):
                 mean = stats['mean'][i]
@@ -303,10 +311,13 @@ class Source(object):
         else:
             seq_length = self.seq_length
 
-        return (self.n_seq_per_batch, seq_length, self.n_inputs)
+        return (self.n_seq_per_batch,
+                seq_length,
+                self.n_inputs)
 
     def input_shape_after_processing(self):
         n_seq_per_batch, seq_length, n_inputs = self.input_shape()
+        seq_length += self.input_padding
         if self.random_window:
             seq_length = self.random_window
         if self.two_pass:
@@ -438,7 +449,6 @@ class RealApplianceSource(Source):
                  output_one_appliance=True,
                  sample_period=6,
                  boolean_targets=False,
-                 input_padding=0,
                  skip_probability=0,
                  skip_probability_for_first_appliance=None,
                  include_diff=False,
@@ -561,7 +571,6 @@ class RealApplianceSource(Source):
             n_inputs=sum([include_diff, include_power]),
             n_outputs=(1 if output_one_appliance or target_is_prediction
                        else len(appliances)),
-            input_padding=input_padding,
             **kwargs
         )
         assert not (self.input_padding and self.random_window)
@@ -706,18 +715,6 @@ class RealApplianceSource(Source):
 
         return X, y
 
-    def input_shape(self):
-        return (self.n_seq_per_batch,
-                self.seq_length + self.input_padding,
-                self.n_inputs)
-
-    def inside_padding(self):
-        start = self.input_padding // 2
-        end = -int(np.ceil(self.input_padding / 2))
-        if end == 0:
-            end = None
-        return start, end
-
     def _appliances_for_sequence(self):
         """Returns a dict which maps from seq_i to a list of appliances which
         must be included in that sequence.  This is used to ensure that,
@@ -750,10 +747,9 @@ class RealApplianceSource(Source):
     def _gen_data(self, validation=False):
         X = np.zeros(self.input_shape(), dtype=np.float32)
         y = np.zeros(self.output_shape(), dtype=np.float32)
-        start, end = self.inside_padding()
         deterministic_appliances = self._appliances_for_sequence()
         for i in range(self.n_seq_per_batch):
-            X[i, start:end, :], y[i, :, :] = self._gen_single_example(
+            X[i, :, :], y[i, :, :] = self._gen_single_example(
                 validation, deterministic_appliances.get(i))
         if self.remove_used_activations and validation:
             for appliance in self.appliances:
@@ -1283,7 +1279,7 @@ class SameLocation(RandomSegments):
             return self._seq_without_target(building_i, validation)
 
         y = np.pad(activation.values, (N_LEAD_IN, 0), 'constant')
-
+        
         def zeros():
             return np.zeros(self.seq_length, dtype=np.float32)
 

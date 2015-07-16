@@ -152,7 +152,8 @@ class Net(object):
                         shape = (self.source.n_seq_per_batch,
                                  seq_length,
                                  n_features)
-                        self.layers.append(ReshapeLayer(self.layers[-1], shape))
+                        reshape_layer = ReshapeLayer(self.layers[-1], shape)
+                        self.layers.append(reshape_layer)
                 elif layer_type in [DenseLayer, MixtureDensityLayer]:
                     if n_dims == 3:
                         # The prev layer_config was a time-aware layer_config,
@@ -160,7 +161,8 @@ class Net(object):
                         seq_length = prev_layer_output_shape[1]
                         shape = (self.source.n_seq_per_batch * seq_length,
                                  n_features)
-                        self.layers.append(ReshapeLayer(self.layers[-1], shape))
+                        reshape_layer = ReshapeLayer(self.layers[-1], shape)
+                        self.layers.append(reshape_layer)
 
             # Handle references:
             for k, v in layer_config.iteritems():
@@ -173,8 +175,9 @@ class Net(object):
                     print(layer_config[k])
                     print(type(layer_config[k]))
 
-            self.logger.info('Initialising layer_config : {}'.format(layer_type))
-                    
+            self.logger.info(
+                'Initialising layer_config : {}'.format(layer_type))
+
             # Handle ConcatLayers
             if layer_type == ConcatLayer:
                 incoming = [
@@ -195,8 +198,9 @@ class Net(object):
 
         # Reshape output if necessary...
         if (self.layers[-1].output_shape != self.output_shape and
-            layer_type != MixtureDensityLayer):
-            self.layers.append(ReshapeLayer(self.layers[-1], self.output_shape))
+                layer_type != MixtureDensityLayer):
+            reshape_layer = ReshapeLayer(self.layers[-1], self.output_shape)
+            self.layers.append(reshape_layer)
 
         self.logger.info("Total parameters = {}".format(
             sum([p.get_value().size for p in
