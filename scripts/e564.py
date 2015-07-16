@@ -90,10 +90,10 @@ net_dict = dict(
     save_plot_interval=SAVE_PLOT_INTERVAL,
     loss_function=lambda x, t: squared_error(x, t).mean(),
     updates_func=nesterov_momentum,
-    learning_rate=1e-1,
+    learning_rate=1e-2,
     learning_rate_changes_by_iteration={
-        500: 1e-2,
-        10000: 1e-3
+        1000: 1e-3,
+        10000: 1e-4
     },
     epoch_callbacks={
         350000: only_train_on_real_data
@@ -134,75 +134,75 @@ def exp_a(name):
     logger = logging.getLogger(name)
     global multi_source
 
-    real_appliance_source1 = RealApplianceSource(
-        logger=logger,
-        filename=UKDALE_FILENAME,
-        appliances=[
-            TARGET_APPLIANCE,
-            ['fridge freezer', 'fridge', 'freezer'],
-            'dish washer',
-            'kettle',
-            ['washer dryer', 'washing machine']
-        ],
-        max_appliance_powers=[MAX_TARGET_POWER, 300, 2500, 2600, 2400],
-        on_power_thresholds=[ON_POWER_THRESHOLD] + [10] * 4,
-        min_on_durations=[MIN_ON_DURATION, 60, 1800, 12, 1800],
-        min_off_durations=[MIN_OFF_DURATION, 12, 1800, 12, 600],
-        divide_input_by_max_input_power=False,
-        window_per_building=WINDOW_PER_BUILDING,
-        seq_length=SEQ_LENGTH,
-        output_one_appliance=True,
-        train_buildings=TRAIN_BUILDINGS,
-        validation_buildings=VALIDATION_BUILDINGS,
-        n_seq_per_batch=N_SEQ_PER_BATCH,
-        skip_probability=0.75,
-        skip_probability_for_first_appliance=SKIP_PROBABILITY_FOR_TARGET,
-        standardise_input=True,
-        input_stats=INPUT_STATS,
-        independently_center_inputs=INDEPENDENTLY_CENTER_INPUTS,
-        subsample_target=SUBSAMPLE_TARGET,
-        input_padding=INPUT_PADDING
-    )
+    # real_appliance_source1 = RealApplianceSource(
+    #     logger=logger,
+    #     filename=UKDALE_FILENAME,
+    #     appliances=[
+    #         TARGET_APPLIANCE,
+    #         ['fridge freezer', 'fridge', 'freezer'],
+    #         'dish washer',
+    #         'kettle',
+    #         ['washer dryer', 'washing machine']
+    #     ],
+    #     max_appliance_powers=[MAX_TARGET_POWER, 300, 2500, 2600, 2400],
+    #     on_power_thresholds=[ON_POWER_THRESHOLD] + [10] * 4,
+    #     min_on_durations=[MIN_ON_DURATION, 60, 1800, 12, 1800],
+    #     min_off_durations=[MIN_OFF_DURATION, 12, 1800, 12, 600],
+    #     divide_input_by_max_input_power=False,
+    #     window_per_building=WINDOW_PER_BUILDING,
+    #     seq_length=SEQ_LENGTH,
+    #     output_one_appliance=True,
+    #     train_buildings=TRAIN_BUILDINGS,
+    #     validation_buildings=VALIDATION_BUILDINGS,
+    #     n_seq_per_batch=N_SEQ_PER_BATCH,
+    #     skip_probability=0.75,
+    #     skip_probability_for_first_appliance=SKIP_PROBABILITY_FOR_TARGET,
+    #     standardise_input=True,
+    #     input_stats=INPUT_STATS,
+    #     independently_center_inputs=INDEPENDENTLY_CENTER_INPUTS,
+    #     subsample_target=SUBSAMPLE_TARGET,
+    #     input_padding=INPUT_PADDING
+    # )
 
-    same_location_source1 = SameLocation(
-        logger=logger,
-        filename=UKDALE_FILENAME,
-        target_appliance=TARGET_APPLIANCE,
-        window_per_building=WINDOW_PER_BUILDING,
-        seq_length=SEQ_LENGTH,
-        train_buildings=TRAIN_BUILDINGS,
-        validation_buildings=VALIDATION_BUILDINGS,
-        n_seq_per_batch=N_SEQ_PER_BATCH,
-        skip_probability=SKIP_PROBABILITY_FOR_TARGET,
-        standardise_input=True,
-        offset_probability=1,
-        divide_target_by=MAX_TARGET_POWER,
-        input_stats=INPUT_STATS,
-        independently_center_inputs=INDEPENDENTLY_CENTER_INPUTS,
-        on_power_threshold=ON_POWER_THRESHOLD,
-        min_on_duration=MIN_ON_DURATION,
-        min_off_duration=MIN_OFF_DURATION,
-        include_all=True,
-        allow_incomplete=True,
-        subsample_target=SUBSAMPLE_TARGET,
-        input_padding=INPUT_PADDING
-    )
+    # same_location_source1 = SameLocation(
+    #     logger=logger,
+    #     filename=UKDALE_FILENAME,
+    #     target_appliance=TARGET_APPLIANCE,
+    #     window_per_building=WINDOW_PER_BUILDING,
+    #     seq_length=SEQ_LENGTH,
+    #     train_buildings=TRAIN_BUILDINGS,
+    #     validation_buildings=VALIDATION_BUILDINGS,
+    #     n_seq_per_batch=N_SEQ_PER_BATCH,
+    #     skip_probability=SKIP_PROBABILITY_FOR_TARGET,
+    #     standardise_input=True,
+    #     offset_probability=1,
+    #     divide_target_by=MAX_TARGET_POWER,
+    #     input_stats=INPUT_STATS,
+    #     independently_center_inputs=INDEPENDENTLY_CENTER_INPUTS,
+    #     on_power_threshold=ON_POWER_THRESHOLD,
+    #     min_on_duration=MIN_ON_DURATION,
+    #     min_off_duration=MIN_OFF_DURATION,
+    #     include_all=True,
+    #     allow_incomplete=True,
+    #     subsample_target=SUBSAMPLE_TARGET,
+    #     input_padding=INPUT_PADDING
+    # )
 
-    multi_source = MultiSource(
-        sources=[
-            {
-                'source': real_appliance_source1,
-                'train_probability': 0.5,
-                'validation_probability': 0
-            },
-            {
-                'source': same_location_source1,
-                'train_probability': 0.5,
-                'validation_probability': 1
-            }
-        ],
-        standardisation_source=same_location_source1
-    )
+    # multi_source = MultiSource(
+    #     sources=[
+    #         {
+    #             'source': real_appliance_source1,
+    #             'train_probability': 0.5,
+    #             'validation_probability': 0
+    #         },
+    #         {
+    #             'source': same_location_source1,
+    #             'train_probability': 0.5,
+    #             'validation_probability': 1
+    #         }
+    #     ],
+    #     standardisation_source=same_location_source1
+    # )
 
     net_dict_copy = deepcopy(net_dict)
     net_dict_copy.update(dict(
