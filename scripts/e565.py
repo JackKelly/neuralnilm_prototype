@@ -46,7 +46,7 @@ NAME = os.path.splitext(os.path.split(__main__.__file__)[1])[0]
 #PATH = "/homes/dk3810/workspace/python/neuralnilm/figures"
 PATH = "/data/dk3810/figures"
 # PATH = "/home/jack/experiments/neuralnilm/figures"
-SAVE_PLOT_INTERVAL = 300
+SAVE_PLOT_INTERVAL = 1000
 
 UKDALE_FILENAME = '/data/dk3810/ukdale.h5'
 
@@ -218,7 +218,36 @@ def exp_a(name):
         learning_rate_changes_by_iteration={
             1000: 1e-4,
             10000: 1e-5
-        }
+        },
+        layers_config=[
+            {
+                'type': DenseLayer,
+                'num_units': 64,
+                'nonlinearity': tanh
+            },
+            {
+                'type': BLSTMLayer,
+                'num_units': 128,
+                'merge_mode': 'concatenate',
+                'grad_clipping': 10.0
+            },
+            {
+                'type': BLSTMLayer,
+                'num_units': 256,
+                'merge_mode': 'concatenate',
+                'grad_clipping': 10.0
+            },
+            {
+                'type': DenseLayer,
+                'num_units': 128,
+                'nonlinearity': tanh
+            },
+            {
+                'type': DenseLayer,
+                'num_units': 1,
+                'nonlinearity': None
+            }
+        ]
     ))
     net = Net(**net_dict_copy)
     return net
@@ -353,6 +382,7 @@ def exp_b(name):
 
     ))
     net = Net(**net_dict_copy)
+    net.load_params(1500)
     return net
 
 
