@@ -726,8 +726,16 @@ d) sigmoid everywhere, no conv, 256 length seq
 - doesn't appear to learn anything sensible
 
 e) b but smaller net
+ avg train cost =  0.0017372924
+ avg valid cost =  0.0053468561
 
 f) e but smaller conv filter size
+ avg train cost =  0.0020756852
+ avg valid cost =  0.0056281118
+
+g) dropout
+ avg train cost =  0.0029928372
+ avg valid cost =  0.0057291645
 
 TODO:
 * try outputting a binary mask.  This might make skip connections more

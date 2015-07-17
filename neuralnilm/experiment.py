@@ -4,6 +4,31 @@ import logging
 from sys import stdout
 
 
+def change_dir(base_path, full_exp_name):
+    path = os.path.join(base_path, full_exp_name)
+    try:
+        os.mkdir(path)
+    except OSError as exception:
+        if exception.errno == 17:
+            print(path, "already exists.  Reusing directory.")
+        else:
+            raise
+    os.chdir(path)
+
+
+def configure_logger(full_exp_name):
+    logger = logging.getLogger(full_exp_name)
+    if not logger.handlers:
+        fh = logging.FileHandler(full_exp_name + '.log')
+        formatter = logging.Formatter('%(asctime)s %(message)s')
+        fh.setFormatter(formatter)
+        logger.addHandler(fh)
+        logger.addHandler(logging.StreamHandler(stream=stdout))
+    logger.setLevel(logging.DEBUG)
+    logger.info("***********************************")
+    logger.info("Preparing " + full_exp_name + "...")
+
+
 def init_experiment(base_path, experiment, full_exp_name):
     """
     Parameters
@@ -15,26 +40,9 @@ def init_experiment(base_path, experiment, full_exp_name):
     -------
     func_call : str
     """
-    path = os.path.join(base_path, full_exp_name)
-    try:
-        os.mkdir(path)
-    except OSError as exception:
-        if exception.errno == 17:
-            print(path, "already exists.  Reusing directory.")
-        else:
-            raise
-    os.chdir(path)
+    change_dir(base_path, full_exp_name)
     func_call = 'exp_{:s}(full_exp_name)'.format(experiment)
-    logger = logging.getLogger(full_exp_name)
-    if not logger.handlers:
-        fh = logging.FileHandler(full_exp_name + '.log')
-        formatter = logging.Formatter('%(asctime)s %(message)s')
-        fh.setFormatter(formatter)
-        logger.addHandler(fh)
-        logger.addHandler(logging.StreamHandler(stream=stdout))
-    logger.setLevel(logging.DEBUG)
-    logger.info("***********************************")
-    logger.info("Preparing " + full_exp_name + "...")
+    configure_logger(full_exp_name)
     return func_call
 
 
