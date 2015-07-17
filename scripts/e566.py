@@ -394,6 +394,10 @@ def net_dict_ae(seq_length):
         loss_function=lambda x, t: squared_error(x, t).mean(),
         updates_func=nesterov_momentum,
         learning_rate=1e-1,
+        learning_rate_changes_by_iteration={
+            50000: 1e-2,
+            75000: 1e-3
+        },
         do_save_activations=True,
         auto_reshape=False,
         plotter=Plotter(
