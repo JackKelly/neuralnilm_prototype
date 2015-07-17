@@ -41,14 +41,11 @@ NAME = os.path.splitext(os.path.split(__main__.__file__)[1])[0]
 #PATH = "/homes/dk3810/workspace/python/neuralnilm/figures"
 PATH = "/data/dk3810/figures"
 # PATH = "/home/jack/experiments/neuralnilm/figures"
-SAVE_PLOT_INTERVAL = 50
-EPOCHS = 51
 
 UKDALE_FILENAME = '/data/dk3810/ukdale.h5'
 
 SKIP_PROBABILITY_FOR_TARGET = 0.5
 INDEPENDENTLY_CENTER_INPUTS = True
-N_SEQ_PER_BATCH = 64
 
 WINDOW_PER_BUILDING = {
     1: ("2013-04-12", "2014-12-15"),
@@ -64,7 +61,10 @@ INPUT_STATS = {
 }
 
 
-def get_source(appliance, logger, target_is_start_and_end_and_mean=False):
+def get_source(appliance, logger, target_is_start_and_end_and_mean=False,
+               is_rnn=False, window_per_building=WINDOW_PER_BUILDING):
+    N_SEQ_PER_BATCH = 64
+    
     if appliance == 'microwave':
         SEQ_LENGTH = 288
         TRAIN_BUILDINGS = [1, 2]
@@ -90,12 +90,14 @@ def get_source(appliance, logger, target_is_start_and_end_and_mean=False):
             ['fridge freezer', 'fridge', 'freezer'],
             'dish washer',
             'kettle',
-            'microwave'            
+            'microwave'
         ]
         MAX_APPLIANCE_POWERS = [2500,  300, 2500, 3100, 3000]
         ON_POWER_THRESHOLDS  = [  20,   50,   10, 2000,  200]
         MIN_ON_DURATIONS     = [1800,   60, 1800,   12,   12]
         MIN_OFF_DURATIONS    = [ 160,   12, 1800,    0,   30]
+        if is_rnn:
+            N_SEQ_PER_BATCH = 16
 
     elif appliance == 'fridge':
         SEQ_LENGTH = 1024
@@ -112,7 +114,9 @@ def get_source(appliance, logger, target_is_start_and_end_and_mean=False):
         ON_POWER_THRESHOLDS  = [  50,   20,   10, 2000,  200]
         MIN_ON_DURATIONS     = [  60, 1800, 1800,   12,   12]
         MIN_OFF_DURATIONS    = [  12,  160, 1800,    0,   30]
-
+        if is_rnn:
+            N_SEQ_PER_BATCH = 16
+        
     elif appliance == 'kettle':
         SEQ_LENGTH = 128
         TRAIN_BUILDINGS = [1, 2]
@@ -144,6 +148,9 @@ def get_source(appliance, logger, target_is_start_and_end_and_mean=False):
         ON_POWER_THRESHOLDS  = [  10,   50,   20, 2000,  200]
         MIN_ON_DURATIONS     = [1800,   60, 1800,   12,   12]
         MIN_OFF_DURATIONS    = [1800,   12,  160,    0,   30]
+
+        if is_rnn:
+            N_SEQ_PER_BATCH = 16
         
     TARGET_APPLIANCE = APPLIANCES[0]
     MAX_TARGET_POWER = MAX_APPLIANCE_POWERS[0]
@@ -160,7 +167,7 @@ def get_source(appliance, logger, target_is_start_and_end_and_mean=False):
         min_on_durations=MIN_ON_DURATIONS,
         min_off_durations=MIN_OFF_DURATIONS,
         divide_input_by_max_input_power=False,
-        window_per_building=WINDOW_PER_BUILDING,
+        window_per_building=window_per_building,
         seq_length=SEQ_LENGTH,
         output_one_appliance=True,
         train_buildings=TRAIN_BUILDINGS,
@@ -178,7 +185,7 @@ def get_source(appliance, logger, target_is_start_and_end_and_mean=False):
         logger=logger,
         filename=UKDALE_FILENAME,
         target_appliance=TARGET_APPLIANCE,
-        window_per_building=WINDOW_PER_BUILDING,
+        window_per_building=window_per_building,
         seq_length=SEQ_LENGTH,
         train_buildings=TRAIN_BUILDINGS,
         validation_buildings=VALIDATION_BUILDINGS,
@@ -225,14 +232,14 @@ def only_train_on_real_data(net, iteration):
 
 def net_dict_rectangles(seq_length):
     return dict(
-        epochs=EPOCHS,    
-        save_plot_interval=SAVE_PLOT_INTERVAL,
+        epochs=300000,
+        save_plot_interval=25000,
         loss_function=lambda x, t: squared_error(x, t).mean(),
         updates_func=nesterov_momentum,
         learning_rate=1e-4,
         learning_rate_changes_by_iteration={
-            400000: 1e-5,
-            500000: 1e-6
+            200000: 1e-5,
+            250000: 1e-6
         },
         epoch_callbacks={
             350000: only_train_on_real_data
@@ -277,11 +284,11 @@ def net_dict_rectangles(seq_length):
                 'num_units': 512 * 8,
                 'nonlinearity': rectify
             },
-            {
-                'type': DenseLayer,
-                'num_units': 512 * 6,
-                'nonlinearity': rectify
-            },
+            # {
+            #     'type': DenseLayer,
+            #     'num_units': 512 * 6,
+            #     'nonlinearity': rectify
+            # },
             {
                 'type': DenseLayer,
                 'num_units': 512 * 4,
@@ -303,19 +310,31 @@ net_dict_rectangles.name = 'rectangles'
 
 
 def net_dict_rnn(seq_length):
-    return dict(
-        epochs=EPOCHS,
-        save_plot_interval=SAVE_PLOT_INTERVAL,
-        loss_function=lambda x, t: squared_error(x, t).mean(),
-        updates_func=nesterov_momentum,
-        learning_rate=1e-2,
-        learning_rate_changes_by_iteration={
+    if seq_length <= 300:
+        learning_rate = 1e-2
+        learning_rate_changes_by_iteration = {
             1000: 1e-3,
             10000: 1e-4
-        },
-        epoch_callbacks={
-            350000: only_train_on_real_data
-        },
+        }
+    elif seq_length < 1500:
+        learning_rate = 1e-6
+        learning_rate_changes_by_iteration = {
+            1000: 1e-7,
+            10000: 1e-8
+        }
+    else:
+        learning_rate = 1e-7
+        learning_rate_changes_by_iteration = {
+            1000: 1e-8,
+            10000: 1e-9
+        }
+    return dict(
+        epochs=10000,
+        save_plot_interval=1000,
+        loss_function=lambda x, t: squared_error(x, t).mean(),
+        updates_func=nesterov_momentum,
+        learning_rate=learning_rate,
+        learning_rate_changes_by_iteration=learning_rate_changes_by_iteration,
         do_save_activations=True,
         auto_reshape=True,
         plotter=Plotter(
@@ -343,12 +362,14 @@ def net_dict_rnn(seq_length):
             {
                 'type': BLSTMLayer,
                 'num_units': 128,
-                'merge_mode': 'concatenate'
+                'merge_mode': 'concatenate',
+                'grad_clipping': 1.0
             },
             {
                 'type': BLSTMLayer,
                 'num_units': 256,
-                'merge_mode': 'concatenate'
+                'merge_mode': 'concatenate',
+                'grad_clipping': 1.0
             },
             {
                 'type': DenseLayer,
@@ -362,13 +383,14 @@ def net_dict_rnn(seq_length):
             }
         ]
     )
-net_dict_rnn.name='rnn'
+net_dict_rnn.name = 'rnn'
+
 
 def net_dict_ae(seq_length):
     NUM_FILTERS = 4
     return dict(
-        epochs=EPOCHS,
-        save_plot_interval=SAVE_PLOT_INTERVAL,
+        epochs=100000,
+        save_plot_interval=25000,
         loss_function=lambda x, t: squared_error(x, t).mean(),
         updates_func=nesterov_momentum,
         learning_rate=1e-1,
@@ -403,7 +425,7 @@ def net_dict_ae(seq_length):
             },
             {
                 'type': ReshapeLayer,
-                'shape': (N_SEQ_PER_BATCH, (seq_length - 3), NUM_FILTERS)
+                'shape': (-1, (seq_length - 3), NUM_FILTERS)
             },
             {
                 'type': DimshuffleLayer,
@@ -425,6 +447,7 @@ def net_dict_ae(seq_length):
     )
 net_dict_ae.name = 'ae'
 
+
 def exp_a(name, net_dict, multi_source):
     net_dict_copy = deepcopy(net_dict)
     net_dict_copy.update(dict(
@@ -437,7 +460,7 @@ def exp_a(name, net_dict, multi_source):
 
 
 def main():
-    for net_dict_func in [net_dict_ae, net_dict_rnn, net_dict_rectangles]:
+    for net_dict_func in [net_dict_ae, net_dict_rectangles, net_dict_rnn]:
         for appliance in ['microwave', 'washing machine',
                           'fridge', 'kettle', 'dish washer']:
             full_exp_name = NAME + '_' + appliance + '_' + net_dict_func.name
@@ -448,7 +471,8 @@ def main():
             multi_source = get_source(
                 appliance,
                 logger,
-                target_is_start_and_end_and_mean=(net_dict_func == net_dict_rectangles)
+                target_is_start_and_end_and_mean=(net_dict_func == net_dict_rectangles),
+                is_rnn=(net_dict_func == net_dict_rnn)
             )
             seq_length = multi_source.sources[0]['source'].seq_length
             net_dict = net_dict_func(seq_length)
