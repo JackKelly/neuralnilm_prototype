@@ -42,15 +42,16 @@ NAME = os.path.splitext(os.path.split(__main__.__file__)[1])[0]
 PATH = "/data/dk3810/figures"
 # PATH = "/home/jack/experiments/neuralnilm/figures"
 SAVE_PLOT_INTERVAL = 1000
+EPOCHS = 50
 
 UKDALE_FILENAME = '/data/dk3810/ukdale.h5'
 
 SKIP_PROBABILITY_FOR_TARGET = 0.5
 INDEPENDENTLY_CENTER_INPUTS = True
-N_SEQ_PER_BATCH = 8
+N_SEQ_PER_BATCH = 64
 
 WINDOW_PER_BUILDING = {
-    1: ("2013-03-17 19:12:43", "2014-12-15"),
+    1: ("2013-04-12", "2014-12-15"),
     2: ("2013-05-22", "2013-10-03 06:16:00"),
     3: ("2013-02-27", "2013-04-01 06:15:05"),
     4: ("2013-03-09", "2013-09-24 06:15:14"),
@@ -105,7 +106,7 @@ def get_source(appliance, logger, target_is_start_and_end_and_mean=False):
             ['washer dryer', 'washing machine'],
             'dish washer',
             'kettle',
-            'microwave'            
+            'microwave'
         ]
         MAX_APPLIANCE_POWERS = [ 300, 2500, 2500, 3100, 3000]
         ON_POWER_THRESHOLDS  = [  50,   20,   10, 2000,  200]
@@ -222,235 +223,238 @@ def only_train_on_real_data(net, iteration):
     net.source.sources[1]['train_probability'] = 1.0
 
 
-net_dict_rectangles = dict(
-    name='rectangles',
-    save_plot_interval=SAVE_PLOT_INTERVAL,
-    loss_function=lambda x, t: squared_error(x, t).mean(),
-    updates_func=nesterov_momentum,
-    learning_rate=1e-4,
-    learning_rate_changes_by_iteration={
-        400000: 1e-5,
-        500000: 1e-6
-    },
-    epoch_callbacks={
-        350000: only_train_on_real_data
-    },
-    do_save_activations=True,
-    auto_reshape=False,
-    plotter=StartEndMeanPlotter(
-        n_seq_to_plot=32,
-        n_training_examples_to_plot=16
-    ),
-    layers_config=[
-        {
-            'type': DimshuffleLayer,
-            'pattern': (0, 2, 1)  # (batch, features, time)
+def net_dict_rectangles(seq_length):
+    return dict(
+        epochs=EPOCHS,    
+        save_plot_interval=SAVE_PLOT_INTERVAL,
+        loss_function=lambda x, t: squared_error(x, t).mean(),
+        updates_func=nesterov_momentum,
+        learning_rate=1e-4,
+        learning_rate_changes_by_iteration={
+            400000: 1e-5,
+            500000: 1e-6
         },
-        {
-            'type': PadLayer,
-            'width': 4
+        epoch_callbacks={
+            350000: only_train_on_real_data
         },
-        {
-            'type': Conv1DLayer,  # convolve over the time axis
-            'num_filters': 16,
-            'filter_size': 4,
-            'stride': 1,
-            'nonlinearity': None,
-            'border_mode': 'valid'
-        },
-        {
-            'type': Conv1DLayer,  # convolve over the time axis
-            'num_filters': 16,
-            'filter_size': 4,
-            'stride': 1,
-            'nonlinearity': None,
-            'border_mode': 'valid'
-        },
-        {
-            'type': DimshuffleLayer,
-            'pattern': (0, 2, 1)  # back to (batch, time, features)
-        },
-        {
-            'type': DenseLayer,
-            'num_units': 512 * 8,
-            'nonlinearity': rectify
-        },
-        {
-            'type': DenseLayer,
-            'num_units': 512 * 6,
-            'nonlinearity': rectify
-        },
-        {
-            'type': DenseLayer,
-            'num_units': 512 * 4,
-            'nonlinearity': rectify
-        },
-        {
-            'type': DenseLayer,
-            'num_units': 512,
-            'nonlinearity': rectify
-        },
-        {
-            'type': DenseLayer,
-            'num_units': 3,
-            'nonlinearity': None
-        }
-    ]
-)
-
-net_dict_rnn = dict(
-    name='rnn',
-    save_plot_interval=SAVE_PLOT_INTERVAL,
-    loss_function=lambda x, t: squared_error(x, t).mean(),
-    updates_func=nesterov_momentum,
-    learning_rate=1e-2,
-    learning_rate_changes_by_iteration={
-        1000: 1e-3,
-        10000: 1e-4
-    },
-    epoch_callbacks={
-        350000: only_train_on_real_data
-    },
-    do_save_activations=True,
-    auto_reshape=True,
-    plotter=Plotter(
-        n_seq_to_plot=32,
-        n_training_examples_to_plot=16
-    ),
-    layers_config=[
-        {
-            'type': DimshuffleLayer,
-            'pattern': (0, 2, 1)  # (batch, features, time)
-        },
-        {
-            'type': Conv1DLayer,  # convolve over the time axis
-            'num_filters': 16,
-            'filter_size': 4,
-            'stride': 1,
-            'nonlinearity': None,
-            'border_mode': 'same'
-        },
-        {
-            'type': DimshuffleLayer,
-            'pattern': (0, 2, 1),  # back to (batch, time, features)
-            'label': 'dimshuffle3'
-        },
-        {
-            'type': BLSTMLayer,
-            'num_units': 128,
-            'merge_mode': 'concatenate'
-        },
-        {
-            'type': BLSTMLayer,
-            'num_units': 256,
-            'merge_mode': 'concatenate'
-        },
-        {
-            'type': DenseLayer,
-            'num_units': 128,
-            'nonlinearity': tanh
-        },
-        {
-            'type': DenseLayer,
-            'num_units': 1,
-            'nonlinearity': None
-        }
-    ]
-)
-
-NUM_FILTERS = 4
-net_dict_ae = dict(
-    name='ae',
-    save_plot_interval=SAVE_PLOT_INTERVAL,
-    loss_function=lambda x, t: squared_error(x, t).mean(),
-    updates_func=nesterov_momentum,
-    learning_rate=1e-1,
-    do_save_activations=True,
-    auto_reshape=False,
-    plotter=Plotter(
-        n_seq_to_plot=32,
-        n_training_examples_to_plot=16
-    ),
-    layers_config=[
-        {
-            'type': DimshuffleLayer,
-            'pattern': (0, 2, 1)  # (batch, features, time)
-        },
-        {
-            'label': 'conv0',
-            'type': Conv1DLayer,  # convolve over the time axis
-            'num_filters': NUM_FILTERS,
-            'filter_length': 4,
-            'stride': 1,
-            'nonlinearity': None,
-            'border_mode': 'valid'
-        },
-        {
-            'type': DimshuffleLayer,
-            'pattern': (0, 2, 1)  # back to (batch, time, features)
-        },
-        {
-            'type': DenseLayer,
-            'num_units': 1021 * NUM_FILTERS,
-            'nonlinearity': rectify
-        },
-        {
-            'type': ReshapeLayer,
-            'shape': (N_SEQ_PER_BATCH, 1021, NUM_FILTERS)
-        },
-        {
-            'type': DimshuffleLayer,
-            'pattern': (0, 2, 1)  # (batch, features, time)
-        },
-        {
-            'type': DeConv1DLayer,
-            'num_output_channels': 1,
-            'filter_length': 4,
-            'stride': 1,
-            'nonlinearity': None,
-            'border_mode': 'full',
-            'W': 'ref:conv0.W.dimshuffle(1, 0, 2)[:, :, ::-1]',
-            'shared_weights': True
-        },
-        {
-            'type': DimshuffleLayer,
-            'pattern': (0, 2, 1)  # back to (batch, time, features)
-        }
-    ]
-)
-
-
-def exp_a(name, net_dict, appliance):
-    logger = logging.getLogger(name)
-    global multi_source
-    multi_source = get_source(
-        appliance,
-        logger,
-        target_is_start_and_end_and_mean=(net_dict == net_dict_rectangles)
+        do_save_activations=True,
+        auto_reshape=False,
+        plotter=StartEndMeanPlotter(
+            n_seq_to_plot=32,
+            n_training_examples_to_plot=16
+        ),
+        layers_config=[
+            {
+                'type': DimshuffleLayer,
+                'pattern': (0, 2, 1)  # (batch, features, time)
+            },
+            {
+                'type': PadLayer,
+                'width': 4
+            },
+            {
+                'type': Conv1DLayer,  # convolve over the time axis
+                'num_filters': 16,
+                'filter_size': 4,
+                'stride': 1,
+                'nonlinearity': None,
+                'border_mode': 'valid'
+            },
+            {
+                'type': Conv1DLayer,  # convolve over the time axis
+                'num_filters': 16,
+                'filter_size': 4,
+                'stride': 1,
+                'nonlinearity': None,
+                'border_mode': 'valid'
+            },
+            {
+                'type': DimshuffleLayer,
+                'pattern': (0, 2, 1)  # back to (batch, time, features)
+            },
+            {
+                'type': DenseLayer,
+                'num_units': 512 * 8,
+                'nonlinearity': rectify
+            },
+            {
+                'type': DenseLayer,
+                'num_units': 512 * 6,
+                'nonlinearity': rectify
+            },
+            {
+                'type': DenseLayer,
+                'num_units': 512 * 4,
+                'nonlinearity': rectify
+            },
+            {
+                'type': DenseLayer,
+                'num_units': 512,
+                'nonlinearity': rectify
+            },
+            {
+                'type': DenseLayer,
+                'num_units': 3,
+                'nonlinearity': None
+            }
+        ]
     )
+net_dict_rectangles.name = 'rectangles'
 
+def net_dict_rnn(seq_length):
+    return dict(
+        epochs=EPOCHS,
+        save_plot_interval=SAVE_PLOT_INTERVAL,
+        loss_function=lambda x, t: squared_error(x, t).mean(),
+        updates_func=nesterov_momentum,
+        learning_rate=1e-2,
+        learning_rate_changes_by_iteration={
+            1000: 1e-3,
+            10000: 1e-4
+        },
+        epoch_callbacks={
+            350000: only_train_on_real_data
+        },
+        do_save_activations=True,
+        auto_reshape=True,
+        plotter=Plotter(
+            n_seq_to_plot=32,
+            n_training_examples_to_plot=16
+        ),
+        layers_config=[
+            {
+                'type': DimshuffleLayer,
+                'pattern': (0, 2, 1)  # (batch, features, time)
+            },
+            {
+                'type': Conv1DLayer,  # convolve over the time axis
+                'num_filters': 16,
+                'filter_size': 4,
+                'stride': 1,
+                'nonlinearity': None,
+                'border_mode': 'same'
+            },
+            {
+                'type': DimshuffleLayer,
+                'pattern': (0, 2, 1),  # back to (batch, time, features)
+                'label': 'dimshuffle3'
+            },
+            {
+                'type': BLSTMLayer,
+                'num_units': 128,
+                'merge_mode': 'concatenate'
+            },
+            {
+                'type': BLSTMLayer,
+                'num_units': 256,
+                'merge_mode': 'concatenate'
+            },
+            {
+                'type': DenseLayer,
+                'num_units': 128,
+                'nonlinearity': tanh
+            },
+            {
+                'type': DenseLayer,
+                'num_units': 1,
+                'nonlinearity': None
+            }
+        ]
+    )
+net_dict_rnn.name='rnn'
+
+def net_dict_ae(seq_length):
+    NUM_FILTERS = 4
+    return dict(
+        epochs=EPOCHS,
+        save_plot_interval=SAVE_PLOT_INTERVAL,
+        loss_function=lambda x, t: squared_error(x, t).mean(),
+        updates_func=nesterov_momentum,
+        learning_rate=1e-1,
+        do_save_activations=True,
+        auto_reshape=False,
+        plotter=Plotter(
+            n_seq_to_plot=32,
+            n_training_examples_to_plot=16
+        ),
+        layers_config=[
+            {
+                'type': DimshuffleLayer,
+                'pattern': (0, 2, 1)  # (batch, features, time)
+            },
+            {
+                'label': 'conv0',
+                'type': Conv1DLayer,  # convolve over the time axis
+                'num_filters': NUM_FILTERS,
+                'filter_size': 4,
+                'stride': 1,
+                'nonlinearity': None,
+                'border_mode': 'valid'
+            },
+            {
+                'type': DimshuffleLayer,
+                'pattern': (0, 2, 1)  # back to (batch, time, features)
+            },
+            {
+                'type': DenseLayer,
+                'num_units': (seq_length - 3) * NUM_FILTERS,
+                'nonlinearity': rectify
+            },
+            {
+                'type': ReshapeLayer,
+                'shape': (N_SEQ_PER_BATCH, (seq_length - 3), NUM_FILTERS)
+            },
+            {
+                'type': DimshuffleLayer,
+                'pattern': (0, 2, 1)  # (batch, features, time)
+            },
+            {   # DeConv
+                'type': Conv1DLayer,
+                'num_filters': 1,
+                'filter_size': 4,
+                'stride': 1,
+                'nonlinearity': None,
+                'border_mode': 'full'
+            },
+            {
+                'type': DimshuffleLayer,
+                'pattern': (0, 2, 1)  # back to (batch, time, features)
+            }
+        ]
+    )
+net_dict_ae.name = 'ae'
+
+def exp_a(name, net_dict, multi_source):
     net_dict_copy = deepcopy(net_dict)
     net_dict_copy.update(dict(
         experiment_name=name,
         source=multi_source,
     ))
     net = Net(**net_dict_copy)
-    net.plotter.max_target_power = multi_source.sources[1]['source'].max_target_power
+    net.plotter.max_target_power = multi_source.sources[1]['source'].divide_target_by
     return net
 
 
 def main():
-    for net_dict in [net_dict_ae, net_dict_rnn, net_dict_rectangles]:
-        dict_name = net_dict.pop('name')
+    for net_dict_func in [net_dict_ae, net_dict_rnn, net_dict_rectangles]:
         for appliance in ['microwave', 'washing machine',
                           'fridge', 'kettle', 'dish washer']:
-            full_exp_name = NAME + appliance + dict_name
+            full_exp_name = NAME + '_' + appliance + '_' + net_dict_func.name
             change_dir(PATH, full_exp_name)
             configure_logger(full_exp_name)
             logger = logging.getLogger(full_exp_name)
+            global multi_source
+            multi_source = get_source(
+                appliance,
+                logger,
+                target_is_start_and_end_and_mean=(net_dict_func == net_dict_rectangles)
+            )
+            seq_length = multi_source.sources[0]['source'].seq_length
+            net_dict = net_dict_func(seq_length)
+            epochs = net_dict.pop('epochs')
             try:
                 net = exp_a(full_exp_name, net_dict, appliance)
-                run_experiment(net, epochs=50)
+                run_experiment(net, epochs=epochs)
             except KeyboardInterrupt:
                 logger.info("KeyboardInterrupt")
                 break

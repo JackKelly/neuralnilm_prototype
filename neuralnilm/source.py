@@ -1201,7 +1201,7 @@ class SameLocation(RandomSegments):
             self._load_mains()
         if self.skip_probability and self.load_mains:
             self._load_sections_without_target()
-        self.dataset.store.close()            
+        self.dataset.store.close()
 
     def _load_sections_without_target(self):
         self.sections_without_target = {}
@@ -1211,6 +1211,8 @@ class SameLocation(RandomSegments):
             prev_end = mains_start
             for activation in self.activations[building_i]:
                 activation_start = activation.index[0]
+                if prev_end >= activation_start:
+                    continue
                 try:
                     timeframe = TimeFrame(prev_end, activation_start)
                 except ValueError as exception:
@@ -1223,8 +1225,10 @@ class SameLocation(RandomSegments):
                 else:
                     sections_without_target.append(timeframe)
                 prev_end = activation.index[-1]
-            sections_without_target.append(
-                TimeFrame(prev_end, self.mains[building_i].index[-1]))
+            mains_end = self.mains[building_i].index[-1]
+            if prev_end < mains_end:
+                sections_without_target.append(
+                    TimeFrame(prev_end, mains_end))
             sections_without_target = sections_without_target.intersection(
                 self.target_good_sections[building_i])
             sections_without_target = (

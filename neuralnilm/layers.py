@@ -192,13 +192,13 @@ class MixtureDensityLayer(Layer):
 
 
 class DeConv1DLayer(Conv1DLayer):
-    def __init__(self, incomming, filter_length, num_output_channels,
+    def __init__(self, incomming, filter_size, num_output_channels,
                  border_mode='full', shared_weights=False, shared_biases=False,
                  **kwargs):
         """border_mode needs to be 'full' to get back to original shape."""
         self.num_input_filters = incomming.get_output_shape()[1]
         self.num_output_channels = num_output_channels
-        self.filter_length = filter_length
+        self.filter_size = filter_size
         self.shared_weights = shared_weights
         self.shared_biases = shared_biases
 
@@ -224,16 +224,16 @@ class DeConv1DLayer(Conv1DLayer):
 
         super(DeConv1DLayer, self).__init__(
             incomming, num_filters=num_output_channels,
-            filter_length=filter_length, border_mode=border_mode, **kwargs)
+            filter_size=filter_size, border_mode=border_mode, **kwargs)
 
     def get_W_shape(self):
         return (self.num_output_channels,
                 self.num_input_filters,
-                self.filter_length)
+                self.filter_size)
 
     def get_output_shape_for(self, input_shape):
         output_length = conv_output_length(input_shape[2],
-                                           self.filter_length,
+                                           self.filter_size,
                                            self.stride,
                                            self.border_mode)
 
