@@ -41,8 +41,8 @@ NAME = os.path.splitext(os.path.split(__main__.__file__)[1])[0]
 #PATH = "/homes/dk3810/workspace/python/neuralnilm/figures"
 PATH = "/data/dk3810/figures"
 # PATH = "/home/jack/experiments/neuralnilm/figures"
-SAVE_PLOT_INTERVAL = 1000
-EPOCHS = 50
+SAVE_PLOT_INTERVAL = 50
+EPOCHS = 51
 
 UKDALE_FILENAME = '/data/dk3810/ukdale.h5'
 
@@ -301,6 +301,7 @@ def net_dict_rectangles(seq_length):
     )
 net_dict_rectangles.name = 'rectangles'
 
+
 def net_dict_rnn(seq_length):
     return dict(
         epochs=EPOCHS,
@@ -453,7 +454,7 @@ def main():
             net_dict = net_dict_func(seq_length)
             epochs = net_dict.pop('epochs')
             try:
-                net = exp_a(full_exp_name, net_dict, appliance)
+                net = exp_a(full_exp_name, net_dict, multi_source)
                 run_experiment(net, epochs=epochs)
             except KeyboardInterrupt:
                 logger.info("KeyboardInterrupt")
