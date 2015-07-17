@@ -675,32 +675,59 @@ get source to use logger.  Duff data!
 ####### BRIEF ATTEMPT AT BLSTMs AGAIN ##########
 
 556: BLSTM on microwave
-
+ avg train cost =  0.0038985922
+ avg valid cost =  0.0060991840
+ 
 557: same as 556 but use ConcatLayer, not ElemwiseSum layer
+ avg train cost =  0.0038612455
+ avg valid cost =  0.0060876017
 
 558:
+ avg train cost =  0.0017051307
+ avg valid cost =  0.0039170776
 
 559: try 1D conv at input
      Showing some promise!
+ avg train cost =  0.0027527621
+ avg valid cost =  0.0052161636     
 
 560: train on simple data, validate on more complex data
      Don't independently centre inputs.
 
 561: 559 but tanh conv.  Switched at around 2000 epochs to training on multi_source.
+ avg train cost =  0.0023463355
+ avg valid cost =  0.0046836880
 
 562: no conv.  train on multi_source from the start.  softplus
 output. downsample output 2x.  Conv in middle.
+ avg train cost =  0.0053046322
+ avg valid cost =  0.0174671281
 
 563: 562 but linear output
+ avg train cost =  0.0030451182
+ avg valid cost =  0.0040834458 <- VERY GOOD!
 
 564: no conv anywhere.  More BLSTM cells.
+ avg train cost =  0.0013702739
+ avg valid cost =  0.0053093075
 
-565:
+565: like 564 but:
 a) 2048 seq length
-b) conv at beginning, 256 seq length
+
+b) conv at beginning, 256 seq length  
+ avg train cost =  0.0012710754 <-- probably the best yet
+ avg valid cost =  0.0047916559 <-- but overfitting a lot.  Smaller net?
+
 c) elem size sum, 256 seq length
+ avg train cost =  0.0012867596
+ avg valid cost =  0.0052369623
+
 d) sigmoid everywhere, no conv, 256 length seq
 - doesn't appear to learn anything sensible
+
+e) b but smaller net
+
+f) e but smaller conv filter size
 
 TODO:
 * try outputting a binary mask.  This might make skip connections more
