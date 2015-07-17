@@ -214,10 +214,10 @@ def exp_a(name):
             n_seq_to_plot=32,
             n_training_examples_to_plot=16
         ),
-        learning_rate=1e-4,
+        learning_rate=1e-5,
         learning_rate_changes_by_iteration={
-            1000: 1e-5,
-            10000: 1e-6
+            1000: 1e-6,
+            10000: 1e-7
         },
         layers_config=[
             {
@@ -629,7 +629,7 @@ def exp_d(name):
 
 
 def main():
-    EXPERIMENTS = list('abc')  # don't bother with D.
+    EXPERIMENTS = list('a')  # don't bother with D.
     for experiment in EXPERIMENTS:
         full_exp_name = NAME + experiment
         func_call = init_experiment(PATH, experiment, full_exp_name)
