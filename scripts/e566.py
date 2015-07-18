@@ -64,6 +64,7 @@ INPUT_STATS = {
 def get_source(appliance, logger, target_is_start_and_end_and_mean=False,
                is_rnn=False, window_per_building=WINDOW_PER_BUILDING):
     N_SEQ_PER_BATCH = 64
+    TRAIN_BUILDINGS_REAL = None
     
     if appliance == 'microwave':
         SEQ_LENGTH = 288
@@ -101,7 +102,7 @@ def get_source(appliance, logger, target_is_start_and_end_and_mean=False,
 
     elif appliance == 'fridge':
         SEQ_LENGTH = 1024
-        TRAIN_BUILDINGS = [1, 2]
+        TRAIN_BUILDINGS = [1, 2, 4]
         VALIDATION_BUILDINGS = [5]
         APPLIANCES = [
             ['fridge freezer', 'fridge', 'freezer'],
@@ -119,7 +120,9 @@ def get_source(appliance, logger, target_is_start_and_end_and_mean=False,
         
     elif appliance == 'kettle':
         SEQ_LENGTH = 128
-        TRAIN_BUILDINGS = [1, 2]
+        TRAIN_BUILDINGS = [1, 2, 3, 4]
+        # House 3's mains often doesn't include kettle!
+        TRAIN_BUILDINGS_REAL = [1, 2, 4]
         VALIDATION_BUILDINGS = [5]
         APPLIANCES = [
             'kettle',
@@ -157,6 +160,8 @@ def get_source(appliance, logger, target_is_start_and_end_and_mean=False,
     ON_POWER_THRESHOLD = ON_POWER_THRESHOLDS[0]
     MIN_ON_DURATION = MIN_ON_DURATIONS[0]
     MIN_OFF_DURATION = MIN_OFF_DURATIONS[0]
+    if TRAIN_BUILDINGS_REAL is None:
+        TRAIN_BUILDINGS_REAL = TRAIN_BUILDINGS
 
     real_appliance_source1 = RealApplianceSource(
         logger=logger,
@@ -187,7 +192,7 @@ def get_source(appliance, logger, target_is_start_and_end_and_mean=False,
         target_appliance=TARGET_APPLIANCE,
         window_per_building=window_per_building,
         seq_length=SEQ_LENGTH,
-        train_buildings=TRAIN_BUILDINGS,
+        train_buildings=TRAIN_BUILDINGS_REAL,
         validation_buildings=VALIDATION_BUILDINGS,
         n_seq_per_batch=N_SEQ_PER_BATCH,
         skip_probability=SKIP_PROBABILITY_FOR_TARGET,
@@ -467,6 +472,14 @@ def main():
     for net_dict_func in [net_dict_ae, net_dict_rectangles, net_dict_rnn]:
         for appliance in ['microwave', 'washing machine',
                           'fridge', 'kettle', 'dish washer']:
+            # REMOVE IF RUN FROM SCRATCH:
+            if net_dict_func == net_dict_ae:
+                if appliance in ['microwave', 'washing machine', 'dish washer']:
+                    continue
+            elif net_dict_func == net_dict_rectangles:
+                if appliance == 'microwave':
+                    continue
+
             full_exp_name = NAME + '_' + appliance + '_' + net_dict_func.name
             change_dir(PATH, full_exp_name)
             configure_logger(full_exp_name)
@@ -483,6 +496,10 @@ def main():
             epochs = net_dict.pop('epochs')
             try:
                 net = exp_a(full_exp_name, net_dict, multi_source)
+                # REMOVE IF RUN FROM SCRATCH:
+                if (appliance == 'washing machine' and
+                        net_dict_func == net_dict_rectangles):
+                    net.load_params(85351)
                 run_experiment(net, epochs=epochs)
             except KeyboardInterrupt:
                 logger.info("KeyboardInterrupt")
