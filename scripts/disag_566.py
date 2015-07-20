@@ -257,7 +257,7 @@ def neural_nilm_disag():
     for appliance, buildings in APPLIANCES[-1:]:
         for architecture in ['rectangles']:
             net = get_net(appliance, architecture)
-            for building_i in buildings[]:
+            for building_i in buildings:
                 logger.info("Starting disag for {}, {}, house {}..."
                             .format(appliance, architecture, building_i))
                 mains = get_mains(building_i)
