@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 import logging
 from numpy.random import rand
 from time import time
-from os.path import exists
+from os.path import exists, join
 
 import theano
 import theano.tensor as T
@@ -69,7 +69,8 @@ class Net(object):
                  epoch_callbacks=None,
                  do_save_activations=True,
                  plotter=Plotter(),
-                 auto_reshape=True):
+                 auto_reshape=True,
+                 logger=None):
         """
         Parameters
         ----------
@@ -77,7 +78,10 @@ class Net(object):
             'type' : BLSTMLayer or a subclass of lasagne.layers.Layer
             'num_units' : int
         """
-        self.logger = logging.getLogger(experiment_name)
+        if logger is None:
+            self.logger = logging.getLogger(experiment_name)
+        else:
+            self.logger = logger
         self.logger.info("Initialising network...")
 
         if seed is not None:
@@ -490,14 +494,15 @@ class Net(object):
 
         f.close()
 
-    def load_params(self, iteration, filename=None):
+    def load_params(self, iteration, path=None):
         """
         Load params from HDF in the following format:
             /epoch<N>/L<I>_<type>/P<I>_<name>
         """
         # Process function parameters
-        if filename is None:
-            filename = self.experiment_name + ".hdf5"
+        filename = self.experiment_name + ".hdf5"
+        if path is not None:
+            filename = join(path, filename)
         self.logger.info('Loading params from ' + filename + '...')
 
         f = h5py.File(filename, mode='r')
@@ -523,6 +528,8 @@ class Net(object):
         # LOAD COSTS
         def load_csv(key, limit):
             filename = self.csv_filenames[key]
+            if path is not None:
+                filename = join(path, filename)
             data = np.genfromtxt(filename, delimiter=',', skip_header=1)
             data = data[:limit, :]
 
@@ -538,6 +545,8 @@ class Net(object):
 
         # LOAD TRAINING COSTS METADATA
         metadata_fname = self.csv_filenames['training_costs_metadata']
+        if path is not None:
+            metadata_fname = join(path, metadata_fname)
         try:
             metadata_fh = open(metadata_fname, 'r')
         except IOError:

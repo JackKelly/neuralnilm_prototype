@@ -19,7 +19,8 @@ from neuralnilm.plot import (
     StartEndMeanPlotter, plot_disaggregate_start_stop_end)
 from neuralnilm.disaggregate import (
     disaggregate_start_stop_end, rectangles_to_matrix,
-    rectangles_matrix_to_vector, save_rectangles)
+    rectangles_matrix_to_vector, save_rectangles,
+    disag_ae_or_rnn)
 from neuralnilm.rectangulariser import rectangularise
 
 from lasagne.nonlinearities import sigmoid, rectify, tanh, identity, softmax
@@ -31,6 +32,7 @@ from lasagne.layers import (DenseLayer, Conv1DLayer,
 from lasagne.updates import nesterov_momentum, momentum
 from functools import partial
 import os
+from os.path import expanduser, join
 import __main__
 from copy import deepcopy
 from math import sqrt
@@ -38,18 +40,25 @@ import numpy as np
 import theano.tensor as T
 import gc
 
+from e566 import (
+    net_dict_rnn, net_dict_ae, net_dict_rectangles, get_source, INPUT_STATS)
 
-NAME = 'e566'
-PATH = "/data/dk3810/figures"
+EXPERIMENT = "e566"
+NAME = 'e_disag_' + EXPERIMENT
+OUTPUT_PATH = expanduser(
+    "~/PhD/experiments/neural_nilm/data_for_BuildSys2015/disag_estimates")
+NET_BASE_PATH = "/storage/experiments/neuralnilm/figures/"
+GROUND_TRUTH_PATH = expanduser(
+    "~/PhD/experiments/neural_nilm/data_for_BuildSys2015/ground_truth_and_mains")
+UKDALE_FILENAME = '/data/mine/vadeec/merged/ukdale.h5'
+PAD_WIDTH = 1536
 
-full_exp_name = NAME + 'a' # TODO
-path = os.path.join(PATH, full_exp_name)
-print("Changing directory to", path)
-os.chdir(path)
+print("Changing directory to", OUTPUT_PATH)
+os.chdir(OUTPUT_PATH)
 
-logger = logging.getLogger(full_exp_name)
+logger = logging.getLogger(NAME)
 if not logger.handlers:
-    fh = logging.FileHandler(full_exp_name + '.log')
+    fh = logging.FileHandler(NAME + '.log')
     formatter = logging.Formatter('%(asctime)s %(message)s')
     fh.setFormatter(formatter)
     logger.addHandler(fh)
@@ -57,67 +66,93 @@ if not logger.handlers:
 
 logger.setLevel(logging.DEBUG)
 logger.info("***********************************")
-logger.info("Preparing " + full_exp_name + "...")
-
-# TODO: Load input stats
+logger.info("Preparing " + NAME + "...")
 
 # disag
 STRIDE = 16
 
 
-from .e566 import net_dict_rnn, net_dict_ae, net_dict_rectangles, get_source
-
-
 def get_net(appliance, architecture):
-    NET_DICTS = {'rnn': net_dict_rnn, 'ae': net_dict_ae, 'rectangles': net_dict_rectangles}
+    """
+    Parameters
+    ----------
+    appliance : string
+    architecture : {'rnn', 'ae', 'rectangles'}
+    """
+    NET_DICTS = {
+        'rnn': net_dict_rnn,
+        'ae': net_dict_ae,
+        'rectangles': net_dict_rectangles
+    }
     net_dict_func = NET_DICTS[architecture]
-    multi_source = get_source(
+    source = get_source(
         appliance,
         logger,
         target_is_start_and_end_and_mean=(architecture == 'rectangles'),
-        is_rnn=(architecture == 'rnn')
+        is_rnn=(architecture == 'rnn'),
+        window_per_building={  # just load a tiny bit of data. Won't be used.
+            1: ("2013-04-12", "2013-05-12"),
+            2: ("2013-05-22", "2013-06-22"),
+            3: ("2013-02-27", "2013-03-27"),
+            4: ("2013-03-09", "2013-04-09"),
+            5: ("2014-06-29", "2014-07-29")
+        },
+        source_type='real_appliance_source',
+        filename=UKDALE_FILENAME
     )
-    seq_length = multi_source.sources[0]['source'].seq_length
+    seq_length = source.seq_length
     net_dict = net_dict_func(seq_length)
-    net_dict.pop('epochs')
+    epochs = net_dict.pop('epochs')
     net_dict_copy = deepcopy(net_dict)
+    experiment_name = EXPERIMENT + "_" + appliance + "_" + architecture
     net_dict_copy.update(dict(
-        source=multi_source
+        source=source,
+        logger=logger,
+        experiment_name=experiment_name
     ))
     net = Net(**net_dict_copy)
-    net.plotter.max_target_power = multi_source.sources[1]['source'].divide_target_by
-    # TODO: load params
+    net.plotter.max_target_power = source.max_appliance_powers.values()[0]
+    net.load_params(iteration=epochs,
+                    path=join(NET_BASE_PATH, experiment_name))
+    net.print_net()
+    net.compile()
     return net
 
 
-def disag_rnn(net, mains):
-    pass
-
-
-def disag_ae(net, mains):
-    pass
-
-
-def disag_rectangles(net, mains):
-    # TODO: figure out way to pass relevant parameters...
+def disag_rectangles(net, mains, max_target_power, on_power_threshold):
     rectangles = disaggregate_start_stop_end(
-        mains, net, stride=STRIDE, max_target_power=MAX_TARGET_POWER)
-    rectangles_matrix = rectangles_to_matrix(rectangles[0], MAX_TARGET_POWER)
+        mains, net, stride=STRIDE, max_target_power=max_target_power)
+    rectangles_matrix = rectangles_to_matrix(rectangles[0], max_target_power)
     disag_vector = rectangles_matrix_to_vector(
-        rectangles_matrix, min_on_power=100, overlap_threshold=0.50)
+        rectangles_matrix,
+        min_on_power=on_power_threshold,
+        overlap_threshold=0.50
+    )
     return disag_vector
 
 
-def disaggregate(architecture, mains, appliance):
-    logger.info("Starting disag...")
-    disag_funcs = {'rnn': disag_rnn, 'ae': disag_ae, 'rectangles': disag_rectangles}
-    net = get_net(appliance, architecture)
-    net.print_net()
-    net.compile()
-    estimates = disag_funcs[architecture](net, mains)
+def disaggregate(net, architecture, mains, appliance):
+    max_target_power = net.source.max_appliance_powers.values()[0]
+    on_power_threshold = net.source.on_power_thresholds[0]
+    kwargs = dict(net=net, mains=mains, max_target_power=max_target_power)
+    if architecture == 'rectangles':
+        kwargs['on_power_threshold'] = on_power_threshold
+    else:
+        kwargs['stride'] = STRIDE
+    DISAG_FUNCS = {
+        'rnn': disag_ae_or_rnn,
+        'ae': disag_ae_or_rnn,
+        'rectangles': disag_rectangles
+    }
+    disag_func = DISAG_FUNCS[architecture]
+    estimates = disag_func(**kwargs)
+
+    estimates = estimates[PAD_WIDTH:-PAD_WIDTH]  # remove padding
+    estimates = np.round(estimates).astype(int)
     return estimates
 
 
+# list of tuples in the form (<appliance name>, <houses>)
 APPLIANCES = [
     ('microwave', (1, 2, 3)),
     ('fridge', (1, 2, 4, 5)),
@@ -126,16 +161,39 @@ APPLIANCES = [
     ('washing machine', (1, 2, 5))
 ]
 
+
+def get_mains(building_i):
+        # Load mains
+        mains_filename = "building_{:d}_mains.csv".format(building_i)
+        mains_filename = join(GROUND_TRUTH_PATH, mains_filename)
+        mains = np.loadtxt(mains_filename, delimiter=',')
+
+        # Pad
+        mains = np.pad(
+            mains, pad_width=(PAD_WIDTH, PAD_WIDTH), mode='constant')
+
+        # Standardise mains
+        mains -= INPUT_STATS['mean']
+        mains /= INPUT_STATS['std']
+
+        return mains
+
+
 for appliance, buildings in APPLIANCES:
-    for building_i in buildings:
-        filename = "building_{:d}_mains.csv".format(building_i)
-        mains = np.loadtxt(filename, sep=',')
-        # TODO standardise mains
-        for architecture in ['rnn', 'ae', 'rectangles']:
-            estimates = disaggregate(architecture, mains, appliance)
-            estimates = np.round(estimates).astype(int)
-            estimates_filename = "building_{:d}_estimates_{:s}.csv".format(building_i, appliance)
-            np.savetxt(estimates_filename, estimates, sep=',')
+    for architecture in ['ae', 'rectangles']:
+        net = get_net(appliance, architecture)
+        for building_i in buildings:
+            logger.info("Starting disag for {}, {}, house {}..."
+                        .format(appliance, architecture, building_i))
+            mains = get_mains(building_i)
+            estimates = disaggregate(net, architecture, mains, appliance)
+            estimates_filename = (
+                "{:s}_building_{:d}_estimates_{:s}.csv"
+                .format(architecture, building_i, appliance))
+            estimates_filename = join(OUTPUT_PATH, estimates_filename)
+            np.savetxt(estimates_filename, estimates, delimiter=',', fmt='%.1d')
+            logger.info("Finished disag for {}, {}, house {}."
+                        .format(appliance, architecture, building_i))
 
 
 """

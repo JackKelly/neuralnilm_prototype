@@ -5,43 +5,50 @@ import csv
 from os.path import join, expanduser
 import pandas as pd
 
-from neuralnilm.source import standardise
 
-
-def disaggregate(mains, net):
+def disag_ae_or_rnn(mains, net, max_target_power, stride=1):
     """
     Parameters
     ----------
     mains : 1D np.ndarray
-        Watts.
+        Must already be standardised according to `net.source.input_stats`.
+        Mains must be padded with at least `seq_length` elements
+        at both ends so the net can slide over the very start and end.
     net : neuralnilm.net.Net
+    max_target_power : int
+        Watts
+    stride : int or None, optional
+        if None then stide = seq_length
 
     Returns
     -------
-    appliance_estimates : 1D np.ndarray
+    estimates : 1D vector
     """
     n_seq_per_batch, seq_length = net.input_shape[:2]
-    n_samples_per_batch = seq_length * n_seq_per_batch
-    n_mains_samples = len(mains)
-    n_batches = np.ceil(n_mains_samples / n_samples_per_batch).astype(int)
-    n_output_samples = n_batches * n_samples_per_batch
-    if n_mains_samples < n_output_samples:
-        n_zeros_to_append = n_output_samples - n_mains_samples
-        mains = np.pad(mains, (0, n_zeros_to_append), mode='constant')
-    appliance_estimates = np.zeros(n_output_samples, dtype=np.float32)
-    input_stats = net.source.input_stats
-    mains = standardise(mains / net.source.max_input_power, how='std=1',
-                        std=input_stats['std'], mean=input_stats['mean'])
+    if stride is None:
+        stride = seq_length
+    batches = mains_to_batches(mains, n_seq_per_batch, seq_length, stride)
+    estimates = np.zeros(len(mains), dtype=np.float32)
+    assert not seq_length % stride
 
-    for batch_i in xrange(n_batches):
-        start = batch_i * n_samples_per_batch
-        end = start + n_samples_per_batch
-        flat_batch = mains[start:end]
-        batch = flat_batch.reshape((n_seq_per_batch, seq_length, 1))
-        output = net.y_pred(batch)
-        appliance_estimates[start:end] = output.flatten()
+    # Iterate over each batch
+    for batch_i, net_input in enumerate(batches):
+        net_output = net.y_pred(net_input)
+        batch_start = batch_i * n_seq_per_batch * stride
+        for seq_i in range(n_seq_per_batch):
+            start_i = batch_start + (seq_i * stride)
+            end_i = start_i + seq_length
+            n = len(estimates[start_i:end_i])
+            # The net output is not necessarily the same length
+            # as the mains (because mains might not fit exactly into
+            # the number of batches required)
+            estimates[start_i:end_i] += net_output[seq_i, :n, 0]
 
-    return appliance_estimates
+    n_overlaps = seq_length / stride
+    estimates /= n_overlaps
+    estimates *= max_target_power
+    estimates[estimates < 0] = 0
+    return estimates
 
 
 Rectangle = namedtuple('Rectangle', ['left', 'right', 'height'])
@@ -70,30 +77,17 @@ def disaggregate_start_stop_end(mains, net, stride=1, max_target_power=1):
         - 'stop' : int, index into `mains`
         - 'height' : float, Watts
     """
-    assert mains.ndim == 1
     n_seq_per_batch, seq_length = net.input_shape[:2]
     n_outputs = net.output_shape[2]
     if stride is None:
         stride = seq_length
-    n_mains_samples = len(mains)
-
-    # Divide mains data into batches
-    n_batches = (n_mains_samples / stride) / n_seq_per_batch
-    n_batches = np.ceil(n_batches).astype(int)
-
+    batches = mains_to_batches(mains, n_seq_per_batch, seq_length, stride)
     rectangles = {output_i: [] for output_i in range(n_outputs)}
 
     # Iterate over each batch
-    for batch_i in xrange(n_batches):
-        net_input = np.zeros(net.input_shape, dtype=np.float32)
-        batch_start = batch_i * n_seq_per_batch * stride
-        for seq_i in xrange(n_seq_per_batch):
-            mains_start_i = batch_start + (seq_i * stride)
-            mains_end_i = mains_start_i + seq_length
-            seq = mains[mains_start_i:mains_end_i]
-            net_input[seq_i, :len(seq), 0] = seq
-
+    for batch_i, net_input in enumerate(batches):
         net_output = net.y_pred(net_input)
+        batch_start = batch_i * n_seq_per_batch * stride
         for seq_i in range(n_seq_per_batch):
             offset = batch_start + (seq_i * stride)
             for output_i in range(n_outputs):
@@ -239,6 +233,41 @@ def rectangles_matrix_to_vector(matrix, min_on_power, overlap_threshold=0.5):
     vector = np.zeros(n_samples)
     vector[hull.index] = hull.values
     return vector
+
+
+def mains_to_batches(mains, n_seq_per_batch, seq_length, stride=1):
+    """
+    Parameters
+    ----------
+    mains : 1D np.ndarray
+        Must already be standardised according to `net.source.input_stats`.
+        And it is highly advisable to pad `mains` with `seq_length` elements
+        at both ends so the net can slide over the very start and end.
+    stride : int, optional
+
+    Returns
+    -------
+    batches : list of 3D arrays
+    """
+    assert mains.ndim == 1
+    n_mains_samples = len(mains)
+    input_shape = (n_seq_per_batch, seq_length, 1)
+
+    # Divide mains data into batches
+    n_batches = (n_mains_samples / stride) / n_seq_per_batch
+    n_batches = np.ceil(n_batches).astype(int)
+    batches = []
+    for batch_i in xrange(n_batches):
+        batch = np.zeros(input_shape, dtype=np.float32)
+        batch_start = batch_i * n_seq_per_batch * stride
+        for seq_i in xrange(n_seq_per_batch):
+            mains_start_i = batch_start + (seq_i * stride)
+            mains_end_i = mains_start_i + seq_length
+            seq = mains[mains_start_i:mains_end_i]
+            batch[seq_i, :len(seq), 0] = seq
+        batches.append(batch)
+
+    return batches
 
 """
 Emacs variables

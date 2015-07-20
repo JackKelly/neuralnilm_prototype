@@ -11,7 +11,7 @@ APPLIANCES = [
     'fridge freezer',
     'kettle',
     'HTPC',
-    'washer dryer',    
+    'washer dryer',
     'dish washer',
     'across all appliances'
 ]

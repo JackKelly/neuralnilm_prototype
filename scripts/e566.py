@@ -17,7 +17,6 @@ from neuralnilm.objectives import (scaled_cost, mdn_nll,
                                    scaled_cost3)
 from neuralnilm.plot import MDNPlotter, CentralOutputPlotter, Plotter, RectangularOutputPlotter, StartEndMeanPlotter
 from neuralnilm.updates import clipped_nesterov_momentum
-from neuralnilm.disaggregate import disaggregate
 from neuralnilm.rectangulariser import rectangularise
 
 from lasagne.nonlinearities import (sigmoid, rectify, tanh, identity, softmax)
@@ -62,10 +61,21 @@ INPUT_STATS = {
 
 
 def get_source(appliance, logger, target_is_start_and_end_and_mean=False,
-               is_rnn=False, window_per_building=WINDOW_PER_BUILDING):
+               is_rnn=False, window_per_building=WINDOW_PER_BUILDING,
+               source_type='multisource',
+               filename=UKDALE_FILENAME):
+    """
+    Parameters
+    ----------
+    source_type : {'multisource', 'real_appliance_source'}
+
+    Returns
+    -------
+    Source
+    """
     N_SEQ_PER_BATCH = 64
     TRAIN_BUILDINGS_REAL = None
-    
+
     if appliance == 'microwave':
         SEQ_LENGTH = 288
         TRAIN_BUILDINGS = [1, 2]
@@ -165,7 +175,7 @@ def get_source(appliance, logger, target_is_start_and_end_and_mean=False,
 
     real_appliance_source1 = RealApplianceSource(
         logger=logger,
-        filename=UKDALE_FILENAME,
+        filename=filename,
         appliances=APPLIANCES,
         max_appliance_powers=MAX_APPLIANCE_POWERS,
         on_power_thresholds=ON_POWER_THRESHOLDS,
@@ -186,9 +196,12 @@ def get_source(appliance, logger, target_is_start_and_end_and_mean=False,
         target_is_start_and_end_and_mean=target_is_start_and_end_and_mean
     )
 
+    if source_type != 'multisource':
+        return real_appliance_source1
+
     same_location_source1 = SameLocation(
         logger=logger,
-        filename=UKDALE_FILENAME,
+        filename=filename,
         target_appliance=TARGET_APPLIANCE,
         window_per_building=window_per_building,
         seq_length=SEQ_LENGTH,

@@ -499,7 +499,7 @@ class RealApplianceSource(Source):
         if max_appliance_powers is None:
             max_appliance_powers = [None] * len(appliances)
 
-        self.max_appliance_powers = {}
+        self.max_appliance_powers = OrderedDict()
         for i, appliance in enumerate(appliances):
             if isinstance(appliance, list):
                 appliance_name = appliance[0]
@@ -546,6 +546,7 @@ class RealApplianceSource(Source):
         self.logger.info("Loading training activations...")
         if on_power_thresholds is None:
             on_power_thresholds = [None] * len(self.appliances)
+        self.on_power_thresholds = on_power_thresholds
         if min_on_durations is None:
             min_on_durations = [0] * len(self.appliances)
 

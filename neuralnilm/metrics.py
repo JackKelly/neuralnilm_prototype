@@ -17,12 +17,15 @@ METRICS = {
 }
 
 
-def run_metrics(y_true, y_pred, mains):
-    # Classification metrics
-    ON_POWER = 4
-    y_true[y_true <= ON_POWER] = 0
-    y_true_class = y_true > ON_POWER
-    y_pred_class = y_pred > ON_POWER
+def run_metrics(y_true, y_pred, mains, on_power_threshold=4):
+    """
+    Parameters
+    ----------
+    on_power_threshold : int
+    """
+    y_true[y_true <= on_power_threshold] = 0
+    y_true_class = y_true > on_power_threshold
+    y_pred_class = y_pred > on_power_threshold
 
     ARGS = {
         'classification': '(y_true_class, y_pred_class)',
@@ -31,10 +34,10 @@ def run_metrics(y_true, y_pred, mains):
 
     scores = {}
     for metric_type, metric_list in METRICS.iteritems():
-        scores[metric_type] = {}
+        args = ARGS[metric_type]
         for metric in metric_list:
-            score = eval('metrics.' + metric + ARGS[metric_type])
-            scores[metric_type][metric] = float(score)
+            score = eval('metrics.' + metric + args)
+            scores[metric] = float(score)
 
     sum_y_true = np.sum(y_true)
     sum_y_pred = np.sum(y_pred)
@@ -49,11 +52,11 @@ def run_metrics(y_true, y_pred, mains):
     total_energy_correctly_assigned = 1 - (sum_abs_diff / denominator)
     total_energy_correctly_assigned = float(total_energy_correctly_assigned)
 
-    scores['disaggregation'] = {
+    scores.update({
         'relative_error_in_total_energy': relative_error_in_total_energy,
         'total_energy_correctly_assigned': total_energy_correctly_assigned,
         'sum_abs_diff': float(sum_abs_diff)
-    }
+    })
 
     return scores
 
@@ -61,7 +64,7 @@ def run_metrics(y_true, y_pred, mains):
 def across_all_appliances(scores, mains, aggregate_predictions):
     total_sum_abs_diff = 0.0
     for appliance_scores in scores.values():
-        total_sum_abs_diff += appliance_scores['disaggregation']['sum_abs_diff']
+        total_sum_abs_diff += appliance_scores['sum_abs_diff']
 
     # Total energy correctly assigned
     # See Eq(1) on p5 of Kolter & Johnson 2011
@@ -75,21 +78,21 @@ def across_all_appliances(scores, mains, aggregate_predictions):
     aggregate_predictions = aggregate_predictions[:n]
 
     scores['across all appliances'] = {
-        'disaggregation': {
-            'total_energy_correctly_assigned': total_energy_correctly_assigned
-        },
-        'regression': {
-            'explained_variance_score': float(
-                metrics.explained_variance_score(mains, aggregate_predictions)),
-            'mean_absolute_error': float(
-                np.mean(
-                    [scores[app]['regression']['mean_absolute_error']
-                     for app in scores]))
-        },
-        'classification': {
-            metric: float(np.mean([scores[app]['classification'][metric]
-                                   for app in scores]))
-            for metric in METRICS['classification']}
+        'total_energy_correctly_assigned': total_energy_correctly_assigned,
+        'explained_variance_score': float(
+            metrics.explained_variance_score(mains, aggregate_predictions)),
+        'mean_absolute_error': float(
+            np.mean(
+                [scores[app]['mean_absolute_error']
+                 for app in scores])),
+        'relative_error_in_total_energy': float(
+            np.mean(
+                [scores[app]['relative_error_in_total_energy']
+                 for app in scores])),
     }
+    scores['across all appliances'].update({
+        metric: float(np.mean([scores[app][metric] for app in scores]))
+        for metric in METRICS['classification']
+    })
 
     return scores
