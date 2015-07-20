@@ -78,7 +78,7 @@ OVERLAP_THRESHOLDS = {
     'dish washer': 0.6,
     'fridge': 0.3,
     'microwave': 0.4,
-    'washing machine': 0.5,
+    'washing machine': 0.6,
     'kettle': 0.4
 }
 
@@ -254,10 +254,10 @@ def get_mains(building_i, padding=True):
 
 
 def neural_nilm_disag():
-    for appliance, buildings in APPLIANCES[:1]:
-        for architecture in ['rectangles', 'ae']:
+    for appliance, buildings in APPLIANCES[-1:]:
+        for architecture in ['rectangles']:
             net = get_net(appliance, architecture)
-            for building_i in buildings[-1:]:
+            for building_i in buildings[]:
                 logger.info("Starting disag for {}, {}, house {}..."
                             .format(appliance, architecture, building_i))
                 mains = get_mains(building_i)
@@ -271,6 +271,7 @@ def neural_nilm_disag():
                             .format(appliance, architecture, building_i))
 
 
+                
 #nilmtk_disag()
 neural_nilm_disag()
 
