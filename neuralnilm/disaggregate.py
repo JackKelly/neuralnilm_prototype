@@ -5,13 +5,15 @@ import csv
 from os.path import join, expanduser
 import pandas as pd
 
+from neuralnilm.source import standardise
 
-def disag_ae_or_rnn(mains, net, max_target_power, stride=1):
+
+def disag_ae_or_rnn(mains, net, std, max_target_power, stride=1):
     """
     Parameters
     ----------
     mains : 1D np.ndarray
-        Must already be standardised according to `net.source.input_stats`.
+        Watts.
         Mains must be padded with at least `seq_length` elements
         at both ends so the net can slide over the very start and end.
     net : neuralnilm.net.Net
@@ -27,7 +29,7 @@ def disag_ae_or_rnn(mains, net, max_target_power, stride=1):
     n_seq_per_batch, seq_length = net.input_shape[:2]
     if stride is None:
         stride = seq_length
-    batches = mains_to_batches(mains, n_seq_per_batch, seq_length, stride)
+    batches = mains_to_batches(mains, n_seq_per_batch, seq_length, std, stride)
     estimates = np.zeros(len(mains), dtype=np.float32)
     assert not seq_length % stride
 
@@ -54,12 +56,12 @@ def disag_ae_or_rnn(mains, net, max_target_power, stride=1):
 Rectangle = namedtuple('Rectangle', ['left', 'right', 'height'])
 
 
-def disaggregate_start_stop_end(mains, net, stride=1, max_target_power=1):
+def disaggregate_start_stop_end(mains, net, std, stride=1, max_target_power=1):
     """
     Parameters
     ----------
     mains : 1D np.ndarray
-        Must already be standardised according to `net.source.input_stats`.
+        Watts.
         And it is highly advisable to pad `mains` with `seq_length` elements
         at both ends so the net can slide over the very start and end.
     net : neuralnilm.net.Net
@@ -81,7 +83,7 @@ def disaggregate_start_stop_end(mains, net, stride=1, max_target_power=1):
     n_outputs = net.output_shape[2]
     if stride is None:
         stride = seq_length
-    batches = mains_to_batches(mains, n_seq_per_batch, seq_length, stride)
+    batches = mains_to_batches(mains, n_seq_per_batch, seq_length, std, stride)
     rectangles = {output_i: [] for output_i in range(n_outputs)}
 
     # Iterate over each batch
@@ -235,14 +237,15 @@ def rectangles_matrix_to_vector(matrix, min_on_power, overlap_threshold=0.5):
     return vector
 
 
-def mains_to_batches(mains, n_seq_per_batch, seq_length, stride=1):
+def mains_to_batches(mains, n_seq_per_batch, seq_length, std, stride=1):
     """
     Parameters
     ----------
     mains : 1D np.ndarray
-        Must already be standardised according to `net.source.input_stats`.
+        Watts.
         And it is highly advisable to pad `mains` with `seq_length` elements
         at both ends so the net can slide over the very start and end.
+    std : mains standard deviation
     stride : int, optional
 
     Returns
@@ -264,7 +267,8 @@ def mains_to_batches(mains, n_seq_per_batch, seq_length, stride=1):
             mains_start_i = batch_start + (seq_i * stride)
             mains_end_i = mains_start_i + seq_length
             seq = mains[mains_start_i:mains_end_i]
-            batch[seq_i, :len(seq), 0] = seq
+            seq_standardised = standardise(seq, how='std=1', std=std)
+            batch[seq_i, :len(seq), 0] = seq_standardised
         batches.append(batch)
 
     return batches

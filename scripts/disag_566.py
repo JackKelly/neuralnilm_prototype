@@ -39,6 +39,9 @@ from math import sqrt
 import numpy as np
 import theano.tensor as T
 import gc
+import nilmtk
+from nilmtk.disaggregate import CombinatorialOptimisation, FHMM
+import pandas as pd
 
 from e566 import (
     net_dict_rnn, net_dict_ae, net_dict_rectangles, get_source, INPUT_STATS)
@@ -70,6 +73,14 @@ logger.info("Preparing " + NAME + "...")
 
 # disag
 STRIDE = 16
+
+OVERLAP_THRESHOLDS = {
+    'dish washer': 0.6,
+    'fridge': 0.3,
+    'microwave': 0.4,
+    'washing machine': 0.5,
+    'kettle': 0.4
+}
 
 
 def get_net(appliance, architecture):
@@ -119,16 +130,73 @@ def get_net(appliance, architecture):
     return net
 
 
-def disag_rectangles(net, mains, max_target_power, on_power_threshold):
+def disag_rectangles(net, mains, max_target_power, on_power_threshold,
+                     overlap_threshold=0.5):
     rectangles = disaggregate_start_stop_end(
-        mains, net, stride=STRIDE, max_target_power=max_target_power)
+        mains, net, std=INPUT_STATS['std'], stride=STRIDE,
+        max_target_power=max_target_power)
     rectangles_matrix = rectangles_to_matrix(rectangles[0], max_target_power)
     disag_vector = rectangles_matrix_to_vector(
         rectangles_matrix,
         min_on_power=on_power_threshold,
-        overlap_threshold=0.50
+        overlap_threshold=overlap_threshold
     )
     return disag_vector
+
+
+def get_nilmtk_meters():
+    HOUSE_1_APPLIANCES = [
+        'fridge freezer',
+        'washer dryer',
+        'kettle',
+        'dish washer',
+        'microwave'
+    ]
+    ukdale = nilmtk.DataSet('/data/mine/vadeec/merged/ukdale.h5')
+    ukdale.set_window("2013-04-12", "2013-05-12")
+    elec = ukdale.buildings[1].elec
+    meters = []
+    for appliance in HOUSE_1_APPLIANCES:
+        meter = elec[appliance]
+        meters.append(meter)
+    meters = nilmtk.MeterGroup(meters)
+    return meters
+
+
+def nilmtk_disag():
+    meters = get_nilmtk_meters()
+    run_co(meters)
+    run_fhmm(meters)
+
+
+def run_co(meters):
+    # TRAIN CO
+    co = CombinatorialOptimisation()
+    co.train(meters)
+    run_nilmtk_disag(co, 'co')
+
+
+def run_fhmm(meters):
+    # TRAIN FHMM
+    fhmm = FHMM()
+    fhmm.train(meters)
+    run_nilmtk_disag(fhmm, 'fhmm')
+
+
+def run_nilmtk_disag(disag, model_name):
+    for building_i in [1]:
+        mains = get_mains(building_i, padding=False)
+        mains = pd.DataFrame(mains)
+        appliance_powers = disag.disaggregate_chunk(mains)
+        for i, df in appliance_powers.iteritems():
+            appliance = disag.model[i]['training_metadata'].dominant_appliance()
+            appliance_type = appliance.identifier.type
+            estimates = df.astype(int).values
+            estimates_filename = (
+                "{:s}_building_{:d}_estimates_{:s}.csv"
+                .format(model_name, building_i, appliance_type))
+            estimates_filename = join(OUTPUT_PATH, estimates_filename)
+            np.savetxt(estimates_filename, estimates, delimiter=',', fmt='%.1d')
 
 
 def disaggregate(net, architecture, mains, appliance):
@@ -137,8 +205,10 @@ def disaggregate(net, architecture, mains, appliance):
     kwargs = dict(net=net, mains=mains, max_target_power=max_target_power)
     if architecture == 'rectangles':
         kwargs['on_power_threshold'] = on_power_threshold
+        kwargs['overlap_threshold'] = OVERLAP_THRESHOLDS[appliance]
     else:
         kwargs['stride'] = STRIDE
+        kwargs['std'] = INPUT_STATS['std']
     DISAG_FUNCS = {
         'rnn': disag_ae_or_rnn,
         'ae': disag_ae_or_rnn,
@@ -162,39 +232,40 @@ APPLIANCES = [
 ]
 
 
-def get_mains(building_i):
-        # Load mains
-        mains_filename = "building_{:d}_mains.csv".format(building_i)
-        mains_filename = join(GROUND_TRUTH_PATH, mains_filename)
-        mains = np.loadtxt(mains_filename, delimiter=',')
+def get_mains(building_i, padding=True):
+    # Load mains
+    mains_filename = "building_{:d}_mains.csv".format(building_i)
+    mains_filename = join(GROUND_TRUTH_PATH, mains_filename)
+    mains = np.loadtxt(mains_filename, delimiter=',')
 
-        # Pad
+    # Pad
+    if padding:
         mains = np.pad(
             mains, pad_width=(PAD_WIDTH, PAD_WIDTH), mode='constant')
 
-        # Standardise mains
-        mains -= INPUT_STATS['mean']
-        mains /= INPUT_STATS['std']
-
-        return mains
+    return mains
 
 
-for appliance, buildings in APPLIANCES:
-    for architecture in ['ae', 'rectangles']:
-        net = get_net(appliance, architecture)
-        for building_i in buildings:
-            logger.info("Starting disag for {}, {}, house {}..."
-                        .format(appliance, architecture, building_i))
-            mains = get_mains(building_i)
-            estimates = disaggregate(net, architecture, mains, appliance)
-            estimates_filename = (
-                "{:s}_building_{:d}_estimates_{:s}.csv"
-                .format(architecture, building_i, appliance))
-            estimates_filename = join(OUTPUT_PATH, estimates_filename)
-            np.savetxt(estimates_filename, estimates, delimiter=',', fmt='%.1d')
-            logger.info("Finished disag for {}, {}, house {}."
-                        .format(appliance, architecture, building_i))
+def neural_nilm_disag():
+    for appliance, buildings in APPLIANCES:
+        for architecture in ['rectangles']:
+            net = get_net(appliance, architecture)
+            for building_i in buildings:
+                logger.info("Starting disag for {}, {}, house {}..."
+                            .format(appliance, architecture, building_i))
+                mains = get_mains(building_i)
+                estimates = disaggregate(net, architecture, mains, appliance)
+                estimates_filename = (
+                    "{:s}_building_{:d}_estimates_{:s}.csv"
+                    .format(architecture, building_i, appliance))
+                estimates_filename = join(OUTPUT_PATH, estimates_filename)
+                np.savetxt(estimates_filename, estimates, delimiter=',', fmt='%.1d')
+                logger.info("Finished disag for {}, {}, house {}."
+                            .format(appliance, architecture, building_i))
 
+
+nilmtk_disag()
+#neural_nilm_disag()
 
 """
 Emacs variables

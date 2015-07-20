@@ -5,13 +5,23 @@ import matplotlib.pyplot as plt
 import yaml  # for pretty-printing dict
 from neuralnilm.metrics import run_metrics, across_all_appliances
 
-from disag_566 import APPLIANCES, OUTPUT_PATH
-
 # sklearn evokes warnings from numpy
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
-ESTIMATES_PATH = OUTPUT_PATH
+
+# list of tuples in the form (<appliance name>, <houses>)
+APPLIANCES = [
+    ('microwave', (1, 2, 3)),
+    ('fridge', (1, 2, 4, 5)),
+    ('dish washer', (1, 2, 5)),
+    ('kettle', (1, 2, 4, 5)),
+    ('washing machine', (1, 2, 5))
+]
+
+
+ESTIMATES_PATH = expanduser(
+    "~/PhD/experiments/neural_nilm/data_for_BuildSys2015/disag_estimates")
 GROUND_TRUTH_PATH = expanduser(
     "~/PhD/experiments/neural_nilm/data_for_BuildSys2015/ground_truth_and_mains")
 
@@ -24,7 +34,7 @@ def load(architecture, building_i, appliance):
     y_pred = np.loadtxt(estimates_fname, delimiter=',')
 
     # load ground truth
-    y_true_fname = "building_{}_{}.csv".format(building_i, appliance)
+    y_true_fname = "building_{}_{}.csv".format(building_i, appliance.replace(' ', '_'))
     y_true_fname = join(GROUND_TRUTH_PATH, y_true_fname)
     y_true = np.loadtxt(y_true_fname, delimiter=',')
 
