@@ -322,16 +322,16 @@ def net_dict_rnn(seq_length):
             10000: 1e-4
         }
     elif seq_length < 1500:
-        learning_rate = 1e-6
+        learning_rate = 1e-4
         learning_rate_changes_by_iteration = {
-            1000: 1e-7,
-            10000: 1e-8
+            5000: 1e-5,
+            9000: 1e-6
         }
     else:
-        learning_rate = 1e-7
+        learning_rate = 1e-5
         learning_rate_changes_by_iteration = {
-            1000: 1e-8,
-            10000: 1e-9
+            5000: 1e-6,
+            9000: 1e-7
         }
     return dict(
         epochs=10000,
@@ -368,13 +368,15 @@ def net_dict_rnn(seq_length):
                 'type': BLSTMLayer,
                 'num_units': 128,
                 'merge_mode': 'concatenate',
-                'grad_clipping': 1.0
+                'grad_clipping': 10.0,
+                'gradient_steps': 500
             },
             {
                 'type': BLSTMLayer,
                 'num_units': 256,
                 'merge_mode': 'concatenate',
-                'grad_clipping': 1.0
+                'grad_clipping': 10.0,
+                'gradient_steps': 500
             },
             {
                 'type': DenseLayer,
@@ -469,8 +471,11 @@ def exp_a(name, net_dict, multi_source):
 
 
 def main():
-    for net_dict_func in [net_dict_ae, net_dict_rectangles, net_dict_rnn]:
-        for appliance in ['microwave', 'washing machine',
+#    for net_dict_func in [net_dict_ae, net_dict_rectangles, net_dict_rnn]:
+    for net_dict_func in [net_dict_rnn]:
+        # for appliance in ['microwave', 'washing machine',
+        #                   'fridge', 'kettle', 'dish washer']:
+        for appliance in ['washing machine',
                           'fridge', 'kettle', 'dish washer']:
             # REMOVE IF RUN FROM SCRATCH:
             if net_dict_func == net_dict_ae:
@@ -500,6 +505,9 @@ def main():
                 if (appliance == 'washing machine' and
                         net_dict_func == net_dict_rectangles):
                     net.load_params(85351)
+                if (appliance == 'washing machine' and
+                        net_dict_func == net_dict_rnn):
+                    net.load_params(4000)
                 run_experiment(net, epochs=epochs)
             except KeyboardInterrupt:
                 logger.info("KeyboardInterrupt")
