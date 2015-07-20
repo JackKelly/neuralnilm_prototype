@@ -171,15 +171,19 @@ def nilmtk_disag():
 
 def run_co(meters):
     # TRAIN CO
+    logger.info("Training CO...")
     co = CombinatorialOptimisation()
     co.train(meters)
+    logger.info("Disag CO...")
     run_nilmtk_disag(co, 'co')
 
 
 def run_fhmm(meters):
     # TRAIN FHMM
+    logger.info("Training FHMM...")
     fhmm = FHMM()
     fhmm.train(meters)
+    logger.info("Disag FHMM...")
     run_nilmtk_disag(fhmm, 'fhmm')
 
 
