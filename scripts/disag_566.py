@@ -188,13 +188,16 @@ def run_fhmm(meters):
 
 
 def run_nilmtk_disag(disag, model_name):
-    for building_i in [1]:
+    for building_i in [1, 2, 3, 4, 5]:
         mains = get_mains(building_i, padding=False)
         mains = pd.DataFrame(mains)
         appliance_powers = disag.disaggregate_chunk(mains)
         for i, df in appliance_powers.iteritems():
-            appliance = disag.model[i]['training_metadata'].dominant_appliance()
-            appliance_type = appliance.identifier.type
+            if model_name == 'co':
+                appliance = disag.model[i]['training_metadata'].dominant_appliance()
+            else:
+                appliance = i.dominant_appliance()
+            appliance_type = appliance.identifier.type                
             estimates = df.astype(int).values
             estimates_filename = (
                 "{:s}_building_{:d}_estimates_{:s}.csv"
