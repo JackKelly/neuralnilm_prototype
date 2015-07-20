@@ -231,7 +231,7 @@ def disaggregate(net, architecture, mains, appliance):
 
 # list of tuples in the form (<appliance name>, <houses>)
 APPLIANCES = [
-    ('microwave', (1, 2, 3)),
+    ('microwave', (1, 2, 5)),
     ('fridge', (1, 2, 4, 5)),
     ('dish washer', (1, 2, 5)),
     ('kettle', (1, 2, 4, 5)),
@@ -254,10 +254,10 @@ def get_mains(building_i, padding=True):
 
 
 def neural_nilm_disag():
-    for appliance, buildings in APPLIANCES:
-        for architecture in ['rectangles']:
+    for appliance, buildings in APPLIANCES[:1]:
+        for architecture in ['rectangles', 'ae']:
             net = get_net(appliance, architecture)
-            for building_i in buildings:
+            for building_i in buildings[-1:]:
                 logger.info("Starting disag for {}, {}, house {}..."
                             .format(appliance, architecture, building_i))
                 mains = get_mains(building_i)
@@ -271,8 +271,8 @@ def neural_nilm_disag():
                             .format(appliance, architecture, building_i))
 
 
-nilmtk_disag()
-#neural_nilm_disag()
+#nilmtk_disag()
+neural_nilm_disag()
 
 """
 Emacs variables

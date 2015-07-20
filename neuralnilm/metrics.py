@@ -11,7 +11,6 @@ METRICS = {
         'recall_score'
     ],
     'regression': [
-        'explained_variance_score',
         'mean_absolute_error'
     ]
 }
@@ -23,6 +22,11 @@ def run_metrics(y_true, y_pred, mains, on_power_threshold=4):
     ----------
     on_power_threshold : int
     """
+    # Truncate
+    n = min(len(y_true), len(y_pred))
+    y_true = y_true[:n]
+    y_pred = y_pred[:n]
+    
     y_true[y_true <= on_power_threshold] = 0
     y_true_class = y_true > on_power_threshold
     y_pred_class = y_pred > on_power_threshold
