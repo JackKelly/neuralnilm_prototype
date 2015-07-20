@@ -134,3 +134,5 @@ plt.legend(rects, full_algorithm_names, ncol=n_algorithms, loc=(-6, -0.8),
            frameon=False)
 
 plt.show()
+
+
