@@ -512,7 +512,7 @@ def main():
             try:
                 net = exp_a(full_exp_name, net_dict, multi_source)
                 if net_dict_func == net_dict_rectangles and appliance == 'fridge':
-                    net.load_params(63274)
+                    net.load_params(25000)
                 run_experiment(net, epochs=epochs)
             except KeyboardInterrupt:
                 logger.info("KeyboardInterrupt")
