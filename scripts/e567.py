@@ -256,8 +256,9 @@ def net_dict_rectangles(seq_length):
         updates_func=nesterov_momentum,
         learning_rate=1e-3,
         learning_rate_changes_by_iteration={
-            200000: 1e-4,
-            250000: 1e-5
+             15000: 1e-4,
+            200000: 1e-5,
+            250000: 1e-6
         },
         epoch_callbacks={
 #            150000: only_train_on_real_data
@@ -492,6 +493,8 @@ def main():
         # for appliance in ['microwave', 'washing machine',
         #                   'fridge', 'kettle', 'dish washer']:
         for appliance in ['washing machine', 'fridge', 'dish washer']:
+            if appliance == 'washing machine' and net_dict_func == net_dict_rectangles:
+                continue
             full_exp_name = NAME + '_' + appliance + '_' + net_dict_func.name
             change_dir(PATH, full_exp_name)
             configure_logger(full_exp_name)
@@ -508,8 +511,8 @@ def main():
             epochs = net_dict.pop('epochs')
             try:
                 net = exp_a(full_exp_name, net_dict, multi_source)
-                if net_dict_func == net_dict_rectangles and appliance == 'washing machine':
-                    net.load_params(150000)
+                if net_dict_func == net_dict_rectangles and appliance == 'fridge':
+                    net.load_params(63274)
                 run_experiment(net, epochs=epochs)
             except KeyboardInterrupt:
                 logger.info("KeyboardInterrupt")
