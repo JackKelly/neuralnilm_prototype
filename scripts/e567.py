@@ -260,7 +260,7 @@ def net_dict_rectangles(seq_length):
             250000: 1e-5
         },
         epoch_callbacks={
-            150000: only_train_on_real_data
+#            150000: only_train_on_real_data
         },
         do_save_activations=True,
         auto_reshape=False,
@@ -419,8 +419,8 @@ def net_dict_ae(seq_length):
             75000: 1e-3
         },
         epoch_callbacks={
-            40000: only_train_on_real_data
-        },        
+#            40000: only_train_on_real_data
+        },
         do_save_activations=True,
         auto_reshape=False,
         plotter=Plotter(
@@ -508,6 +508,8 @@ def main():
             epochs = net_dict.pop('epochs')
             try:
                 net = exp_a(full_exp_name, net_dict, multi_source)
+                if net_dict_func == net_dict_rectangles and appliance == 'washing machine':
+                    net.load_params(150000)
                 run_experiment(net, epochs=epochs)
             except KeyboardInterrupt:
                 logger.info("KeyboardInterrupt")
