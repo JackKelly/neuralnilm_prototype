@@ -147,7 +147,7 @@ def get_source(appliance, logger, target_is_start_and_end_and_mean=False,
         MIN_OFF_DURATIONS    = [   0,   12,  160, 1800,   30]
 
     elif appliance == 'dish washer':
-        SEQ_LENGTH = 1024
+        SEQ_LENGTH = 1024 + 512
         TRAIN_BUILDINGS = [1, 2]
         VALIDATION_BUILDINGS = [5]
         APPLIANCES = [
@@ -499,10 +499,8 @@ def exp_a(name, net_dict, multi_source):
 
 def main():
 #    for net_dict_func in [net_dict_ae, net_dict_rectangles, net_dict_rnn]:
-    for net_dict_func in [net_dict_ae]:
-        # for appliance in ['microwave', 'washing machine',
-        #                   'fridge', 'kettle', 'dish washer']:
-        for appliance in ['washing machine', 'fridge', 'dish washer']:
+    for net_dict_func in [net_dict_ae, net_dict_rectangles]:
+        for appliance in ['microwave', 'kettle', 'dish washer']:
             full_exp_name = NAME + '_' + appliance + '_' + net_dict_func.name
             change_dir(PATH, full_exp_name)
             configure_logger(full_exp_name)

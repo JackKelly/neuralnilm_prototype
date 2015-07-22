@@ -741,7 +741,9 @@ g) dropout
 reduce seq lengths to:
 * washing machine  = 1024
 * fridge = 512
-* dish washer = 1024
+* dish washer = 1024+512 (tried AE and rectangles with 1024 seq length
+but wasn't pretty because washer in validation set is often longer
+than 1024)
 net_dict_rectangles:
 * increase learning rate by 1 order of magnitude
 * put back in the 512*6 layer
