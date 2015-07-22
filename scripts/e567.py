@@ -217,7 +217,7 @@ def get_source(appliance, logger, target_is_start_and_end_and_mean=False,
         on_power_threshold=ON_POWER_THRESHOLD,
         min_on_duration=MIN_ON_DURATION,
         min_off_duration=MIN_OFF_DURATION,
-        include_all=not target_is_start_and_end_and_mean,
+        include_all=False,
         allow_incomplete=False,
         target_is_start_and_end_and_mean=target_is_start_and_end_and_mean
     )
@@ -408,7 +408,7 @@ net_dict_rnn.name = 'rnn'
 
 
 def net_dict_ae(seq_length):
-    NUM_FILTERS = 4
+    NUM_FILTERS = 8
     return dict(
         epochs=100000,
         save_plot_interval=25000,
@@ -451,6 +451,16 @@ def net_dict_ae(seq_length):
                 'num_units': (seq_length - 3) * NUM_FILTERS,
                 'nonlinearity': rectify
             },
+            {
+                'type': DenseLayer,
+                'num_units': 128,
+                'nonlinearity': rectify
+            },            
+            {
+                'type': DenseLayer,
+                'num_units': (seq_length - 3) * NUM_FILTERS,
+                'nonlinearity': rectify
+            },            
             {
                 'type': ReshapeLayer,
                 'shape': (-1, (seq_length - 3), NUM_FILTERS)
