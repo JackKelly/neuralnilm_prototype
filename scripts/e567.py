@@ -218,7 +218,7 @@ def get_source(appliance, logger, target_is_start_and_end_and_mean=False,
         min_on_duration=MIN_ON_DURATION,
         min_off_duration=MIN_OFF_DURATION,
         include_all=not target_is_start_and_end_and_mean,
-        allow_incomplete=not target_is_start_and_end_and_mean,
+        allow_incomplete=False,
         target_is_start_and_end_and_mean=target_is_start_and_end_and_mean
     )
 
@@ -489,12 +489,10 @@ def exp_a(name, net_dict, multi_source):
 
 def main():
 #    for net_dict_func in [net_dict_ae, net_dict_rectangles, net_dict_rnn]:
-    for net_dict_func in [net_dict_rectangles, net_dict_ae]:
+    for net_dict_func in [net_dict_ae]:
         # for appliance in ['microwave', 'washing machine',
         #                   'fridge', 'kettle', 'dish washer']:
         for appliance in ['washing machine', 'fridge', 'dish washer']:
-            if appliance == 'washing machine' and net_dict_func == net_dict_rectangles:
-                continue
             full_exp_name = NAME + '_' + appliance + '_' + net_dict_func.name
             change_dir(PATH, full_exp_name)
             configure_logger(full_exp_name)
@@ -511,8 +509,6 @@ def main():
             epochs = net_dict.pop('epochs')
             try:
                 net = exp_a(full_exp_name, net_dict, multi_source)
-                if net_dict_func == net_dict_rectangles and appliance == 'fridge':
-                    net.load_params(25000)
                 run_experiment(net, epochs=epochs)
             except KeyboardInterrupt:
                 logger.info("KeyboardInterrupt")
