@@ -257,8 +257,8 @@ def net_dict_ae_rnn(seq_length):
         updates_func=nesterov_momentum,
         learning_rate=1e-2,
         learning_rate_changes_by_iteration={
-            1000: 1e-3,
-            10000: 1e-4
+            102000: 1e-3,
+            110000: 1e-4
         },
         do_save_activations=True,
         auto_reshape=False,
@@ -339,7 +339,7 @@ def net_dict_ae_rnn(seq_length):
                     },
                     {
                         'type': ReshapeLayer,
-                        'shape': (64 * seq_length, 256)
+                        'shape': (64 * seq_length, 512)
                     },
                     {
                         'type': DenseLayer,
@@ -388,8 +388,10 @@ def main():
             try:
                 net = exp_a(full_exp_name, net_dict, multi_source)
                 net.experiment_name = 'e567_microwave_ae'
+                net.set_csv_filenames()
                 net.load_params(iteration=100000, path='/data/dk3810/figures/e567_microwave_ae')
                 net.experiment_name = full_exp_name
+                net.set_csv_filenames()
                 run_experiment(net, epochs=epochs)
             except KeyboardInterrupt:
                 logger.info("KeyboardInterrupt")

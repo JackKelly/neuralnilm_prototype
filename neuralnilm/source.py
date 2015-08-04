@@ -173,8 +173,9 @@ class Source(object):
     def stop(self):
         self.empty_queue()
         self._stop.set()
-        self._thread.join()
-        self._thread = None
+        if self._thread is not None:
+            self._thread.join()
+            self._thread = None
 
     def get(self, timeout=30, **kwargs):
         if self._thread is None:

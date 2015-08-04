@@ -106,14 +106,7 @@ class Net(object):
         self.plotter.net = self
         self.auto_reshape = auto_reshape
 
-        self.csv_filenames = {
-            'training_costs': self.experiment_name + "_training_costs.csv",
-            'validation_costs': self.experiment_name + "_validation_costs.csv",
-            'training_costs_metadata':
-                self.experiment_name + "_training_costs_metadata.csv",
-            'best_costs': self.experiment_name + "_best_costs.txt",
-        }
-
+        self.set_csv_filenames()
         self.generate_validation_data_and_set_shapes()
 
         self.validation_costs = []
@@ -129,6 +122,15 @@ class Net(object):
         self.add_layers(layers_config)
         self.logger.info(
             "Done initialising network for " + self.experiment_name)
+
+    def set_csv_filenames(self):
+        self.csv_filenames = {
+            'training_costs': self.experiment_name + "_training_costs.csv",
+            'validation_costs': self.experiment_name + "_validation_costs.csv",
+            'training_costs_metadata':
+                self.experiment_name + "_training_costs_metadata.csv",
+            'best_costs': self.experiment_name + "_best_costs.txt",
+        }
 
     def generate_validation_data_and_set_shapes(self):
         # Generate a "validation" sequence whose cost we will compute
@@ -288,7 +290,7 @@ class Net(object):
         self.logger.info("Changing layers...\nOld architecture:")
         self.print_net()
         layer_changes = self.layer_changes[epoch]
-        for layer_to_remove in range(layer_changes['remove_from'], 0):
+        for layer_to_remove in range(layer_changes.get('remove_from', 0), 0):
             self.logger.info(
                 "Removed {}".format(self.layers.pop(layer_to_remove)))
         if 'callback' in layer_changes:
