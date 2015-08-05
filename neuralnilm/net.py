@@ -118,7 +118,9 @@ class Net(object):
         # Shape is (number of examples per batch,
         #           maximum number of time steps per example,
         #           number of features per example)
-        self.layers.append(InputLayer(shape=self.input_shape))
+        input_layer = InputLayer(shape=self.input_shape)
+        self.layer_labels['input'] = input_layer
+        self.layers.append(input_layer)
         self.add_layers(layers_config)
         self.logger.info(
             "Done initialising network for " + self.experiment_name)
