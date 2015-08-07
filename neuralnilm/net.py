@@ -32,6 +32,7 @@ else:
 from lasagne.nonlinearities import sigmoid, rectify
 from lasagne.utils import floatX
 from lasagne.updates import nesterov_momentum
+from lasagne.objectives import squared_error
 
 from .source import quantize
 from .layers import MixtureDensityLayer
@@ -63,7 +64,7 @@ class Net(object):
                  experiment_name="",
                  validation_interval=10,
                  save_plot_interval=100,
-                 loss_function=lasagne.objectives.mse,
+                 loss_function=lambda x, t: squared_error(x, t).mean(),
                  layer_changes=None,
                  seed=42,
                  epoch_callbacks=None,
