@@ -358,6 +358,6 @@ class PolygonOutputLayer(Layer):
 """
 Emacs variables
 Local Variables:
-compile-command: "cp /home/jack/workspace/python/neuralnilm/neuralnilm/layers.py /mnt/sshfs/imperial/workspace/python/neuralnilm/neuralnilm/"
+compile-command: "cp /home/jack/workspace/python/neuralnilm/neuralnilm_prototype/layers.py /mnt/sshfs/imperial/workspace/python/neuralnilm/neuralnilm_prototype/"
 End:
 """

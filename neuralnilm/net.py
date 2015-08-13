@@ -636,6 +636,6 @@ def _write_csv_row(filename, row, mode='a'):
 """
 Emacs variables
 Local Variables:
-compile-command: "rsync -uvzr --progress --exclude '.git' --exclude '.ropeproject' --exclude '*/.ipynb_checkpoints' --exclude '*/flycheck_*.py' /home/jack/workspace/python/neuralnilm/ /mnt/sshfs/imperial/workspace/python/neuralnilm/"
+compile-command: "rsync -uvzr --progress --exclude '.git' --exclude '.ropeproject' --exclude '*/.ipynb_checkpoints' --exclude '*/flycheck_*.py' /home/jack/workspace/python/neuralnilm_prototype/ /mnt/sshfs/imperial/workspace/python/neuralnilm_prototype/"
 End:
 """

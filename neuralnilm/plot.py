@@ -419,6 +419,6 @@ def gmm_heatmap(ax, thetas, x_lim, y_lim, normalise=False,
 """
 Emacs variables
 Local Variables:
-compile-command: "cp /home/jack/workspace/python/neuralnilm/neuralnilm/plot.py /mnt/sshfs/imperial/workspace/python/neuralnilm/neuralnilm/"
+compile-command: "cp /home/jack/workspace/python/neuralnilm/neuralnilm_prototype/plot.py /mnt/sshfs/imperial/workspace/python/neuralnilm/neuralnilm_prototype/"
 End:
 """

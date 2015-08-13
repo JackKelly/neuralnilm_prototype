@@ -276,6 +276,6 @@ def mains_to_batches(mains, n_seq_per_batch, seq_length, std, stride=1):
 """
 Emacs variables
 Local Variables:
-compile-command: "cp /home/jack/workspace/python/neuralnilm/neuralnilm/disaggregate.py /mnt/sshfs/imperial/workspace/python/neuralnilm/neuralnilm/"
+compile-command: "cp /home/jack/workspace/python/neuralnilm/neuralnilm_prototype/disaggregate.py /mnt/sshfs/imperial/workspace/python/neuralnilm/neuralnilm_prototype/"
 End:
 """

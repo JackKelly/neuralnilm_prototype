@@ -1694,6 +1694,6 @@ def _preprocess_activations(activations, max_power=None, sample_period=6,
 """
 Emacs variables
 Local Variables:
-compile-command: "cp /home/jack/workspace/python/neuralnilm/neuralnilm/source.py /mnt/sshfs/imperial/workspace/python/neuralnilm/neuralnilm/"
+compile-command: "cp /home/jack/workspace/python/neuralnilm/neuralnilm_prototype/source.py /mnt/sshfs/imperial/workspace/python/neuralnilm/neuralnilm_prototype/"
 End:
 """

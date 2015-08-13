@@ -428,6 +428,6 @@ if __name__ == "__main__":
 """
 Emacs variables
 Local Variables:
-compile-command: "cp /home/jack/workspace/python/neuralnilm/scripts/e573.py /mnt/sshfs/imperial/workspace/python/neuralnilm/scripts/"
+compile-command: "cp /home/jack/workspace/python/neuralnilm_prototype/scripts/e573.py /mnt/sshfs/imperial/workspace/python/neuralnilm_prototype/scripts/"
 End:
 """

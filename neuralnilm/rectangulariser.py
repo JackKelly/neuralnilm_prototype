@@ -121,6 +121,6 @@ def _start_and_end_and_mean(data):
 """
 Emacs variables
 Local Variables:
-compile-command: "cp /home/jack/workspace/python/neuralnilm/neuralnilm/rectangulariser.py /mnt/sshfs/imperial/workspace/python/neuralnilm/neuralnilm/"
+compile-command: "cp /home/jack/workspace/python/neuralnilm/neuralnilm_prototype/rectangulariser.py /mnt/sshfs/imperial/workspace/python/neuralnilm/neuralnilm_prototype/"
 End:
 """
