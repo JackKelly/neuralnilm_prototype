@@ -10,7 +10,8 @@ the plots for the first version of our
 
 Note that `Neural NILM Prototype` is completely unsupported because
 it is replaced by the
-[Neural NILM project](https://github.com/JackKelly/neuralnilm).
+[Neural NILM project](https://github.com/JackKelly/neuralnilm).  Furthermore,
+the code for `Neural NILM Prototype` is a bit of a mess!
 
 Directories:
 
