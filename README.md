@@ -1,4 +1,4 @@
-# neuralnilm
+# Neural NILM Prototype
 
 Early prototype for the Neural NILM (non-intrusive load monitoring)
 software.  This software will be completely re-written as the [Neural
