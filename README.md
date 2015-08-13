@@ -8,6 +8,10 @@ This is the software that was used to run the experiments and produce
 the plots for the first version of our 
 [Neural NILM paper](http://arxiv.org/abs/1507.06594).
 
+Note that `Neural NILM Prototype` is completely unsupported because
+it is replaced by the
+[Neural NILM project](https://github.com/JackKelly/neuralnilm).
+
 Directories:
 
 * `neuralnilm` contains re-usable library code
