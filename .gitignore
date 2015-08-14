@@ -52,10 +52,12 @@ docs/_build/
 
 # PyBuilder
 target/
-env
 
 # Rope
 .ropeproject/
+
+# IPython notebooks
 .ipynb_checkpoints/
 
+# Data
 *.npy

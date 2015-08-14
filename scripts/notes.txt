@@ -766,6 +766,8 @@ net_dict_ae:
 573: AE & input -> concat -> Dense (each dense sees only one timestep)
 -> BLSTM
 
+574: like 573 but with 2 dense layers before bLSTM.
+
 TODO:
 * try outputting a binary mask.  This might make skip connections more
 effective.  And then, after training a binary mask, try adding a few
