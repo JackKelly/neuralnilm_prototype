@@ -7,10 +7,9 @@ NILM project](https://github.com/JackKelly/neuralnilm).
 This is the software that was used to run the experiments for our 
 [Neural NILM paper](http://arxiv.org/abs/1507.06594).
 
-Note that `Neural NILM Prototype` is completely unsupported because
-it is replaced by the
-[Neural NILM project](https://github.com/JackKelly/neuralnilm).  Furthermore,
-the code for `Neural NILM Prototype` is a bit of a mess!
+Note that `Neural NILM Prototype` is completely unsupported and is a bit of a mess!
+
+If you really want to re-implement my Neural NILM ideas, then I recommend that you start from scratch using a modern DeepLearning framework like TensorFlow.  Honestly, it will be easier in the long run!
 
 Directories:
 
